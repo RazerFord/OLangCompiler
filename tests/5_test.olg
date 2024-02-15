@@ -1,0 +1,31 @@
+class Math is
+  this is
+  end
+
+  method minMax(a: Integer, b: Integer, c: Integer) : Integer is
+    if a.Less(b) then
+      return max(a, c)
+    else
+      if (b.Equal(c)) then
+        return 0
+      end
+      return b
+    end
+  end
+
+  method min(a: Integer, b: Integer) : Integer is
+    if a.Less(b) then
+      return a
+    else
+      return b
+    end
+  end
+
+  method max(a: Integer, b: Integer) : Integer is
+    if a.Less(b) then
+      return b
+    else
+      return a
+    end
+  end
+end

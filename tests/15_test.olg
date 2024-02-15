@@ -1,0 +1,11 @@
+class Generic[T] is
+  var list : List[T]
+end
+
+class Main is
+  this is
+    var gen : Generic[Integer]
+
+    gen.append(42)
+  end
+end

@@ -1,0 +1,26 @@
+class Distance is
+  method distance2(a: Point, b: Point): Real is
+    var math := Math
+    return math.pow2(a.x - b.x).Plus(math.pow2(a.y - b.y))
+  end
+end
+
+class Math is
+  method pow2(v: Real): Real is
+    return v.Mult(v)
+  end
+end
+
+class Point is
+  var x : Real
+  var y : Real
+
+  this is
+    this.init
+  end
+
+  method init is
+    x := 0.0
+    y := 0.0
+  end
+end

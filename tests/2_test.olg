@@ -1,0 +1,15 @@
+class Point is
+  var x : Real
+  var y : Real
+  var z : Real
+
+  this is
+    this.init
+  end
+
+  method init is
+    x := 0.0
+    y := 0.0
+    z := 0.0
+  end
+end

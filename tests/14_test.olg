@@ -1,0 +1,30 @@
+class NonCompileIdenticalProperties is
+  var i : Real
+  var i : Integer
+end
+
+class NonCompileReturn is
+  method test(): Integer is
+    return
+  end
+
+  method test(): Integer is
+  end
+
+  method test() is
+    return 213
+  end
+end
+
+class NonCompileIdenticalMembers is
+  method test(): Integer is
+    return 0
+  end
+  
+  method test(): Real is
+    return 0.0
+  end
+end
+
+class NonCompileIdenticalMembers is
+end
