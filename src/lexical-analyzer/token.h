@@ -33,181 +33,68 @@ class token {
   token(const span& span, token_id code) : span_(span), code_(code) {}
   token(const token& other) : token(other.span_, other.code_) {}
 
-  virtual void print() {
-    std::cout << "[" << span_.begin_ << ", " << span_.end_ << ")"
-              << " code: " << printable_enum(code_) << std::endl;
-  }
+  virtual void print() = 0;
 
   virtual ~token(){};
 };
 
-class identifier : public token {
- private:
-  std::string value_;
-
- public:
-  identifier(const span& span, token_id code, const std::string& value)
-      : token(span, code), value_(value) {}
-
-  identifier(const token& other, const std::string& value)
-      : token(other), value_(value) {}
-
-  identifier(const identifier& identifier)
-      : token(identifier), value_(identifier.value_) {}
-
-  virtual void print() override {
-    std::cout << value_ << " ";
-    this->token::print();
-  }
-
-  ~identifier() override {}
-};
-
-class char_literal : public token {
- private:
-  char value_;
-
- public:
-  char_literal(const span& span, token_id code, const char value)
-      : token(span, code), value_(value) {}
-
-  char_literal(const token& other, const char value)
-      : token(other), value_(value) {}
-
-  char_literal(const char_literal& char_literal)
-      : token(char_literal), value_(char_literal.value_) {}
-
-  virtual void print() override {
-    std::cout << value_ << " ";
-    this->token::print();
-  }
-
-  ~char_literal() override {}
-};
-
-class integer_literal : public token {
- private:
-  std::int32_t value_;
-
- public:
-  integer_literal(const span& span, token_id code, std::int32_t value)
-      : token(span, code), value_(value) {}
-
-  integer_literal(const token& other, std::int32_t value)
-      : token(other), value_(value) {}
-
-  integer_literal(const integer_literal& integer_literal)
-      : token(integer_literal), value_(integer_literal.value_) {}
-
-  virtual void print() override {
-    std::cout << value_ << " ";
-    this->token::print();
-  }
-
-  ~integer_literal() override {}
-};
-
-class real_literal : public token {
- private:
-  std::double_t value_;
-
- public:
-  real_literal(const span& span, token_id code, std::double_t value)
-      : token(span, code), value_(value) {}
-
-  real_literal(const token& other, std::double_t value)
-      : token(other), value_(value) {}
-
-  real_literal(const real_literal& real_literal)
-      : token(real_literal), value_(real_literal.value_) {}
-
-  virtual void print() override {
-    std::cout << value_ << " ";
-    this->token::print();
-  }
-
-  ~real_literal() override {}
-};
-
-class boolean_literal : public token {
- private:
-  bool value_;
-
- public:
-  boolean_literal(const span& span, token_id code, bool value)
-      : token(span, code), value_(value) {}
-
-  boolean_literal(const token& other, bool value)
-      : token(other), value_(value) {}
-
-  boolean_literal(const boolean_literal& boolean_literal)
-      : token(boolean_literal), value_(boolean_literal.value_) {}
-
-  virtual void print() override {
-    std::cout << std::boolalpha << value_ << std::noboolalpha << " ";
-    this->token::print();
-  }
-
-  ~boolean_literal() override {}
-};
-
-class keyword : public token {
- private:
-  std::string value_;
-
- public:
-  keyword(const span& span, token_id code, const std::string& value)
-      : token(span, code), value_(value) {}
-
-  keyword(const token& other, const std::string& value)
-      : token(other), value_(value) {}
-
-  keyword(const keyword& keyword) : token(keyword), value_(keyword.value_) {}
-
-  virtual void print() override {
-    std::cout << value_ << " ";
-    this->token::print();
-  }
-
-  ~keyword() override {}
-};
-
-class symbol : public token {
- private:
-  std::string value_;
-
- public:
-  symbol(const span& span, token_id code, const std::string& value)
-      : token(span, code), value_(value) {}
-
-  symbol(const token& other, const std::string& value)
-      : token(other), value_(value) {}
-
-  symbol(const symbol& symbol) : token(symbol), value_(symbol.value_) {}
-
-  virtual void print() override {
-    std::cout << value_ << " ";
-    this->token::print();
-  }
-
-  ~symbol() override {}
-};
-
 template <class T>
-class literal : token {
- private:
+class basic_template_token : public token {
+ protected:
   T value_;
 
  public:
-  literal(const span& span, token_id code, const T& value)
+  basic_template_token(const span& span, token_id code, const T& value)
       : token(span, code), value_(value) {}
 
-  literal(const token& other, const std::string& value)
+  basic_template_token(const token& other, const std::string& value)
       : token(other), value_(value) {}
 
-  literal(const literal& literal) : token(literal), value_(literal.value_) {}
+  basic_template_token(const basic_template_token& btt)
+      : token(btt), value_(btt.value_) {}
 
-  ~literal() override {}
+  void print() override {
+    std::cout << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
+              << " code: " << printable_enum(code_) << " " << this->value_
+              << std::endl;
+  }
+
+  ~basic_template_token() override {}
+};
+
+class identifier : public basic_template_token<std::string> {
+ public:
+  using basic_template_token::basic_template_token;
+};
+
+class keyword : public basic_template_token<std::string> {
+ public:
+  using basic_template_token::basic_template_token;
+};
+
+class symbol : public basic_template_token<std::string> {
+ public:
+  using basic_template_token::basic_template_token;
+};
+
+class char_literal : public basic_template_token<char> {
+ public:
+  using basic_template_token::basic_template_token;
+};
+
+class integer_literal : public basic_template_token<std::int32_t> {
+ public:
+  using basic_template_token::basic_template_token;
+};
+
+class real_literal : public basic_template_token<std::double_t> {
+ public:
+  using basic_template_token::basic_template_token;
+};
+
+class boolean_literal : public basic_template_token<bool> {
+ public:
+  using basic_template_token::basic_template_token;
 };
 
 template <class T, class U>
