@@ -45,14 +45,14 @@ class token_generator {
     RealNumeric,
   };
 
-  static decltype(auto) generate_token(const std::string& filepath) {
+  static std::vector<std::unique_ptr<token::token>> generate_token(const std::string& filepath) {
     std::ifstream source_code(filepath);
 
     std::vector<std::unique_ptr<token::token>> tokens;
 
     char ch;
     std::string buff;
-    int position = -1;
+    int position = 0;
     State state = State::Start;
 
     while (source_code.get(ch)) {
@@ -81,7 +81,9 @@ class token_generator {
           break;
         };
         case State::Word: {
-          if (!(std::isalpha(ch) && std::isdigit(ch))) {
+          if (std::isalpha(ch) || std::isdigit(ch)) {
+            buff += ch;
+          } else {
             token::span span(position - buff.size(), position);
             std::unique_ptr<token::token> token;
             if (token_by_name.contains(buff)) {
@@ -103,9 +105,8 @@ class token_generator {
             source_code.unget();
             position--;
             state = State::Start;
-          } else {
-            buff += ch;
           }
+          break;
         }
         case State::Numeric: {
           if (ch == '.') {
@@ -125,6 +126,7 @@ class token_generator {
             position--;
             state = State::Start;
           }
+          break;
         }
         case State::RealNumeric: {
           if (std::isdigit(ch)) {
@@ -141,6 +143,7 @@ class token_generator {
             position--;
             state = State::Start;
           }
+          break;
         }
         default: {
         }

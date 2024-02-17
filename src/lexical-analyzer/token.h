@@ -22,7 +22,7 @@ struct span {
 class token {
  protected:
   span span_;
-  token_id code_;  // todo: replace on enum value
+  token_id code_;
 
   template <class E>
   static decltype(auto) printable_enum(const E& e) {
@@ -34,7 +34,7 @@ class token {
   token(const token& other) : token(other.span_, other.code_) {}
 
   virtual void print() {
-    std::cout << "[" << span_.begin_ << ", " << span_.end_ << "]"
+    std::cout << "[" << span_.begin_ << ", " << span_.end_ << ")"
               << " code: " << printable_enum(code_) << std::endl;
   }
 
@@ -144,7 +144,7 @@ class boolean_literal : public token {
       : token(boolean_literal), value_(boolean_literal.value_) {}
 
   virtual void print() override {
-    std::cout << value_ << " ";
+    std::cout << std::boolalpha << value_ << std::noboolalpha << " ";
     this->token::print();
   }
 
