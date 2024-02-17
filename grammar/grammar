@@ -1,0 +1,106 @@
+Program : { ClassDeclaration }
+
+ClassDeclaration
+  : class ClassName [ extends ClassName ] is
+    { MemberDeclaration }
+  end
+
+ClassName : Identifier [ '[' ClassName ']' ]
+
+MemberDeclaration
+  : VariableDeclaration
+  | MethodDeclaration
+  | ConstructorDeclaration
+
+VariableDeclaration
+  : var Identifier ':' Expression
+
+MethodDeclaration
+  : method Identifier [ Parameters ] [ : Identifier ]
+    is Body end
+
+Parameters : ( ParameterDeclaration { , ParameterDeclaration } )
+
+ParameterDeclaration
+  : Identifier : ClassName
+
+Body : { VariableDeclaration | Statement }
+
+ConstructorDeclaration
+  : this [ Parameters ] is Body end
+
+Statement : Assignment
+  | WhileLoop
+  | IfStatement
+  | ReturnStatement
+
+Assignment : Identifier ':=' Expression
+
+WhileLoop : while Expression loop Body end
+
+IfStatement : if Expression then Body [ else Body ] end
+
+ReturnStatement
+  : return [ Expression ]
+
+Expression : Primary { '.' Identifier [ Arguments ] }
+
+Arguments : '(' Expression { ',' Expression } ')'
+
+Primary : IntegerLiteral
+  | RealLiteral
+  | BooleanLiteral
+  | this
+  | ClassName
+
+Identifier :  CharLiteral { CharLiteral | Digit }
+
+CharLiteral : [a-zA-Z_]
+
+Digit : [0-9]
+
+Class : 'class'
+
+Extends : 'extends'
+
+Is : 'is'
+
+End : 'end'
+
+Var : 'var'
+
+Colon : ':'
+
+Comma : ','
+
+LBracket : '('
+
+RBracket : ')'
+
+LSBracket : '['
+
+RSBracket : ']'
+
+Assign : ':='
+
+While : 'while'
+
+Loop : 'loop'
+
+If : 'if'
+
+Then : 'then'
+
+Else : 'else'
+
+Return : 'return'
+
+This : 'this'
+
+Dot : '.'
+
+IntegerLiteral : Digit { Digit }
+
+RealLiteral : Digit { Digit } Dot { Digit } 
+
+BooleanLiteral : 'true' | 'false'
