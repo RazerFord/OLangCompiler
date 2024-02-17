@@ -11,3 +11,5 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 add_executable(main src/main.cpp)
+
+add_executable(lexical-analyzer-starter src/lexical-analyzer-starter.cpp)
