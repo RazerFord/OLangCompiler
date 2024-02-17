@@ -81,7 +81,7 @@ class token_generator {
         } break;
         case State::RealNumeric: {
           token = token::make<token::real_literal, std::double_t>(
-              span, token_id::IntegerLiteral, context.buff);
+              span, token_id::RealLiteral, context.buff);
           break;
         }
         default: {

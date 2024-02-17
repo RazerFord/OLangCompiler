@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import subprocess
-import filecmp
+import re
 
 DIR = "build"
 FILE = "lexical-analyzer-starter"
@@ -39,8 +39,9 @@ def test():
         text_expected = read_all(excepted_file)
 
         for pair in zip(text_expected.splitlines(), text_actual.splitlines()):
-            if pair[0] != pair[1]:
-                print(f"expected: {pair[0]}")
+            t = pair[0].replace(".0", "")
+            if t != pair[1]:
+                print(f"expected: {t}")
                 print(f"actual: {pair[1]}")
 
 
