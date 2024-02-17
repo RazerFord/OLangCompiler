@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <ios>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -107,6 +108,12 @@ class real_literal : public basic_template_token<std::double_t> {
 class boolean_literal : public basic_template_token<bool> {
  public:
   using basic_template_token::basic_template_token;
+
+  void print() override {
+    std::cout << std::boolalpha << token_id_to_string(code_) << " "
+              << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
+              << " \"" << this->value_ << "\"" << std::noboolalpha << std::endl;
+  }
 };
 
 template <class T, class U>
