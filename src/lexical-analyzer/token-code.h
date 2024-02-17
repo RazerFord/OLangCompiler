@@ -27,4 +27,5 @@ enum class token_id {
   IntegerLiteral,
   RealLiteral,
   BooleanLiteral,
+  Space,
 };

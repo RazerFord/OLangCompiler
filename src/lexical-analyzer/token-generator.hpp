@@ -29,7 +29,7 @@ class token_generator {
       {":=", token_id::Assign},
       {"true", token_id::BooleanLiteral},
       {"false", token_id::BooleanLiteral},
-  };
+      {" ", token_id::Space}};
 
   static void generate_token(const std::string& filepath) {}
 };
