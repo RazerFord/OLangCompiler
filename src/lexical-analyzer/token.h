@@ -54,9 +54,9 @@ class basic_template_token : public token {
       : token(btt), value_(btt.value_) {}
 
   void print() override {
-    std::cout << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
-              << " code: " << printable_enum(code_) << " " << this->value_
-              << std::endl;
+    std::cout << token_id_to_string(code_) << " "
+              << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
+              << " \"" << this->value_ << "\"" << std::endl;
   }
 
   ~basic_template_token() override {}
@@ -75,6 +75,18 @@ class keyword : public basic_template_token<std::string> {
 class symbol : public basic_template_token<std::string> {
  public:
   using basic_template_token::basic_template_token;
+
+  void print() override {
+    std::string tok;
+    if (this->value_ == "\n") {
+      tok = "\\n";
+    } else {
+      tok = this->value_;
+    }
+    std::cout << token_id_to_string(code_) << " "
+              << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
+              << " \"" << tok << "\"" << std::endl;
+  }
 };
 
 class char_literal : public basic_template_token<char> {
