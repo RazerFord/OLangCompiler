@@ -225,10 +225,8 @@ std::unique_ptr<T> make(const span& span, token_id code,
     return std::make_unique<T>(span, code, std::stoi(value));
   } else if constexpr (std::is_same_v<U, std::double_t>) {
     return std::make_unique<T>(span, code, std::stod(value));
-  } else if constexpr (std::is_same_v<U, std::string>) {
-    return std::make_unique<T>(span, code, value);
   } else {
-    static_assert(false);
+    return std::make_unique<T>(span, code, value);
   }
 }
 }  // namespace token
