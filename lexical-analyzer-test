@@ -39,9 +39,14 @@ def test():
         text_expected = read_all(excepted_file)
 
         for pair in zip(text_expected.splitlines(), text_actual.splitlines()):
-            t = pair[0].replace(".0", "")
-            if t != pair[1]:
-                print(f"expected: {t}")
+            match = re.match(".*(\.[0-9]+)", pair[0])
+            p0 = pair[0]
+            if match is not None:
+                match = match[1]
+                replaced = match.rstrip("0").rstrip(".")
+                p0 = pair[0].replace(match, replaced)
+            if p0 != pair[1]:
+                print(f"expected: {p0}")
                 print(f"actual: {pair[1]}")
 
 
