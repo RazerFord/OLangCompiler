@@ -55,7 +55,8 @@ class token_generator {
   static void complete_token(generator_context& context, std::ifstream& source_code) {
      if (context.buff.empty()) return;
 
-      token::span span(context.position - context.buff.size() - 1, context.position);
+      context.position--;
+      token::span span(context.position - context.buff.size(), context.position);
       std::unique_ptr<token::token> token;
 
       switch (context.state) {
@@ -91,7 +92,6 @@ class token_generator {
       context.buff.clear();
 
       source_code.unget();
-      context.position--;
       context.state = State::Start;
   }
 
