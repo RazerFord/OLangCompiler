@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import filecmp
+
+DIR = "build"
+FILE = "lexical-analyzer-starter"
+
+
+def prepare():
+    if not os.path.exists(DIR):
+        os.makedirs(DIR)
+    subprocess.run([f"cd ./{DIR} && cmake .. && make {FILE}"], shell=True)
+
+
+def read_all(path: str, lam=lambda x: x) -> str:
+    text = ""
+    with open(path) as cin:
+        for line in cin:
+            text += lam(line)
+    return text
+
+
+def test():
+    for i in range(1, 16):
+        excepted_file = os.path.abspath(f"./tests/{i}_test.olg")
+        actual_file = f"{DIR}/{i}_result"
+
+        file = open(actual_file, "w")
+        filename = excepted_file.replace(" ", "\ ")
+        subprocess.run(
+            [f"./{DIR}/{FILE} {filename} {actual_file}"], shell=True, stdout=file
+        )
+
+        text_actual = read_all(
+            actual_file,
+            lambda x: x[x.find('"') + 1 : x.rfind('"')].replace("\\n", "\n"),
+        )
+        text_expected = read_all(excepted_file)
+
+        for pair in zip(text_expected.splitlines(), text_actual.splitlines()):
+            if pair[0] != pair[1]:
+                print(f"expected: {pair[0]}")
+                print(f"actual: {pair[1]}")
+
+
+if __name__ == "__main__":
+    prepare()
+    test()
