@@ -1,6 +1,7 @@
 #pragma once
 
 enum class token_id {
+  Unknown,
   Identifier,
   CharLiteral,
   Digit,
@@ -28,4 +29,5 @@ enum class token_id {
   RealLiteral,
   BooleanLiteral,
   Space,
+  NewLine,
 };
