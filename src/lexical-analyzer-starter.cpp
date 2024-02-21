@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include "lexical-analyzer/lexical-analyzer.hpp"
+#include "lexical-analyzer/lexical-analyzer.h"
 
 int main(int argc, char** argv) {
   std::string file(argv[1]);
