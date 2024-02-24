@@ -110,9 +110,9 @@ class boolean_literal : public basic_template_token<bool> {
   using basic_template_token::basic_template_token;
 
   void print() override {
-    std::cout << std::boolalpha << token_id_to_string(code_) << " "
-              << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
-              << " \"" << this->value_ << "\"" << std::noboolalpha << std::endl;
+    std::cout << std::boolalpha;
+    this->basic_template_token::print();
+    std::cout << std::noboolalpha << std::endl;
   }
 };
 
