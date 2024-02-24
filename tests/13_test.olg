@@ -1,0 +1,9 @@
+class Fibonacci is
+  method calculate(n: Integer): Integer is
+    if (n.Less(0)) then return -1 end
+    if (n.Equal(0)) then return 0 end
+    if (n.Equal(1)) then return 1 end
+
+    return this.calculate(n - 1) + this.calculate(n - 2)
+  end
+end

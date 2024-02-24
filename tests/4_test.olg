@@ -1,0 +1,19 @@
+class Hello is
+  var i : Integer(42)
+  var j : Real
+  var k : Boolean
+
+  this is
+    this(0, 0.0)
+  end
+
+  this(i: Integer, j: Real) is
+    this(i, j, false)
+  end
+
+  this(i: Integer, j: Real, k: Boolean) is
+    this.i := i
+    this.j := j
+    this.k := k
+  end
+end

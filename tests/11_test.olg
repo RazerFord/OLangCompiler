@@ -1,0 +1,27 @@
+class Base is
+  method test : Integer is
+    return 0
+  end
+
+  method test(i: Integer) : Integer is
+    return 1
+  end
+end
+
+class A extends Base is
+  method test : Integer is
+    return 3
+  end
+end
+
+class Main is
+  var success : false
+
+  this is
+    var v : Base
+    v := A
+
+    if v.test.Equal(3) then success := true end
+    if v.test(1).Equal(1) then success := true end
+  end
+end
