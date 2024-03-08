@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -22,7 +23,8 @@ enum class ast_token {
   IfStatement,
   ReturnStatement,
   Expression,
-  Primary
+  Primary,
+  Identifier
 };
 
 using token::span;
@@ -48,6 +50,20 @@ class ast_node {
 
  public:
   virtual ~ast_node() {}
+};
+
+class identifier_node : public ast_node {
+ private:
+  std::string name_;
+
+ public:
+  void setName(const std::string& name) { name_ = name; }
+
+  std::string getName() { return name_; }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
 };
 
 class class_node : public ast_node {
@@ -87,7 +103,7 @@ class Member : public ast_node {
   void generate() override {}
 };
 
-class Variable : public ast_node {
+class variable_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
@@ -117,19 +133,32 @@ class Parameter : public ast_node {
   void generate() override {}
 };
 
-class Body : public ast_node {
+class statement;
+
+class body_node : public ast_node {
+ private:
+  std::vector<std::shared_ptr<variable_node>> variables_;
+  std::vector<std::shared_ptr<statement>> statements_;
+
+ public:
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class Statement : public ast_node {
+class statement_node : public ast_node {
+ public:
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class Assignment : public ast_node {
+class assignment : public statement_node {
+ private:
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<expression> expression_;
+
+ public:
   bool validate() override { return true; }
 
   void generate() override {}
@@ -164,5 +193,4 @@ class Primary : public ast_node {
 
   void generate() override {}
 };
-
 }  // namespace details
