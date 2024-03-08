@@ -33,81 +33,97 @@ class ast_parser {
  private:
   const token_vector& tokens_;
 
+  inline result<std::shared_ptr<class_name_node>> parse_class_name(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<class_name_node>> parse_extends(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<class_node>> parse_class(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<program_node>> parse_program(
+      const std::size_t& first_token);
+
  public:
   ast_parser(const token_vector& token) : tokens_{token} {}
 
-  inline result<std::shared_ptr<class_name_node>> parse_class_name(
-      std::size_t& first_token) {
-    class_name_node class_name;
+  inline result<std::shared_ptr<program_node>> parse_program() {
+    return parse_program(0);
+  }
+};
 
-    switch (tokens_[first_token]->get_token_id()) {
+inline result<std::shared_ptr<class_name_node>> ast_parser::parse_class_name(
+    std::size_t& first_token) {
+  class_name_node class_name;
+
+  switch (tokens_[first_token]->get_token_id()) {
+    case token_id::Class: {
+    }
+
+    default: {
+      std::cout << "expected class name";
+    }
+  }
+
+  return {.value = {nullptr}};
+}
+
+inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends(
+    std::size_t& first_token) {
+  class_name_node class_name;
+
+  for (std::size_t i = first_token; i < tokens_.size(); i++) {
+    switch (tokens_[i]->get_token_id()) {
+      case token_id::NewLine: {
+        continue;
+      }
+
       case token_id::Class: {
+        parse_class_name(i);
       }
 
       default: {
-        std::cout << "expected class name";
+        std::cout << "expected class declaration";
       }
     }
-
-    return {.value = {nullptr}};
   }
 
-  inline result<std::shared_ptr<class_name_node>> parse_extends(
-      std::size_t& first_token) {
-    class_name_node class_name;
+  return {.value = {nullptr}};
+}
 
-    for (std::size_t i = first_token; i < tokens_.size(); i++) {
-      switch (tokens_[i]->get_token_id()) {
-        case token_id::NewLine: {
-          continue;
-        }
+inline result<std::shared_ptr<class_node>> ast_parser::parse_class(
+    std::size_t& first_token) {
+  class_node instance;
 
-        case token_id::Class: {
-          parse_class_name(i);
-        }
+  instance.set_class_name(parse_class_name(++first_token).value);
+  instance.set_class_name(parse_extends(++first_token).value);
 
-        default: {
-          std::cout << "expected class declaration";
-        }
+  return {.value = {nullptr}};
+}
+
+inline result<std::shared_ptr<program_node>> ast_parser::parse_program(
+    const std::size_t& first_token) {
+  program_node program;
+
+  for (std::size_t i = first_token; i < tokens_.size(); i++) {
+    switch (tokens_[i]->get_token_id()) {
+      case token_id::NewLine: {
+        continue;
+      }
+
+      case token_id::Class: {
+        program.add_class(parse_class(++i).value);
+      }
+
+      default: {
+        std::cout << "expected class declaration";
       }
     }
-
-    return {.value = {nullptr}};
   }
 
-  inline result<std::shared_ptr<class_node>> parse_class(
-      std::size_t& first_token) {
-    class_node instance;
-
-    instance.set_class_name(parse_class_name(++first_token).value);
-    instance.set_class_name(parse_extends(++first_token).value);
-
-    return {.value = {nullptr}};
-  }
-
-  inline result<std::shared_ptr<program_node>> parse_program(
-      const std::size_t& first_token) {
-    program_node program;
-
-    for (std::size_t i = first_token; i < tokens_.size(); i++) {
-      switch (tokens_[i]->get_token_id()) {
-        case token_id::NewLine: {
-          continue;
-        }
-
-        case token_id::Class: {
-          program.add_class(parse_class(++i).value);
-        }
-
-        default: {
-          std::cout << "expected class declaration";
-        }
-      }
-    }
-
-    return {.value = {nullptr}};
-  }
-};
+  return {.value = {nullptr}};
+}
 }  // namespace
 
 inline ast make_ast(token_vector& tokens) {
@@ -116,6 +132,6 @@ inline ast make_ast(token_vector& tokens) {
 
   ast_parser parser(tokens);
 
-  return ast(parser.parse_program(0).value);
+  return ast(parser.parse_program().value);
 }
 }  // namespace tree
