@@ -70,6 +70,8 @@ class basic_template_token : public token {
   basic_template_token(const basic_template_token& btt)
       : token(btt), value_(btt.value_) {}
 
+  const T& get_value() const { return value_; }
+
   void print() override {
     std::cout << token_id_to_string(code_) << " "
               << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
