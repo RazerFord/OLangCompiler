@@ -24,6 +24,8 @@ class token_generator {
        {"else", token_id::Else},
        {"return", token_id::Return},
        {"this", token_id::This},
+       {"null", token_id::Null},
+       {"base", token_id::Base},
        {".", token_id::Dot},
        {":", token_id::Colon},
        {",", token_id::Comma},
