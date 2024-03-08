@@ -55,10 +55,13 @@ class ast_node {
 
 class class_node;
 class class_name_node;
-class expression_node;
-class statement_node;
 class parameters_node;
 class parameter_node;
+class body_node;
+class statement_node;
+class expression_node;
+class primary_node;
+class arguments_node;
 
 class identifier_node : public ast_node {
  private:
@@ -146,16 +149,41 @@ class method_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
   std::shared_ptr<identifier_node> return_type_;
+  std::shared_ptr<body_node> body_;
 
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = identifier;
+  }
+
+  void set_parameters(std::shared_ptr<parameters_node> parameters) {
+    parameters_ = parameters;
+  }
+
+  void set_body(std::shared_ptr<body_node> body) { body_ = body; }
+  void set_return_type(std::shared_ptr<identifier_node> return_type) {
+    return_type_ = return_type;
+  }
 };
 
 class constructor_node : public member_node {
+  std::shared_ptr<parameters_node> parameters_;
+  std::shared_ptr<body_node> body_;
+
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void set_parameters(std::shared_ptr<parameters_node> parameters) {
+    parameters_ = parameters;
+  }
+
+  void set_body(std::shared_ptr<body_node> body) { body_ = body; }
 };
 
 class parameters_node : public ast_node {
@@ -187,14 +215,6 @@ class parameter_node : public ast_node {
     class_name_ = class_name;
   }
 };
-
-class statement_node;
-
-class expression_node;
-
-class primary_node;
-
-class arguments_node;
 
 class body_node : public ast_node {
  private:
