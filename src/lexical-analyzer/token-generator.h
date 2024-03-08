@@ -17,6 +17,7 @@ class token_generator {
        {"extends", token_id::Extends},
        {"is", token_id::Is},
        {"end", token_id::End},
+       {"method", token_id::Method},
        {"var", token_id::Var},
        {"while", token_id::While},
        {"loop", token_id::Loop},

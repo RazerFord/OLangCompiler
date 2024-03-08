@@ -33,6 +33,18 @@ class ast_parser {
  private:
   const token_vector& tokens_;
 
+  inline result<std::shared_ptr<variable_node>> parse_variable(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<method_node>> parse_method(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<constructor_node>> parse_constructor(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<member_node>> parse_member(
+      std::size_t& first_token);
+
   inline result<std::shared_ptr<class_name_node>> parse_class_name(
       std::size_t& first_token);
 
@@ -52,6 +64,34 @@ class ast_parser {
     return parse_program(0);
   }
 };
+
+inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable(
+    std::size_t& first_token) {
+  
+  return {nullptr};
+}
+inline result<std::shared_ptr<member_node>> ast_parser::parse_member(
+    std::size_t& first_token) {
+  for (; first_token < tokens_.size(); ++first_token) {
+    switch (tokens_[first_token]->get_token_id()) {
+      case token_id::NewLine:
+        break;
+      case token_id::Var: {
+        return {parse_variable(++first_token).value};
+      }
+      case token_id::Method: {
+        return {parse_method(++first_token).value};
+      }
+      case token_id::This: {
+        return {parse_constructor(++first_token).value};
+      }
+      default: {
+        break;
+      }
+    }
+  }
+  return {nullptr};
+}
 
 inline result<std::shared_ptr<class_name_node>> ast_parser::parse_class_name(
     std::size_t& first_token) {
@@ -94,10 +134,10 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends(
 
 inline result<std::shared_ptr<class_node>> ast_parser::parse_class(
     std::size_t& first_token) {
-  class_node instance;
+  auto instance = std::make_shared<class_node>();
 
-  instance.set_class_name(parse_class_name(++first_token).value);
-  instance.set_class_name(parse_extends(++first_token).value);
+  instance->set_class_name(parse_class_name(++first_token).value);
+  instance->set_class_name(parse_extends(++first_token).value);
 
   return {.value = {nullptr}};
 }
