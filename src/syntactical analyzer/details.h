@@ -45,6 +45,9 @@ class ast_node {
   meta meta_info_;
   virtual bool validate() = 0;
   virtual void generate() = 0;
+
+ public:
+  virtual ~ast_node() {}
 };
 
 class class_node : public ast_node {
@@ -54,17 +57,112 @@ class class_node : public ast_node {
 };
 
 class program_node : public ast_node {
-
   std::vector<std::shared_ptr<class_node>> class_children_;
 
   bool validate() override { return true; }
 
   void generate() override {}
 
-  public:
+ public:
   void add_class(std::shared_ptr<class_node> class_) {
     class_children_.push_back(class_);
   }
+};
+
+class Program : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Class : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Member : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Variable : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Method : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Constructor : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Parameters : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Parameter : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Body : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Statement : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Assignment : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class WhileLoop : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class IfStatement : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class ReturnStatement : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Expression : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class Primary : public ast_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
 };
 
 }  // namespace details
