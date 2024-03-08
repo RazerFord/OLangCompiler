@@ -27,23 +27,34 @@ namespace {
 template <class T>
 struct result {
   T value;
+  operator bool() const { return value != nullptr; }
 };
 
 class ast_parser {
  private:
   const token_vector& tokens_;
 
-  inline result<std::shared_ptr<variable_node>> parse_variable(
-      std::size_t& first_token);
+  inline result<std::shared_ptr<body_node>> parse_body(std::size_t&);
 
-  inline result<std::shared_ptr<method_node>> parse_method(
-      std::size_t& first_token);
+  inline result<std::shared_ptr<parameters_node>> parse_parameters(
+      std::size_t&);
+
+  inline result<std::shared_ptr<parameter_node>> parse_parameter(std::size_t&);
+
+  inline result<std::shared_ptr<expression_node>> parse_expression(
+      std::size_t&);
+
+  inline result<std::shared_ptr<variable_node>> parse_variable(std::size_t&);
+
+  inline result<std::shared_ptr<method_node>> parse_method(std::size_t&);
 
   inline result<std::shared_ptr<constructor_node>> parse_constructor(
-      std::size_t& first_token);
+      std::size_t&);
 
-  inline result<std::shared_ptr<member_node>> parse_member(
-      std::size_t& first_token);
+  inline result<std::shared_ptr<member_node>> parse_member(std::size_t&);
+
+  inline result<std::shared_ptr<identifier_node>> parse_identifier(
+      std::size_t&);
 
   inline result<std::shared_ptr<class_name_node>> parse_class_name(
       std::size_t& first_token);
@@ -63,19 +74,103 @@ class ast_parser {
   inline result<std::shared_ptr<program_node>> parse_program() {
     return parse_program(0);
   }
+
+  inline bool skip_newline(size_t& token_i) {
+    for (; token_i < tokens_.size(); ++token_i) {
+      if (tokens_.at(token_i)->get_token_id() != token_id::NewLine) {
+        --token_i;
+        break;
+      }
+    }
+    return true;
+  }
 };
+
+inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier(
+    std::size_t& first_token) {
+  auto id_node = std::make_shared<identifier_node>();
+
+  auto& tok = tokens_[first_token];
+
+  using ptr_tok_id = token::identifier*;
+  ptr_tok_id id = nullptr;
+
+  if ((tok->get_token_id() == token_id::Identifier) &&
+      (id = dynamic_cast<ptr_tok_id>(tok.get()))) {
+    id_node->set_name(id->get_value());
+    std::cout << "[ INFO ] class name identifier: " << id->get_value()
+              << std::endl;
+    return {.value = id_node};
+  } else {
+    std::cout << "[ ERROR ] expected identifier of class, but was: "
+              << token_id_to_string(tok->get_token_id()) << std::endl;
+    return {nullptr};
+  }
+}
+
+inline result<std::shared_ptr<constructor_node>> ast_parser::parse_constructor(
+    size_t& first_token) {
+  result<std::shared_ptr<parameters_node>> parameters;
+  result<std::shared_ptr<body_node>> body;
+  if (tokens_.at(++first_token)->get_token_id() == token_id::LBracket &&
+      (parameters = parse_parameters(first_token)) &&
+      tokens_.at(++first_token)->get_token_id() == token_id::RBracket &&
+      tokens_.at(++first_token)->get_token_id() == token_id::Is &&
+      (body = parse_body(++first_token)) &&
+      tokens_.at(++first_token)->get_token_id() == token_id::End) {
+    auto constructor = std::make_shared<constructor_node>();
+    constructor->set_parameters(parameters.value);
+    constructor->set_body(body.value);
+    return {constructor};
+  }
+  return {nullptr};
+}
+
+inline result<std::shared_ptr<method_node>> ast_parser::parse_method(
+    std::size_t& first_token) {
+  result<std::shared_ptr<parameters_node>> parameters;
+  if (auto identifier = parse_identifier(first_token);
+      identifier &&
+      tokens_.at(++first_token)->get_token_id() == token_id::LBracket &&
+      (parameters = parse_parameters(++first_token)) &&
+      tokens_.at(++first_token)->get_token_id() == token_id::RBracket) {
+    auto method = std::make_shared<method_node>();
+    result<std::shared_ptr<identifier_node>> return_type;
+    if (tokens_.at(++first_token)->get_token_id() == token_id::Colon &&
+        (return_type = parse_identifier(++first_token))) {
+      method->set_return_type(return_type.value);
+    }
+
+    result<std::shared_ptr<body_node>> body;
+    if (tokens_.at(++first_token)->get_token_id() == token_id::Is &&
+        (body = parse_body(++first_token)) &&
+        tokens_.at(++first_token)->get_token_id() == token_id::End) {
+      method->set_identifier(identifier.value);
+      method->set_parameters(parameters.value);
+      method->set_body(body.value);
+    }
+  }
+  return {nullptr};
+}
 
 inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable(
     std::size_t& first_token) {
-  
+  if (auto identifier = parse_identifier(first_token);
+      identifier &&
+      tokens_.at(++first_token)->get_token_id() == token_id::Colon) {
+    if (auto expression = parse_expression(++first_token); expression) {
+      auto variable = std::make_shared<variable_node>();
+      variable->set_identifier(identifier.value);
+      variable->set_expression(expression.value);
+      return {variable};
+    }
+  }
   return {nullptr};
 }
 inline result<std::shared_ptr<member_node>> ast_parser::parse_member(
     std::size_t& first_token) {
   for (; first_token < tokens_.size(); ++first_token) {
-    switch (tokens_[first_token]->get_token_id()) {
-      case token_id::NewLine:
-        break;
+    switch (tokens_.at(first_token)->get_token_id()) {
       case token_id::Var: {
         return {parse_variable(++first_token).value};
       }
@@ -95,18 +190,12 @@ inline result<std::shared_ptr<member_node>> ast_parser::parse_member(
 
 inline result<std::shared_ptr<class_name_node>> ast_parser::parse_class_name(
     std::size_t& first_token) {
-  class_name_node class_name;
+  auto class_name = std::make_shared<class_name_node>();
 
-  switch (tokens_[first_token]->get_token_id()) {
-    case token_id::Class: {
-    }
+  class_name->set_identifier(parse_identifier(first_token).value);
+  // class_name->set_generic(parse_identifier(first_token).value);
 
-    default: {
-      std::cout << "expected class name";
-    }
-  }
-
-  return {.value = {nullptr}};
+  return {class_name};
 }
 
 inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends(
@@ -121,15 +210,16 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends(
 
       case token_id::Class: {
         parse_class_name(i);
+        parse_extends(i);
       }
 
       default: {
-        std::cout << "expected class declaration";
+        std::cout << "[ ERROR ] expected class declaration" << std::endl;
       }
     }
   }
 
-  return {.value = {nullptr}};
+  return {nullptr};
 }
 
 inline result<std::shared_ptr<class_node>> ast_parser::parse_class(
@@ -139,7 +229,7 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class(
   instance->set_class_name(parse_class_name(++first_token).value);
   instance->set_class_name(parse_extends(++first_token).value);
 
-  return {.value = {nullptr}};
+  return {nullptr};
 }
 
 inline result<std::shared_ptr<program_node>> ast_parser::parse_program(
@@ -147,7 +237,8 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program(
   program_node program;
 
   for (std::size_t i = first_token; i < tokens_.size(); i++) {
-    switch (tokens_[i]->get_token_id()) {
+    auto& tok = tokens_[i];
+    switch (tok->get_token_id()) {
       case token_id::NewLine: {
         continue;
       }
@@ -157,20 +248,27 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program(
       }
 
       default: {
-        std::cout << "expected class declaration";
+        std::cout << "[ ERROR ] expected class declaration, but was "
+                  << token_id_to_string(tok->get_token_id()) << std::endl;
       }
     }
   }
 
-  return {.value = {nullptr}};
+  return {nullptr};
 }
 }  // namespace
 
 inline ast make_ast(token_vector& tokens) {
   std::erase_if(
-      tokens, [](auto& tok) { return tok->get_token_id() != token_id::Space; });
+      tokens, [](auto& tok) { return tok->get_token_id() == token_id::Space; });
 
   ast_parser parser(tokens);
+
+  std::cout << "after erased" << std::endl;
+
+  for (auto& tok : tokens) {
+    tok->print();
+  }
 
   return ast(parser.parse_program().value);
 }

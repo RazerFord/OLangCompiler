@@ -15,11 +15,11 @@ class Point is
   var x : Real
   var y : Real
 
-  this is
-    this.init
+  this() is
+    this.init()
   end
 
-  method init is
+  method init() is
     x := 0.0
     y := 0.0
   end

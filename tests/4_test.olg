@@ -3,7 +3,7 @@ class Hello is
   var j : Real
   var k : Boolean
 
-  this is
+  this() is
     this(0, 0.0)
   end
 

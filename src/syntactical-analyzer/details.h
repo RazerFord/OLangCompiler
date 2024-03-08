@@ -60,10 +60,14 @@ class ast_node {
 
 class class_node;
 class class_name_node;
-class expression_node;
-class statement_node;
 class parameters_node;
 class parameter_node;
+class expression_node;
+class statement_node;
+class primary_node;
+class arguments_node;
+class body_node;
+class primary_node;
 
 class identifier_node : public ast_node {
  private:
@@ -97,7 +101,7 @@ class class_node : public ast_node {
   }
 };
 
-class class_name_node : public ast_node {
+class class_name_node : public primary_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<class_name_node> generic_;
 
@@ -151,16 +155,41 @@ class method_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
   std::shared_ptr<identifier_node> return_type_;
+  std::shared_ptr<body_node> body_;
 
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = identifier;
+  }
+
+  void set_parameters(std::shared_ptr<parameters_node> parameters) {
+    parameters_ = parameters;
+  }
+
+  void set_body(std::shared_ptr<body_node> body) { body_ = body; }
+  void set_return_type(std::shared_ptr<identifier_node> return_type) {
+    return_type_ = return_type;
+  }
 };
 
 class constructor_node : public member_node {
+  std::shared_ptr<parameters_node> parameters_;
+  std::shared_ptr<body_node> body_;
+
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void set_parameters(std::shared_ptr<parameters_node> parameters) {
+    parameters_ = parameters;
+  }
+
+  void set_body(std::shared_ptr<body_node> body) { body_ = body; }
 };
 
 class parameters_node : public ast_node {
@@ -192,14 +221,6 @@ class parameter_node : public ast_node {
     class_name_ = class_name;
   }
 };
-
-class statement_node;
-
-class expression_node;
-
-class primary_node;
-
-class arguments_node;
 
 class body_node : public ast_node {
  private:
@@ -417,10 +438,20 @@ class arguments_node : public ast_node {
 class primary_node : public ast_node {
  private:
   std::string representation_;
+};
 
- public:
+template <typename T>
+class literal_node : public primary_node {
+  T value_;
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void set_value(const T& value) { value_ = value; }
+
+  const T& value() const  {
+    return value_;
+  }
 };
 }  // namespace details

@@ -1,5 +1,5 @@
 class Math is
-  this is
+  this() is
   end
 
   method min(arr: Array[Integer]): Integer is

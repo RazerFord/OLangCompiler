@@ -1,5 +1,5 @@
 class Utils is
-  this is
+  this() is
   end
 
   method sort(arr: Array[Integer]) is

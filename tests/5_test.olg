@@ -1,5 +1,5 @@
 class Math is
-  this is
+  this() is
   end
 
   method min(a: Integer, b: Integer, c: Integer) : Integer is

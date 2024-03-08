@@ -1,5 +1,5 @@
 class Base is
-  method test : Integer is
+  method test() : Integer is
     return 0
   end
 
@@ -9,7 +9,7 @@ class Base is
 end
 
 class A extends Base is
-  method test : Integer is
+  method test() : Integer is
     return 3
   end
 end
@@ -17,7 +17,7 @@ end
 class Main is
   var success : false
 
-  this is
+  this() is
     var v : Base
     v := A
 

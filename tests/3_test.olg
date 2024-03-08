@@ -11,7 +11,7 @@ class Hello is
     this.i := i
   end
 
-  method hello is
+  method hello() is
     this.i := 0
   end
 end

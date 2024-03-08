@@ -3,7 +3,7 @@ class Generic[T] is
 end
 
 class Main is
-  this is
+  this() is
     var gen : Generic[Integer]
 
     gen.append(42)

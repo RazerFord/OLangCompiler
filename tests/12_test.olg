@@ -7,7 +7,7 @@ end
 class Main is
   var success : false
 
-  this is
+  this() is
     var v1 : Base
     var v2 : A
     
