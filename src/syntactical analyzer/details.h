@@ -10,6 +10,7 @@ namespace details {
 enum class ast_token {
   Program,
   Class,
+  ClassName,
   Member,
   Variable,
   Method,
@@ -52,6 +53,13 @@ class ast_node {
   virtual ~ast_node() {}
 };
 
+class class_node;
+class class_name_node;
+class expression_node;
+class statement_node;
+class parameters_node;
+class parameter_node;
+
 class identifier_node : public ast_node {
  private:
   std::string name_;
@@ -67,13 +75,42 @@ class identifier_node : public ast_node {
 };
 
 class class_node : public ast_node {
+  std::shared_ptr<class_name_node> class_name_;
+  std::shared_ptr<class_name_node> extends_;
+
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void set_class_name(std::shared_ptr<class_name_node> class_name) {
+    class_name_ = class_name;
+  }
+
+  void set_extends(std::shared_ptr<class_name_node> extends) {
+    extends_ = extends;
+  }
+};
+
+class class_name_node : public ast_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<class_name_node> generic_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = identifier;
+  }
+  void set_generic(std::shared_ptr<class_name_node> generic) {
+    generic_ = generic;
+  }
 };
 
 class program_node : public ast_node {
-  std::vector<std::shared_ptr<class_node>> class_children_;
+  std::vector<std::shared_ptr<class_node>> classes_;
 
   bool validate() override { return true; }
 
@@ -81,64 +118,80 @@ class program_node : public ast_node {
 
  public:
   void add_class(std::shared_ptr<class_node> class_) {
-    class_children_.push_back(class_);
+    classes_.push_back(class_);
   }
 };
 
-class Program : public ast_node {
+class member_node : public ast_node {};
+
+class variable_node : public member_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<expression_node> expression_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = identifier;
+  }
+
+  void set_expression(std::shared_ptr<expression_node> expression) {
+    expression_ = expression;
+  }
+};
+
+class method_node : public member_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<parameters_node> parameters_;
+  std::shared_ptr<identifier_node> return_type_;
+
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class Class : public ast_node {
+class constructor_node : public member_node {
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class Member : public ast_node {
+class parameters_node : public ast_node {
+  std::vector<std::shared_ptr<parameter_node>> parameters_;
+
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void add_parameter(std::shared_ptr<parameter_node> parameter) {
+    parameters_.push_back(parameter);
+  }
 };
 
-class variable_node : public ast_node {
+class parameter_node : public ast_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<class_name_node> class_name_;
+
   bool validate() override { return true; }
 
   void generate() override {}
+
+ public:
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = identifier;
+  }
+  void set_class_name(std::shared_ptr<class_name_node> class_name) {
+    class_name_ = class_name;
+  }
 };
-
-class Method : public ast_node {
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
-
-class Constructor : public ast_node {
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
-
-class Parameters : public ast_node {
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
-
-class Parameter : public ast_node {
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
-
-class statement;
 
 class body_node : public ast_node {
  private:
   std::vector<std::shared_ptr<variable_node>> variables_;
-  std::vector<std::shared_ptr<statement>> statements_;
+  std::vector<std::shared_ptr<statement_node>> statements_;
 
  public:
   bool validate() override { return true; }
@@ -146,17 +199,12 @@ class body_node : public ast_node {
   void generate() override {}
 };
 
-class statement_node : public ast_node {
- public:
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
+class statement_node : public ast_node {};
 
 class assignment : public statement_node {
  private:
   std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<expression> expression_;
+  std::shared_ptr<expression_node> expression_;
 
  public:
   bool validate() override { return true; }
@@ -164,31 +212,31 @@ class assignment : public statement_node {
   void generate() override {}
 };
 
-class WhileLoop : public ast_node {
+class whileloop_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class IfStatement : public ast_node {
+class ifstatement_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class ReturnStatement : public ast_node {
+class returnstatement_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class Expression : public ast_node {
+class expression_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class Primary : public ast_node {
+class primary_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
