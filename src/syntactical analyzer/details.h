@@ -65,9 +65,9 @@ class identifier_node : public ast_node {
   std::string name_;
 
  public:
-  void setName(const std::string& name) { name_ = name; }
+  void set_name(const std::string& name) noexcept { name_ = name; }
 
-  std::string getName() { return name_; }
+  const std::string& get_name() const noexcept { return name_; }
 
   bool validate() override { return true; }
 
@@ -188,12 +188,49 @@ class parameter_node : public ast_node {
   }
 };
 
+class statement_node;
+
+class expression_node;
+
+class primary_node;
+
+class arguments_node;
+
 class body_node : public ast_node {
  private:
   std::vector<std::shared_ptr<variable_node>> variables_;
   std::vector<std::shared_ptr<statement_node>> statements_;
 
  public:
+  const std::vector<std::shared_ptr<variable_node>>& get_variables()
+      const noexcept {
+    return variables_;
+  }
+
+  const std::vector<std::shared_ptr<statement_node>>& get_statements()
+      const noexcept {
+    return statements_;
+  }
+
+  void set_variables(
+      const std::vector<std::shared_ptr<variable_node>>& variables) noexcept {
+    variables_ = variables;
+  }
+
+  void set_statements(
+      const std::vector<std::shared_ptr<statement_node>>& statements) noexcept {
+    statements_ = statements;
+  }
+
+  void add_variable(const std::shared_ptr<variable_node>& variable) noexcept {
+    variables_.push_back(variable);
+  }
+
+  void add_statement(
+      const std::shared_ptr<statement_node>& statement) noexcept {
+    statements_.push_back(statement);
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
@@ -201,42 +238,182 @@ class body_node : public ast_node {
 
 class statement_node : public ast_node {};
 
-class assignment : public statement_node {
+class assignment_node : public statement_node {
  private:
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<expression_node> expression_;
 
  public:
+  const std::shared_ptr<identifier_node>& get_identifier() const noexcept {
+    return identifier_;
+  }
+
+  const std::shared_ptr<expression_node>& get_expression() const noexcept {
+    return expression_;
+  }
+
+  void set_identifier(
+      const std::shared_ptr<identifier_node>& identifier) noexcept {
+    identifier_ = identifier;
+  }
+
+  void set_expression(
+      const std::shared_ptr<expression_node>& expression) noexcept {
+    expression_ = expression;
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class whileloop_node : public ast_node {
+class while_loop_node : public statement_node {
+ private:
+  std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<body_node> body_;
+
+ public:
+  const std::shared_ptr<expression_node>& get_expression() const noexcept {
+    return expression_;
+  }
+
+  const std::shared_ptr<body_node>& get_body_node() const noexcept {
+    return body_;
+  }
+
+  void set_expression(
+      const std::shared_ptr<expression_node>& expression) noexcept {
+    expression_ = expression;
+  }
+
+  void set_body_node(const std::shared_ptr<body_node>& body_node) noexcept {
+    body_ = body_node;
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class ifstatement_node : public ast_node {
+class if_statement_node : public statement_node {
+ private:
+  std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<body_node> true_body_;
+  std::shared_ptr<body_node> false_body_;
+
+ public:
+  const std::shared_ptr<expression_node>& get_expression() const noexcept {
+    return expression_;
+  }
+
+  const std::shared_ptr<body_node>& get_true_body() const noexcept {
+    return true_body_;
+  }
+
+  const std::shared_ptr<body_node>& get_false_body() const noexcept {
+    return false_body_;
+  }
+
+  void get_expression(
+      const std::shared_ptr<expression_node>& expression) noexcept {
+    expression_ = expression;
+  }
+
+  void get_true_body(const std::shared_ptr<body_node>& true_body) noexcept {
+    true_body_ = true_body;
+  }
+
+  void get_false_body(const std::shared_ptr<body_node>& false_body) noexcept {
+    false_body_ = false_body;
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
-class returnstatement_node : public ast_node {
+class return_statement_node : public statement_node {
+ private:
+  std::shared_ptr<expression_node> expression_;
+
+ public:
+  const std::shared_ptr<expression_node>& get_expression() const noexcept {
+    return expression_;
+  }
+
+  void get_expression(
+      const std::shared_ptr<expression_node>& expression) noexcept {
+    expression_ = expression;
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
 class expression_node : public ast_node {
+ private:
+  std::shared_ptr<primary_node> primary_;
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<arguments_node> arguments_;
+
+ public:
+  const std::shared_ptr<primary_node>& get_primary() const noexcept {
+    return primary_;
+  }
+
+  const std::shared_ptr<identifier_node>& get_identifier() const noexcept {
+    return identifier_;
+  }
+
+  const std::shared_ptr<arguments_node>& get_arguments() const noexcept {
+    return arguments_;
+  }
+
+  void set_primary(const std::shared_ptr<primary_node>& primary) noexcept {
+    primary_ = primary;
+  }
+
+  void get_identifier(
+      const std::shared_ptr<identifier_node>& identifier) noexcept {
+    identifier_ = identifier;
+  }
+
+  void get_arguments(
+      const std::shared_ptr<arguments_node>& arguments) noexcept {
+    arguments_ = arguments;
+  }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class arguments_node : public ast_node {
+ private:
+  std::vector<std::shared_ptr<expression_node>> expressions_;
+
+ public:
+  const std::vector<std::shared_ptr<expression_node>>& get_expressions()
+      const noexcept {
+    return expressions_;
+  }
+
+  void set_expressions(const std::vector<std::shared_ptr<expression_node>>&
+                           expression) noexcept {
+    expressions_ = expression;
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
 };
 
 class primary_node : public ast_node {
+ private:
+  std::string representation_;
+
+ public:
   bool validate() override { return true; }
 
   void generate() override {}
