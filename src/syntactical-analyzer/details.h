@@ -64,6 +64,12 @@ class expression_node;
 class statement_node;
 class parameters_node;
 class parameter_node;
+class member_node;
+class method_node;
+class statement_node;
+class expression_node;
+class primary_node;
+class arguments_node;
 
 class identifier_node : public ast_node {
  private:
@@ -82,6 +88,7 @@ class identifier_node : public ast_node {
 class class_node : public ast_node {
   std::shared_ptr<class_name_node> class_name_;
   std::shared_ptr<class_name_node> extends_;
+  std::vector<std::shared_ptr<member_node>> members_;
 
   bool validate() override { return true; }
 
@@ -94,6 +101,10 @@ class class_node : public ast_node {
 
   void set_extends(std::shared_ptr<class_name_node> extends) {
     extends_ = extends;
+  }
+
+  void add_member(std::shared_ptr<member_node> member) {
+    members_.push_back(member);
   }
 };
 
@@ -192,14 +203,6 @@ class parameter_node : public ast_node {
     class_name_ = class_name;
   }
 };
-
-class statement_node;
-
-class expression_node;
-
-class primary_node;
-
-class arguments_node;
 
 class body_node : public ast_node {
  private:
