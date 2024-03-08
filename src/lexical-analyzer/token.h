@@ -16,6 +16,7 @@ struct span {
   std::size_t begin_;
   std::size_t end_;
 
+  span() = default;
   span(std::size_t begin, std::size_t end) : begin_{begin}, end_{end} {}
   span(const span& other) : span(other.begin_, other.end_) {}
 
@@ -44,6 +45,8 @@ class token {
  public:
   token(const span& span, token_id code) : span_(span), code_(code) {}
   token(const token& other) : token(other.span_, other.code_) {}
+
+  token_id get_token_id() const { return code_; }
 
   virtual void print() = 0;
 
