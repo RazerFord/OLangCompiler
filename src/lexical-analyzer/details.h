@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include "token.h"
+
 namespace details {
 enum class ast_token {
   Program,
@@ -22,11 +24,18 @@ enum class ast_token {
   Primary
 };
 
-struct span {};
+using token::span;
 
 struct meta {
   std::string name_;
   ast_token token_;
-  span span_;
+  token::span span_;
+
+  explicit meta(const std::string& name, const ast_token& token,
+                const span& span)
+      : name_{name}, token_{token}, span_{span} {}
+
+  explicit meta(const meta& meta)
+      : name_{meta.name_}, token_{meta.token_}, span_{meta.span_} {}
 };
 }  // namespace details
