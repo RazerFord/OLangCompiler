@@ -59,15 +59,16 @@ class ast_node {
 };
 
 class class_node;
+class primary_node;
 class class_name_node;
 class parameters_node;
 class parameter_node;
-class expression_node;
+class member_node;
+class method_node;
 class statement_node;
-class primary_node;
+class expression_node;
 class arguments_node;
 class body_node;
-class primary_node;
 
 class identifier_node : public ast_node {
  private:
@@ -86,6 +87,7 @@ class identifier_node : public ast_node {
 class class_node : public ast_node {
   std::shared_ptr<class_name_node> class_name_;
   std::shared_ptr<class_name_node> extends_;
+  std::vector<std::shared_ptr<member_node>> members_;
 
   bool validate() override { return true; }
 
@@ -99,6 +101,15 @@ class class_node : public ast_node {
   void set_extends(std::shared_ptr<class_name_node> extends) {
     extends_ = extends;
   }
+
+  void add_member(std::shared_ptr<member_node> member) {
+    members_.push_back(member);
+  }
+};
+
+class primary_node : public ast_node {
+ private:
+  std::string representation_;
 };
 
 class class_name_node : public primary_node {
@@ -433,11 +444,6 @@ class arguments_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
-};
-
-class primary_node : public ast_node {
- private:
-  std::string representation_;
 };
 
 template <typename T>
