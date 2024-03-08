@@ -18,6 +18,15 @@ struct span {
 
   span(std::size_t begin, std::size_t end) : begin_{begin}, end_{end} {}
   span(const span& other) : span(other.begin_, other.end_) {}
+  
+  span merge(const span& lspan, const span& rspan) {
+    return span(std::min(lspan.begin_, rspan.begin_), std::max(lspan.end_, rspan.end_));
+  }
+  span& merge_in_place(const span& other) {
+    begin_ = std::min(begin_, other.begin_);
+    end_ = std::max(end_, other.end_);
+    return *this;
+  }
 };
 
 class token {
