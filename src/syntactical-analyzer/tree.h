@@ -5,6 +5,7 @@
 #include <iterator>
 #include <memory>
 #include <ranges>
+#include <stack>
 #include <vector>
 
 #include "./../lexical-analyzer/token-code.h"
@@ -29,9 +30,28 @@ struct result {
   T value;
 };
 
+template <class T>
+struct result<std::shared_ptr<T>> {
+  std::shared_ptr<T> value;
+
+  explicit operator bool() const noexcept { return value != nullptr; }
+};
+
 class ast_parser {
  private:
   const token_vector& tokens_;
+
+  inline result<std::shared_ptr<expression_node>> parse_expression(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<return_statement_node>> parse_return(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<program_node>> parse_body(
+      std::size_t& first_token);
+
+  inline result<std::shared_ptr<primary_node>> parse_primary(
+      std::size_t& first_token);
 
   inline result<std::shared_ptr<class_name_node>> parse_generic(
       std::size_t& first_token);
@@ -81,19 +101,91 @@ inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier(
   }
 }
 
+inline result<std::shared_ptr<primary_node>> ast_parser::parse_primary(
+    std::size_t& first_token) {
+  auto& tok = tokens_[first_token];
+  switch (tok->get_token_id()) {
+    case token_id::RealLiteral: {
+      break;
+    }
+    case token_id::BooleanLiteral: {
+      break;
+    }
+    case token_id::This: {
+      break;
+    }
+    case token_id::Class: {
+      break;
+    }
+    default: {
+      std::cout << "[ ERROR ] expected identifier of class, but was: "
+                << token_id_to_string(tok->get_token_id()) << std::endl;
+    }
+  }
+  return {};
+}
+
+inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression(
+    std::size_t& first_token) {
+  auto expression = std::make_shared<expression_node>();
+  expression->set_primary(parse_primary(first_token).value);
+  return {};
+}
+
+inline result<std::shared_ptr<return_statement_node>> ast_parser::parse_return(
+    std::size_t& first_token) {
+  auto return_node = std::make_shared<return_statement_node>();
+  return_node->set_expression(parse_expression(first_token).value);
+  return {return_node};
+}
+
+inline result<std::shared_ptr<program_node>> ast_parser::parse_body(
+    std::size_t& first_token) {
+  auto body = std::make_shared<body_node>();
+  for (; first_token < tokens_.size(); first_token++) {
+    auto& tok = tokens_[first_token];
+    switch (tok->get_token_id()) {
+      case token_id::Assign: {
+        //
+      }
+
+      case token_id::While: {
+        //
+      }
+
+      case token_id::If: {
+        //
+      }
+
+      case token_id::Return: {
+        body->add_statement(parse_return(first_token).value);
+      }
+
+      case token_id::Var: {
+        // TODO: parse variable by @Vlad
+      }
+
+      default: {
+        std::cout << "[ ERROR ] expected assignment, while, if, return "
+                     "statement or variable declaration, but was: "
+                  << token_id_to_string(tok->get_token_id()) << std::endl;
+      }
+    }
+  }
+  return {};
+}
+
 inline result<std::shared_ptr<class_name_node>> ast_parser::parse_generic(
     std::size_t& first_token) {
   auto& lbracket = tokens_.at(first_token);
-  if (lbracket->get_token_id() == token_id::LSBracket) {
-    auto result = parse_identifier(++first_token);
+  result<std::shared_ptr<identifier_node>> result;
+  auto class_name = std::make_shared<class_name_node>();
+  const std::unique_ptr<token::token>* bracket = nullptr;
 
-    if (!result.value) {
-      return {nullptr};
-    }
-
-    auto class_name = std::make_shared<class_name_node>();
+  if (lbracket->get_token_id() == token_id::LSBracket &&
+      (result = parse_identifier(++first_token)) &&
+      (bracket = &tokens_.at(++first_token))) {
     class_name->set_identifier(result.value);
-    auto* bracket = &tokens_.at(++first_token);
 
     if ((*bracket)->get_token_id() == token_id::LSBracket) {
       class_name->set_generic(parse_generic(first_token).value);
@@ -172,10 +264,6 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program(
   for (std::size_t i = first_token; i < tokens_.size(); i++) {
     auto& tok = tokens_[i];
     switch (tok->get_token_id()) {
-      case token_id::NewLine: {
-        continue;
-      }
-
       case token_id::Class: {
         program.add_class(parse_class(++i).value);
       }
@@ -192,8 +280,10 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program(
 }  // namespace
 
 inline ast make_ast(token_vector& tokens) {
-  std::erase_if(
-      tokens, [](auto& tok) { return tok->get_token_id() == token_id::Space; });
+  std::erase_if(tokens, [](auto& tok) {
+    auto id = tok->get_token_id();
+    return id == token_id::Space || id == token_id::NewLine;
+  });
 
   ast_parser parser(tokens);
 
