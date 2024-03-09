@@ -378,7 +378,7 @@ class return_statement_node : public statement_node {
     return expression_;
   }
 
-  void get_expression(
+  void set_expression(
       const std::shared_ptr<expression_node>& expression) noexcept {
     expression_ = expression;
   }
