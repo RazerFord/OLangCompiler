@@ -170,7 +170,7 @@ inline result<std::shared_ptr<constructor_node>> ast_parser::parse_constructor(
   result<std::shared_ptr<body_node>> body;
   if (auto parameters = parse_parameters(first_token);
       parameters && tokens_.at(++first_token)->get_token_id() == token_id::Is &&
-      (body = parse_body(++first_token)) &&
+      (body = parse_body(first_token)) &&
       tokens_.at(++first_token)->get_token_id() == token_id::End) {
     auto constructor = std::make_shared<constructor_node>();
     constructor->set_parameters(parameters.value);
@@ -278,8 +278,13 @@ inline result<std::shared_ptr<return_statement_node>> ast_parser::parse_return(
 
 inline result<std::shared_ptr<body_node>> ast_parser::parse_body(
     std::size_t& first_token) {
+  if (tokens_[first_token]->get_token_id() != token_id::Is) {
+    return {};
+  }
+
   auto body = std::make_shared<body_node>();
-  for (; first_token < tokens_.size(); first_token++) {
+
+  for (first_token++; first_token < tokens_.size(); first_token++) {
     auto& tok = tokens_[first_token];
     switch (tok->get_token_id()) {
       case token_id::Assign: {
@@ -299,6 +304,10 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_body(
       }
 
       case token_id::Var: {
+        // TODO: parse variable by @Vlad
+      }
+
+      case token_id::End: {
         // TODO: parse variable by @Vlad
       }
 
@@ -326,12 +335,12 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_generic(
 
     if ((*bracket)->get_token_id() == token_id::LSBracket) {
       class_name->set_generic(parse_generic(first_token).value);
-      bracket = &tokens_.at(++first_token);
+      bracket = &tokens_.at(first_token);
     }
 
     if ((*bracket)->get_token_id() == token_id::RSBracket) {
+      first_token++;
       std::cout << "[ INFO ] generic parsed" << std::endl;
-
       return {class_name};
     } else {
       std::cout << "[ ERROR ] expected ']', but was "
@@ -361,7 +370,8 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends(
 
   auto& tok = tokens_.at(first_token);
   if (tok->get_token_id() == token_id::Extends) {
-    class_name->set_generic(parse_class_name(++first_token).value);
+    class_name->set_identifier(parse_identifier(++first_token).value);
+    class_name->set_generic(parse_generic(++first_token).value);
     return {class_name};
   } else if (tok->get_token_id() == token_id::Is) {
     return {class_name};
@@ -377,18 +387,18 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class(
   auto node = std::make_shared<class_node>();
 
   node->set_class_name(parse_class_name(first_token).value);
-  node->set_extends(parse_extends(++first_token).value);
-  first_token++;
+  node->set_extends(parse_extends(first_token).value);
+
   auto& tok = tokens_[first_token];
-  if (tok->get_token_id() == token_id::Is) {
-    // parse members decl
-    if (tok->get_token_id() == token_id::End) {
-    } else {
-    }
-  } else {
+  if (tok->get_token_id() != token_id::Is) {
     std::cout << "[ ERROR ] expected 'is' but was: "
               << token_id_to_string(tok->get_token_id()) << std::endl;
     return {nullptr};
+  }
+
+  for (std::size_t& i = ++first_token;
+       i < tokens_.size() && tokens_[i]->get_token_id() != token_id::End; i++) {
+    node->add_member(parse_member(i).value);
   }
 
   return {node};
@@ -430,6 +440,6 @@ inline ast make_ast(token_vector& tokens) {
     tok->print();
   }
 
-  return ast(parser.parse_program().value);
+  return {parser.parse_program().value};
 }
 }  // namespace tree
