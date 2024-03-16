@@ -38,8 +38,7 @@ struct meta {
 
   meta() = default;
 
-  explicit meta(std::string  name, const ast_token& token,
-                const span& span)
+  explicit meta(std::string name, const ast_token& token, const span& span)
       : name_{std::move(name)}, token_{token}, span_{span} {}
 
   meta(const meta& meta)
@@ -217,7 +216,8 @@ class method_node : public member_node {
     return parameters_;
   }
 
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_return_type() const {
+  [[nodiscard]] const std::shared_ptr<identifier_node>& get_return_type()
+      const {
     return return_type_;
   }
 
@@ -308,36 +308,21 @@ class parameter_node : public ast_node {
 
 class body_node : public ast_node {
  private:
-  std::vector<std::shared_ptr<variable_node>> variables_;
-  std::vector<std::shared_ptr<statement_node>> statements_;
+  std::vector<std::shared_ptr<ast_node>> nodes_;
 
  public:
-  [[nodiscard]] const std::vector<std::shared_ptr<variable_node>>&
-  get_variables() const noexcept {
-    return variables_;
+  [[nodiscard]] const std::vector<std::shared_ptr<ast_node>>& get_nodes()
+      const noexcept {
+    return nodes_;
   }
 
-  [[nodiscard]] const std::vector<std::shared_ptr<statement_node>>&
-  get_statements() const noexcept {
-    return statements_;
+  void set_nodes(
+      const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
+    nodes_ = nodes;
   }
 
-  void set_variables(
-      const std::vector<std::shared_ptr<variable_node>>& variables) noexcept {
-    variables_ = variables;
-  }
-
-  void set_statements(
-      const std::vector<std::shared_ptr<statement_node>>& statements) noexcept {
-    statements_ = statements;
-  }
-
-  void add_variable(std::shared_ptr<variable_node> variable) noexcept {
-    variables_.push_back(std::move(variable));
-  }
-
-  void add_statement(std::shared_ptr<statement_node> statement) noexcept {
-    statements_.push_back(std::move(statement));
+  void add_node(std::shared_ptr<ast_node> node) noexcept {
+    nodes_.push_back(std::move(node));
   }
 
   bool validate() override { return true; }
@@ -427,15 +412,15 @@ class if_statement_node : public statement_node {
     return false_body_;
   }
 
-  void get_expression(std::shared_ptr<expression_node> expression) noexcept {
+  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
     expression_ = std::move(expression);
   }
 
-  void get_true_body(std::shared_ptr<body_node> true_body) noexcept {
+  void set_true_body(std::shared_ptr<body_node> true_body) noexcept {
     true_body_ = std::move(true_body);
   }
 
-  void get_false_body(std::shared_ptr<body_node> false_body) noexcept {
+  void set_false_body(std::shared_ptr<body_node> false_body) noexcept {
     false_body_ = std::move(false_body);
   }
 
