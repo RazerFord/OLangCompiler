@@ -99,7 +99,7 @@ class ast_parser {
 };
 
 inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
-  if (auto tok_id = stream_.token_id(); tok_id != token_id::If) {
+  if (auto tok_id = stream_.get_token_id(); tok_id != token_id::If) {
     log_expected_actual(token_id::If, tok_id);
     return {};
   }
@@ -188,7 +188,7 @@ inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier() {
     logger::info("identifier", id->get_value(), "parsed");
     return {id_node};
   } else {
-    log_expected_actual(token_id::Identifier, stream_.token_id());
+    log_expected_actual(token_id::Identifier, stream_.get_token_id());
     return {nullptr};
   }
 }
@@ -307,7 +307,7 @@ inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable() {
 
 inline result<std::shared_ptr<member_node>> ast_parser::parse_member() {
   for (; stream_; ++stream_) {
-    switch (stream_.token_id()) {
+    switch (stream_.get_token_id()) {
       case token_id::Var: {
         return {parse_variable().value};
       }
@@ -321,7 +321,7 @@ inline result<std::shared_ptr<member_node>> ast_parser::parse_member() {
         return {};
       }
       default: {
-        logger::error("raw token", tok_to_str(stream_.token_id()));
+        logger::error("raw token", tok_to_str(stream_.get_token_id()));
       }
     }
   }
@@ -330,7 +330,7 @@ inline result<std::shared_ptr<member_node>> ast_parser::parse_member() {
 
 inline result<std::shared_ptr<primary_node>> ast_parser::parse_literal() {
   auto&& tok = stream_.next_and_token();
-  switch (stream_.token_id()) {
+  switch (stream_.get_token_id()) {
     case token_id::IntegerLiteral: {
       auto literal_token =
           dynamic_cast<token::basic_template_token<int32_t>*>(tok.get());
@@ -350,7 +350,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_literal() {
     }
     default:
       std::cout << "[ ERROR ] expected literal, but was: "
-                << token_id_to_string(stream_.token_id()) << std::endl;
+                << token_id_to_string(stream_.get_token_id()) << std::endl;
   }
   return {};
 }
@@ -364,7 +364,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_keyword() {
       return {std::make_shared<null_node>()};
     }
     default:
-      logger::error("raw token", tok_to_str(stream_.token_id())));
+      logger::error("raw token", tok_to_str(stream_.get_token_id()));
   }
   return {};
 }
@@ -385,7 +385,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_primary() {
       return {parse_class_name().value};
     }
     default: {
-      logger::error("raw token", tok_to_str(stream_.token_id()));
+      logger::error("raw token", tok_to_str(stream_.get_token_id()));
     }
   }
   return {};
@@ -445,7 +445,7 @@ ast_parser::parse_return() {
 }
 
 inline result<std::shared_ptr<body_node>> ast_parser::parse_body() {
-  if (auto tok_id = stream_.token_id(); tok_id != token_id::Is) {
+  if (auto tok_id = stream_.get_token_id(); tok_id != token_id::Is) {
     log_expected_actual(token_id::Is, tok_id);
     return {};
   }
@@ -527,7 +527,7 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_generic() {
 
     if (bracket_id == token_id::LSBracket) {
       class_name->set_generic(parse_generic().value);
-      bracket_id = stream_.token_id();
+      bracket_id = stream_.get_token_id();
     }
 
     if (bracket_id == token_id::RSBracket) {
@@ -574,13 +574,13 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
   node->set_class_name(parse_class_name().value);
   node->set_extends(parse_extends().value);
 
-  auto tok_id = stream_.token_id();
+  auto tok_id = stream_.get_token_id();
   if (tok_id != token_id::Is) {
     log_expected_actual(token_id::Is, tok_id);
     return {nullptr};
   }
 
-  for (++stream_; stream_ && stream_.token_id() != token_id::End; ++stream_) {
+  for (++stream_; stream_ && stream_.get_token_id() != token_id::End; ++stream_) {
     node->add_member(parse_member().value);
   }
 
@@ -591,7 +591,7 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program() {
   program_node program;
 
   for (; stream_; ++stream_) {
-    auto tok_id = stream_.token_id();
+    auto tok_id = stream_.get_token_id();
     switch (tok_id) {
       case token_id::Class: {
         program.add_class(parse_class().value);
