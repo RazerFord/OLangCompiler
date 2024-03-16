@@ -33,6 +33,7 @@ Statement : Assignment
   | WhileLoop
   | IfStatement
   | ReturnStatement
+  | Expression
 
 Assignment : Identifier ':=' Expression
 

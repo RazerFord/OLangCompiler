@@ -116,8 +116,8 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if(
     std::size_t& first_token) {
   if (auto tok_id = tokens_[first_token]->get_token_id();
       tok_id != token_id::If) {
-    std::cout << "[ ERROR ] expected If, but was "
-              << token_id_to_string(tok_id) << std::endl;
+    std::cout << "[ ERROR ] expected If, but was " << token_id_to_string(tok_id)
+              << std::endl;
     return {};
   }
   auto statement = std::make_shared<if_statement_node>();
@@ -382,13 +382,13 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_primary(
 inline result<std::shared_ptr<arguments_node>> ast_parser::parse_arguments(
     std::size_t& first_token) {
   if (tokens_.at(first_token)->get_token_id() == token_id::LBracket) {
-    auto parameters = std::make_shared<arguments_node>();
+    auto arguments = std::make_shared<arguments_node>();
     while (true) {
       if (tokens_.at(++first_token)->get_token_id() == token_id::RBracket)
         break;
 
       if (auto tmp_expression = parse_expression(first_token); tmp_expression) {
-        parameters->add_expression(tmp_expression.value);
+        arguments->add_expression(tmp_expression.value);
       }
 
       auto cur_token = tokens_.at(++first_token)->get_token_id();
@@ -400,7 +400,7 @@ inline result<std::shared_ptr<arguments_node>> ast_parser::parse_arguments(
         return {nullptr};
       }
     }
-    return {parameters};
+    return {arguments};
   }
 
   return {nullptr};
@@ -413,8 +413,9 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression(
   if (tokens_.at(++first_token)->get_token_id() == token_id::Dot) {
     expression->set_identifier(parse_identifier(++first_token).value);
     expression->set_arguments(parse_arguments(++first_token).value);
+  } else {
+    --first_token;
   }
-  --first_token;
   return {expression};
 }
 
@@ -471,6 +472,11 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope(
 
       case token_id::End: {
         return {body};
+      }
+
+      case token_id::Identifier: {
+        body->add_node(parse_expression(first_token).value);
+        continue;
       }
 
       default: {

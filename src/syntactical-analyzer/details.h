@@ -450,7 +450,7 @@ class return_statement_node : public statement_node {
   void generate() override {}
 };
 
-class expression_node : public ast_node {
+class expression_node : public statement_node {
  private:
   std::shared_ptr<primary_node> primary_;
   std::shared_ptr<identifier_node> identifier_;
