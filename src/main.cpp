@@ -6,7 +6,7 @@
 int main() {
   token_generator tokgen;
 
-  auto vec = tokgen.generate_token("./../tests/15_test.olg");
+  auto vec = tokgen.generate_token("./../tests/5_test.olg");
 
   auto ast = tree::make_ast(vec);
 

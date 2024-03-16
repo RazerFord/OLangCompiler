@@ -4,7 +4,7 @@ class Math is
 
   method min(a: Integer, b: Integer, c: Integer) : Integer is
     if a.Less(b) then
-      if a.Less(c) then
+      if a.Less(c) thenre
         return a
       else if c.Less(a) then
         return c

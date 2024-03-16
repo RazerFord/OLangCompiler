@@ -21,6 +21,7 @@ class token_generator {
        {"var", token_id::Var},
        {"while", token_id::While},
        {"loop", token_id::Loop},
+       {"if", token_id::If},
        {"then", token_id::Then},
        {"else", token_id::Else},
        {"return", token_id::Return},
@@ -40,7 +41,6 @@ class token_generator {
        {" ", token_id::Space},
        {"\n", token_id::NewLine}};
 
-
   enum class State {
     Start,
     Word,
@@ -55,47 +55,48 @@ class token_generator {
     State state = State::Start;
   };
 
-  static void complete_token(generator_context& context, std::ifstream& source_code) {
-     if (context.buff.empty()) return;
+  static void complete_token(generator_context& context,
+                             std::ifstream& source_code) {
+    if (context.buff.empty()) return;
 
-      context.position--;
-      token::span span(context.position - context.buff.size(), context.position);
-      std::unique_ptr<token::token> token;
+    context.position--;
+    token::span span(context.position - context.buff.size(), context.position);
+    std::unique_ptr<token::token> token;
 
-      switch (context.state) {
-        case State::Word: {
-          if (token_by_name.contains(context.buff)) {
-            auto token_id = token_by_name.at(context.buff);
-            if (token_id == token_id::BooleanLiteral) {
-              token = token::make<token::boolean_literal, bool>(span, token_id,
-                                                                context.buff);
-            } else {
-              token = std::make_unique<token::keyword>(
-                  span, token_by_name.at(context.buff), context.buff);
-            }
+    switch (context.state) {
+      case State::Word: {
+        if (token_by_name.contains(context.buff)) {
+          auto token_id = token_by_name.at(context.buff);
+          if (token_id == token_id::BooleanLiteral) {
+            token = token::make<token::boolean_literal, bool>(span, token_id,
+                                                              context.buff);
           } else {
-            token = std::make_unique<token::identifier>(
-                span, token_id::Identifier, context.buff);
+            token = std::make_unique<token::keyword>(
+                span, token_by_name.at(context.buff), context.buff);
           }
-        } break;
-        case State::Numeric: {
-          token = token::make<token::integer_literal, std::int32_t>(
-              span, token_id::IntegerLiteral, context.buff);
-        } break;
-        case State::RealNumeric: {
-          token = token::make<token::real_literal, std::double_t>(
-              span, token_id::RealLiteral, context.buff);
-          break;
+        } else {
+          token = std::make_unique<token::identifier>(
+              span, token_id::Identifier, context.buff);
         }
-        default: {
-        }
+      } break;
+      case State::Numeric: {
+        token = token::make<token::integer_literal, std::int32_t>(
+            span, token_id::IntegerLiteral, context.buff);
+      } break;
+      case State::RealNumeric: {
+        token = token::make<token::real_literal, std::double_t>(
+            span, token_id::RealLiteral, context.buff);
+        break;
       }
+      default: {
+      }
+    }
 
-      context.tokens.push_back(std::move(token));
-      context.buff.clear();
+    context.tokens.push_back(std::move(token));
+    context.buff.clear();
 
-      source_code.unget();
-      context.state = State::Start;
+    source_code.unget();
+    context.state = State::Start;
   }
 
  public:
@@ -122,7 +123,8 @@ class token_generator {
                                 ? token_by_name.at(context.buff)
                                 : token_id::Unknown;
 
-            token::span span(context.position - context.buff.size(), context.position);
+            token::span span(context.position - context.buff.size(),
+                             context.position);
 
             context.tokens.emplace_back(
                 std::make_unique<token::symbol>(span, token_id, context.buff));

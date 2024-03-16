@@ -336,26 +336,26 @@ class statement_node : public ast_node {};
 
 class assignment_node : public statement_node {
  private:
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<expression_node> lexpression_;
+  std::shared_ptr<expression_node> rexpression_;
 
  public:
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier()
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_lexpression()
       const noexcept {
-    return identifier_;
+    return lexpression_;
   }
 
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_rexpression()
       const noexcept {
-    return expression_;
+    return rexpression_;
   }
 
-  void set_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
-    identifier_ = std::move(identifier);
+  void set_lexpression(std::shared_ptr<expression_node> lexpression) noexcept {
+    lexpression_ = std::move(lexpression);
   }
 
-  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
-    expression_ = std::move(expression);
+  void set_rexpression(std::shared_ptr<expression_node> rexpression) noexcept {
+    rexpression_ = std::move(rexpression);
   }
 
   bool validate() override { return true; }
