@@ -299,7 +299,7 @@ inline result<std::shared_ptr<method_node>> ast_parser::parse_method(
 
 inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable(
     std::size_t& first_token) {
-  if (auto identifier = parse_identifier(first_token);
+  if (auto identifier = parse_identifier(++first_token);
       identifier &&
       tokens_.at(++first_token)->get_token_id() == token_id::Colon) {
     if (auto expression = parse_expression(++first_token); expression) {
@@ -318,7 +318,7 @@ inline result<std::shared_ptr<member_node>> ast_parser::parse_member(
     auto tok_id = tokens_.at(first_token)->get_token_id();
     switch (tok_id) {
       case token_id::Var: {
-        return {parse_variable(++first_token).value};
+        return {parse_variable(first_token).value};
       }
       case token_id::Method: {
         return {parse_method(++first_token).value};
@@ -463,7 +463,7 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope(
       }
 
       case token_id::Var: {
-        body->add_node(parse_variable(++first_token).value);
+        body->add_node(parse_variable(first_token).value);
         continue;
       }
 
