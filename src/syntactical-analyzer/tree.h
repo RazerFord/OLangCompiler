@@ -349,8 +349,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_literal() {
       return {std::make_shared<literal_node<bool>>(literal_token->get_value())};
     }
     default:
-      std::cout << "[ ERROR ] expected literal, but was: "
-                << token_id_to_string(stream_.get_token_id()) << std::endl;
+      logger::error("raw token");
   }
   return {};
 }
