@@ -47,11 +47,14 @@ Expression : Primary { '.' Identifier [ Arguments ] }
 
 Arguments : '(' Expression { ',' Expression } ')'
 
-Primary : IntegerLiteral
-  | RealLiteral
-  | BooleanLiteral
+Primary : Literal
   | this
+  | null
   | ClassName
+
+Literal : IntegerLiteral
+| RealLiteral
+| BooleanLiteral
 
 Identifier :  CharLiteral { CharLiteral | Digit }
 

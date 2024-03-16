@@ -69,6 +69,8 @@ class statement_node;
 class expression_node;
 class arguments_node;
 class body_node;
+class this_node;
+class null_node;
 
 class identifier_node : public ast_node {
  private:
@@ -474,6 +476,14 @@ class expression_node : public ast_node {
     primary_ = std::move(primary);
   }
 
+  void set_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
+    identifier_ = std::move(identifier);
+  }
+
+  void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
+    arguments_ = std::move(arguments);
+  }
+
   void get_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
     identifier_ = std::move(identifier);
   }
@@ -502,6 +512,10 @@ class arguments_node : public ast_node {
     expressions_ = expression;
   }
 
+  void add_expression(std::shared_ptr<expression_node> expression) {
+    expressions_.push_back(std::move(expression));
+  } 
+
   bool validate() override { return true; }
 
   void generate() override {}
@@ -515,8 +529,22 @@ class literal_node : public primary_node {
   void generate() override {}
 
  public:
+  literal_node() {}
+  literal_node(T value) : value_(value) {}
   void set_value(const T& value) { value_ = value; }
 
   const T& value() const { return value_; }
+};
+
+class this_node : public primary_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+};
+
+class null_node : public primary_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
 };
 }  // namespace details

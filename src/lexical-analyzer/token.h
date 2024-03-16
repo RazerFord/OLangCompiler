@@ -46,7 +46,7 @@ class token {
   token(const span& span, token_id code) : span_(span), code_(code) {}
   token(const token& other) : token(other.span_, other.code_) {}
 
-  const token_id& get_token_id() const { return code_; }
+  const token_id get_token_id() const { return code_; }
 
   const span& get_span() const { return span_; }
 
