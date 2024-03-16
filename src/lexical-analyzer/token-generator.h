@@ -21,6 +21,7 @@ class token_generator {
        {"var", token_id::Var},
        {"while", token_id::While},
        {"loop", token_id::Loop},
+       {"if", token_id::If},
        {"then", token_id::Then},
        {"else", token_id::Else},
        {"return", token_id::Return},
@@ -39,7 +40,6 @@ class token_generator {
        {"false", token_id::BooleanLiteral},
        {" ", token_id::Space},
        {"\n", token_id::NewLine}};
-
 
   enum class State {
     Start,
