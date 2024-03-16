@@ -9,6 +9,7 @@
 
 #include "./../lexical-analyzer/token-code.h"
 #include "./../lexical-analyzer/token.h"
+#include "./../logging/logger.h"
 #include "details.h"
 
 namespace tree {
@@ -24,6 +25,12 @@ class ast {
 };
 
 namespace {
+constexpr auto tok_to_str = token_id_to_string;
+
+void log_expected_actual(const token_id& e, const token_id& a) {
+  logger::info("expected", tok_to_str(e), ", but", "actual", tok_to_str(a));
+}
+
 template <class T>
 struct result {
   T value;
@@ -116,8 +123,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if(
     std::size_t& first_token) {
   if (auto tok_id = tokens_[first_token]->get_token_id();
       tok_id != token_id::If) {
-    std::cout << "[ ERROR ] expected If, but was " << token_id_to_string(tok_id)
-              << std::endl;
+    log_expected_actual(token_id::If, tok_id);
     return {};
   }
   auto statement = std::make_shared<if_statement_node>();
@@ -126,8 +132,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if(
   statement->set_expression(expr.value);
   if (auto tok_id = tokens_[first_token++]->get_token_id();
       tok_id != token_id::Then || !expr) {
-    std::cout << "[ ERROR ] expected Then for If, but was "
-              << token_id_to_string(tok_id) << std::endl;
+    log_expected_actual(token_id::Then, tok_id);
     return {};
   }
 
@@ -136,13 +141,13 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if(
 
   if (auto tok_id = tokens_[first_token]->get_token_id();
       tok_id != token_id::Else || !true_branch) {
-    std::cout << "[ ERROR ] expected True Branch, but was "
-              << token_id_to_string(tok_id) << std::endl;
+    log_expected_actual(token_id::Else, tok_id);
     return {};
   }
-
   auto false_branch = parse_expression(++first_token);
   statement->set_expression(false_branch.value);
+
+  logger::info("if parsed");
 
   return {statement, false_branch.ok};
 }
@@ -151,8 +156,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while(
     std::size_t& first_token) {
   if (auto tok_id = tokens_[first_token]->get_token_id();
       tok_id != token_id::While) {
-    std::cout << "[ ERROR ] expected Identifier for assignment, but was "
-              << token_id_to_string(tok_id) << std::endl;
+    log_expected_actual(token_id::While, tok_id);
     return {};
   }
   auto statement = std::make_shared<while_loop_node>();
@@ -162,12 +166,13 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while(
 
   if (auto tok_id = tokens_[first_token++]->get_token_id();
       tok_id != token_id::Loop || !expr) {
-    std::cout << "[ ERROR ] expected Loop for assignment, but was "
-              << token_id_to_string(tok_id) << std::endl;
+    log_expected_actual(token_id::Loop, tok_id);
     return {};
   }
   auto scope = parse_scope(first_token);
   statement->set_body_node(parse_scope(first_token).value);
+
+  logger::info("while loop parsed");
 
   return {statement, scope.ok};
 }
@@ -175,22 +180,24 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while(
 inline result<std::shared_ptr<statement_node>> ast_parser::parse_assign(
     std::size_t& first_token) {
   auto& identifier = tokens_[first_token];
-  if (identifier->get_token_id() != token_id::Identifier) {
-    std::cout << "[ ERROR ] expected Identifier for assignment, but was "
-              << token_id_to_string(identifier->get_token_id()) << std::endl;
+  if (auto tok_id = identifier->get_token_id();
+      tok_id != token_id::Identifier) {
+    log_expected_actual(token_id::Identifier, tok_id);
     return {};
   }
   auto statement = std::make_shared<assignment_node>();
   statement->set_identifier(parse_identifier(first_token).value);
 
-  if (tokens_[++first_token]->get_token_id() != token_id::Assign) {
-    std::cout << "[ ERROR ] expected Assign for assignment, but was "
-              << token_id_to_string(tokens_[first_token - 1]->get_token_id())
-              << std::endl;
+  if (auto tok_id = tokens_[++first_token]->get_token_id();
+      tok_id != token_id::Assign) {
+    log_expected_actual(token_id::Assign, tok_id);
     return {};
   }
   auto expr = parse_expression(first_token);
   statement->set_expression(expr.value);
+
+  logger::info("assign parsed");
+
   return {statement, expr.ok};
 }
 
@@ -206,11 +213,10 @@ inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier(
   if ((tok->get_token_id() == token_id::Identifier) &&
       (id = dynamic_cast<ptr_tok_id>(tok.get()))) {
     id_node->set_name(id->get_value());
-    std::cout << "[ INFO ] identifier: " << id->get_value() << std::endl;
+    logger::info("identifier", id->get_value(), "parsed");
     return {id_node};
   } else {
-    std::cout << "[ ERROR ] expected identifier, but was: "
-              << token_id_to_string(tok->get_token_id()) << std::endl;
+    log_expected_actual(token_id::Identifier, tok->get_token_id());
     return {nullptr};
   }
 }
@@ -225,8 +231,13 @@ inline result<std::shared_ptr<parameter_node>> ast_parser::parse_parameter(
     auto parameter = std::make_shared<parameter_node>();
     parameter->set_identifier(identifier.value);
     parameter->set_class_name(class_name.value);
+
+    logger::info("parameter parsed");
+
     return {parameter};
   }
+  logger::error("parameter parsing error");
+
   return {nullptr};
 }
 
@@ -251,8 +262,11 @@ inline result<std::shared_ptr<parameters_node>> ast_parser::parse_parameters(
         return {nullptr};
       }
     }
+    logger::info("parameters parsed");
+
     return {parameters, true};
   }
+  logger::error("parameters parsing error");
 
   return {nullptr};
 }
@@ -267,8 +281,13 @@ inline result<std::shared_ptr<constructor_node>> ast_parser::parse_constructor(
     auto constructor = std::make_shared<constructor_node>();
     constructor->set_parameters(parameters.value);
     constructor->set_body(body.value);
+
+    logger::info("constructor parsed");
+
     return {constructor};
   }
+  logger::error("constructor parsing error");
+
   return {nullptr};
 }
 
@@ -292,8 +311,12 @@ inline result<std::shared_ptr<method_node>> ast_parser::parse_method(
       method->set_parameters(parameters.value);
       method->set_body(body.value);
     }
+    logger::info("method parsed");
+
     return {method};
   }
+  logger::error("method parsing error");
+
   return {nullptr};
 }
 
@@ -306,9 +329,14 @@ inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable(
       auto variable = std::make_shared<variable_node>();
       variable->set_identifier(identifier.value);
       variable->set_expression(expression.value);
+
+      logger::info("variable parsed");
+
       return {variable};
     }
   }
+  logger::error("variable parsing error");
+
   return {nullptr};
 }
 
@@ -330,8 +358,7 @@ inline result<std::shared_ptr<member_node>> ast_parser::parse_member(
         return {};
       }
       default: {
-        std::cout << "[ ERROR ] expected member, but was "
-                  << token_id_to_string(tok_id) << std::endl;
+        logger::error("raw token", tok_to_str(tok_id));
       }
     }
   }
@@ -369,8 +396,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_primary(
       return {parse_class_name(first_token).value};
     }
     default: {
-      std::cout << "[ ERROR ] expected identifier of class, but was: "
-                << token_id_to_string(tok->get_token_id()) << std::endl;
+      logger::error("raw token", tok_to_str(tok->get_token_id()));
     }
   }
   return {};
@@ -397,8 +423,11 @@ inline result<std::shared_ptr<arguments_node>> ast_parser::parse_arguments(
         return {nullptr};
       }
     }
+    logger::error("arguments parsed");
+
     return {arguments};
   }
+  logger::error("arguments parsing error");
 
   return {nullptr};
 }
@@ -413,6 +442,8 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression(
   } else {
     --first_token;
   }
+  logger::info("arguments parsed");
+
   return {expression};
 }
 
@@ -425,9 +456,9 @@ inline result<std::shared_ptr<return_statement_node>> ast_parser::parse_return(
 
 inline result<std::shared_ptr<body_node>> ast_parser::parse_body(
     std::size_t& first_token) {
-  if (auto tok = tokens_[first_token]->get_token_id(); tok != token_id::Is) {
-    std::cout << "[ ERROR ] expected Is, but was: " << token_id_to_string(tok)
-              << std::endl;
+  if (auto tok_id = tokens_[first_token]->get_token_id();
+      tok_id != token_id::Is) {
+    log_expected_actual(token_id::Is, tok_id);
     return {};
   }
 
@@ -477,9 +508,7 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope(
       }
 
       default: {
-        std::cout << "[ ERROR ] expected assignment, while, if, return "
-                     "statement or variable declaration, but was: "
-                  << token_id_to_string(tok->get_token_id()) << std::endl;
+        logger::error("raw token", tok_to_str(tok->get_token_id()));
       }
     }
   }
@@ -505,16 +534,15 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_generic(
     }
 
     if (bracket_id == token_id::RSBracket) {
-      std::cout << "[ INFO ] generic parsed" << std::endl;
+      logger::info("generic parsed");
       return {class_name};
     } else {
-      std::cout << "[ ERROR ] expected ']', but was "
-                << token_id_to_string(token_id::RSBracket) << std::endl;
-
+      log_expected_actual(token_id::RSBracket, bracket_id);
       return {nullptr};
     }
   } else {
     first_token--;
+    logger::error("generic parsing error");
     return {nullptr};
   }
 }
@@ -538,8 +566,9 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends(
   } else if (tok_id == token_id::Is) {
     return {nullptr, true};
   } else {
-    std::cout << "[ ERROR ] expected 'extends' or 'is', but was: "
-              << token_id_to_string(tok_id) << std::endl;
+    logger::error("expected:", tok_to_str(token_id::Extends), ",",
+                      tok_to_str(token_id::Is), ", but was",
+                      tok_to_str(tok_id));
     first_token--;
     return {nullptr};
   }
@@ -553,10 +582,12 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class(
   node->set_class_name(parse_class_name(first_token).value);
   node->set_extends(parse_extends(first_token).value);
 
-  auto& tok = tokens_[first_token];
-  if (tok->get_token_id() != token_id::Is) {
-    std::cout << "[ ERROR ] expected 'is' but was: "
-              << token_id_to_string(tok->get_token_id()) << std::endl;
+  auto tok_id = tokens_[first_token]->get_token_id();
+  if (tok_id != token_id::Is) {
+    log_expected_actual(token_id::Is, tok_id);
+
+    logger::error("class parsing error");
+
     return {nullptr};
   }
 
@@ -573,16 +604,15 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program(
   program_node program;
 
   for (std::size_t i = first_token; i < tokens_.size(); i++) {
-    auto& tok = tokens_[i];
-    switch (tok->get_token_id()) {
+    auto tok_id = tokens_[i]->get_token_id();
+    switch (tok_id) {
       case token_id::Class: {
         program.add_class(parse_class(i).value);
         break;
       }
 
       default: {
-        std::cout << "[ ERROR ] expected class declaration, but was "
-                  << token_id_to_string(tok->get_token_id()) << std::endl;
+        log_expected_actual(token_id::Class, tok_id);
       }
     }
   }

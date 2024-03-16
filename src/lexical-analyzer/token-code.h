@@ -40,7 +40,7 @@ enum class token_id {
 };
 
 namespace {
-static std::uint8_t max_width = 15;
+const std::uint8_t max_width = 15;
 
 const std::unordered_map<token_id, std::string> string_by_token_id = {
     {token_id::Unknown, "Unknown"},
