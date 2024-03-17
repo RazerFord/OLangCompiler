@@ -318,8 +318,7 @@ class body_node : public ast_node {
     return nodes_;
   }
 
-  void set_nodes(
-      const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
+  void set_nodes(const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
     nodes_ = nodes;
   }
 
@@ -514,7 +513,7 @@ class arguments_node : public ast_node {
 
   void add_expression(std::shared_ptr<expression_node> expression) {
     expressions_.push_back(std::move(expression));
-  } 
+  }
 
   bool validate() override { return true; }
 
@@ -546,5 +545,22 @@ class null_node : public primary_node {
   bool validate() override { return true; }
 
   void generate() override {}
+};
+
+class base_node : public primary_node {
+  std::shared_ptr<arguments_node> arguments_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
+    arguments_ = std::move(arguments);
+  }
+
+  void get_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
+    arguments_ = std::move(arguments);
+  }
 };
 }  // namespace details

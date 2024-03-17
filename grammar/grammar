@@ -50,6 +50,7 @@ Arguments : '(' Expression { ',' Expression } ')'
 
 Primary : Literal
   | this
+  | base
   | null
   | ClassName
 
