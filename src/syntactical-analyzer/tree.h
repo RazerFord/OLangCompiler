@@ -126,15 +126,18 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
   auto true_branch = parse_scope();
   statement->set_true_body(true_branch.value);
 
-  if (auto tok_id = stream_.next_and_token_id();
-      tok_id != token_id::Else || !true_branch) {
+  if (auto tok_id = stream_.get_token_id();
+      (tok_id != token_id::Else && tok_id != token_id::End) || !true_branch) {
     log_expected_actual(token_id::Else, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::Else, tok_id);
     return {};
   }
 
-  auto false_branch = parse_scope();
-  statement->set_false_body(false_branch.value);
+  result<std::shared_ptr<body_node>> false_branch;
+  if (stream_.get_token_id() == token_id::Else) {
+    false_branch = parse_scope();
+    statement->set_false_body(false_branch.value);
+  }
 
   logger::info("if parsed");
 
@@ -142,7 +145,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
 }
 
 inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
-  if (auto tok_id = stream_.next_and_token_id(); tok_id != token_id::While) {
+  if (auto tok_id = stream_.get_token_id(); tok_id != token_id::While) {
     log_expected_actual(token_id::While, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::While, tok_id);
     return {};
@@ -159,7 +162,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
     return {};
   }
   auto scope = parse_scope();
-  statement->set_body_node(parse_scope().value);
+  statement->set_body_node(scope.value);
 
   logger::info("while loop parsed");
 
@@ -262,7 +265,7 @@ ast_parser::parse_constructor() {
   // ++stream_;
   if (auto parameters = parse_parameters();
       parameters && stream_.next_and_token_id() == token_id::Is &&
-      (body = parse_body()) && stream_.next_and_token_id() == token_id::End) {
+      (body = parse_body()) && stream_.get_token_id() == token_id::End) {
     auto constructor = std::make_shared<constructor_node>();
     constructor->set_parameters(parameters.value);
     constructor->set_body(body.value);
@@ -288,7 +291,7 @@ inline result<std::shared_ptr<method_node>> ast_parser::parse_method() {
 
     result<std::shared_ptr<body_node>> body;
     if (stream_.next_and_token_id() == token_id::Is && (body = parse_body()) &&
-        stream_.next_and_token_id() == token_id::End) {
+        stream_.get_token_id() == token_id::End) {
       method->set_identifier(identifier.value);
       method->set_parameters(parameters.value);
       method->set_body(body.value);
@@ -377,6 +380,11 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_keyword() {
     case token_id::Null: {
       return {std::make_shared<null_node>()};
     }
+    case token_id::Base: {
+      auto base = std::make_shared<base_node>();
+      base->set_arguments(parse_arguments().value);
+      return {base};
+    }
     default:
       logger::error("raw token", tok_to_str(stream_.get_token_id()));
   }
@@ -391,6 +399,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_primary() {
       logger::info("literal:", tok_to_str(stream_.next_token_id()));
       return parse_literal();
     }
+    case token_id::Base:
     case token_id::This:
     case token_id::Null: {
       return parse_keyword();
@@ -440,9 +449,11 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
   auto expression = std::make_shared<expression_node>();
   expression->set_primary(parse_primary().value);
   if (stream_.next_token_id() == token_id::Dot) {
-    ++stream_;
-    expression->set_identifier(parse_identifier().value);
-    expression->set_arguments(parse_arguments().value);
+    while (stream_.next_token_id() == token_id::Dot) {
+      ++stream_;
+      expression->set_identifier(parse_identifier().value);
+      expression->set_arguments(parse_arguments().value);
+    }
   } else if (auto arguments = parse_arguments(); arguments) {
     expression->set_arguments(arguments.value);
   }
@@ -454,7 +465,11 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
 inline result<std::shared_ptr<return_statement_node>>
 ast_parser::parse_return() {
   auto return_node = std::make_shared<return_statement_node>();
-  return_node->set_expression(parse_expression().value);
+  if (stream_.next_token_id() != token_id::NewLine)
+    return_node->set_expression(parse_expression().value);
+  else {
+    ++stream_;
+  }
   return {return_node};
 }
 
@@ -499,11 +514,12 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope() {
         body->add_node(parse_variable().value);
         continue;
       }
-
+      case token_id::Else:
       case token_id::End: {
-        --stream_;
         return {body};
       }
+
+      case token_id::Base:
       case token_id::This:
       case token_id::Identifier: {
         --stream_;
@@ -575,7 +591,6 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends() {
     ++stream_;
     return parse_class_name();
   } else if (tok_id == token_id::Is) {
-    ++stream_;
     return {nullptr, true};
   } else {
     logger::error("expected:", tok_to_str(token_id::Extends), ",",
@@ -590,7 +605,7 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
   node->set_class_name(parse_class_name().value);
   node->set_extends(parse_extends().value);
 
-  auto tok_id = stream_.get_token_id();
+  auto tok_id = stream_.next_and_token_id();
   if (tok_id != token_id::Is) {
     log_expected_actual(token_id::Is, tok_id);
     return {nullptr};
@@ -626,16 +641,20 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program() {
 }  // namespace
 
 inline ast make_ast(token_vector& tokens) {
-  std::erase_if(tokens, [](auto& tok) {
-    auto id = tok->get_token_id();
-    return id == token_id::Space || id == token_id::NewLine;
-  });
+  token_vector valid_tokens;
+  for (int i = 0; i < tokens.size(); ++i) {
+    auto id = tokens[i]->get_token_id();
+    if ((id != token_id::Space && id != token_id::NewLine) ||
+        (id == token_id::NewLine &&
+         valid_tokens.back()->get_token_id() == token_id::Return))
+      valid_tokens.emplace_back(std::move(tokens[i]));
+  }
 
-  ast_parser parser(tokens);
+  ast_parser parser(valid_tokens);
 
   std::cout << "after erased" << std::endl;
 
-  for (auto& tok : tokens) {
+  for (auto& tok : valid_tokens) {
     tok->print();
   }
 

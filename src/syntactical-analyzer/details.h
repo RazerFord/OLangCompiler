@@ -641,4 +641,23 @@ class null_node : public primary_node {
 
   void print() override { std::cout << "this" << std::endl; }
 };
+
+class base_node : public primary_node {
+  std::shared_ptr<arguments_node> arguments_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
+    arguments_ = std::move(arguments);
+  }
+
+  void get_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
+    arguments_ = std::move(arguments);
+  }
+
+  void print() override { std::cout << "base" << std::endl; }
+};
 }  // namespace details
