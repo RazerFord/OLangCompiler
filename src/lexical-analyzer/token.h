@@ -15,10 +15,15 @@ namespace token {
 struct span {
   std::size_t begin_;
   std::size_t end_;
+  std::size_t line_;
+  std::size_t offset_;
 
   span() = default;
-  span(std::size_t begin, std::size_t end) : begin_{begin}, end_{end} {}
-  span(const span& other) : span(other.begin_, other.end_) {}
+  span(const std::size_t begin, const std::size_t end, const std::size_t line,
+       const std::size_t offset)
+      : begin_{begin}, end_{end}, line_{line}, offset_{offset} {}
+  span(const span& other)
+      : span(other.begin_, other.end_, other.line_, other.offset_) {}
 
   span& merge(const span& other) {
     begin_ = std::min(begin_, other.begin_);
@@ -28,7 +33,9 @@ struct span {
 
   static span merge(const span& lspan, const span& rspan) {
     return {std::min(lspan.begin_, rspan.begin_),
-                std::max(lspan.end_, rspan.end_)};
+            std::max(lspan.end_, rspan.end_),
+            std::min(lspan.line_, rspan.line_),
+            std::min(lspan.offset_, rspan.offset_)};
   }
 };
 
@@ -52,7 +59,7 @@ class token {
 
   virtual void print() = 0;
 
-  virtual ~token()= default;
+  virtual ~token() = default;
 };
 
 template <class T>
@@ -103,7 +110,8 @@ class symbol : public basic_template_token<std::string> {
       tok = this->value_;
     }
     std::cout << token_id_to_string(code_) << " "
-              << "[" << this->span_.begin_ << ", " << this->span_.end_ << ")"
+              << "[" << this->span_.begin_ << ", " << this->span_.end_ << ", "
+              << span_.line_ << ":" << span_.offset_ << ")"
               << " \"" << tok << "\"" << std::endl;
   }
 };
