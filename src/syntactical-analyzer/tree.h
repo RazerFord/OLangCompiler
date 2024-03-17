@@ -32,6 +32,14 @@ void log_expected_actual(const token_id& e, const token_id& a) {
   logger::info("expected", tok_to_str(e), ", but", "actual", tok_to_str(a));
 }
 
+void log_error_lang(const span& span, const token_id& e, const token_id& a) {
+  std::string exp = logger::tolower(logger::trim(tok_to_str(e)));
+  std::string act = logger::tolower(logger::trim(tok_to_str(a)));
+
+  std::cout << span.line_ << ":" << span.offset_ << " expected \"" << exp
+            << "\", but was \"" << act << "\"" << std::endl;
+}
+
 template <class T>
 struct result {
   T value;
@@ -101,6 +109,7 @@ class ast_parser {
 inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
   if (auto tok_id = stream_.get_token_id(); tok_id != token_id::If) {
     log_expected_actual(token_id::If, tok_id);
+    log_error_lang(stream_.token()->get_span(), token_id::If, tok_id);
     return {};
   }
   auto statement = std::make_shared<if_statement_node>();
@@ -110,6 +119,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
   if (auto tok_id = stream_.next_and_token_id();
       tok_id != token_id::Then || !expr) {
     log_expected_actual(token_id::Then, tok_id);
+    log_error_lang(stream_.token()->get_span(), token_id::Then, tok_id);
     return {};
   }
 
@@ -119,6 +129,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
   if (auto tok_id = stream_.next_and_token_id();
       tok_id != token_id::Else || !true_branch) {
     log_expected_actual(token_id::Else, tok_id);
+    log_error_lang(stream_.token()->get_span(), token_id::Else, tok_id);
     return {};
   }
 
@@ -133,6 +144,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
 inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
   if (auto tok_id = stream_.next_and_token_id(); tok_id != token_id::While) {
     log_expected_actual(token_id::While, tok_id);
+    log_error_lang(stream_.token()->get_span(), token_id::While, tok_id);
     return {};
   }
   auto statement = std::make_shared<while_loop_node>();
@@ -143,6 +155,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
   if (auto tok_id = stream_.next_and_token_id();
       tok_id != token_id::Loop || !expr) {
     log_expected_actual(token_id::Loop, tok_id);
+    log_error_lang(stream_.token()->get_span(), token_id::Loop, tok_id);
     return {};
   }
   auto scope = parse_scope();
@@ -189,6 +202,8 @@ inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier() {
     return {id_node};
   } else {
     log_expected_actual(token_id::Identifier, stream_.get_token_id());
+    log_error_lang(stream_.token()->get_span(), token_id::Identifier,
+                   stream_.get_token_id());
     return {nullptr};
   }
 }
@@ -446,6 +461,7 @@ ast_parser::parse_return() {
 inline result<std::shared_ptr<body_node>> ast_parser::parse_body() {
   if (auto tok_id = stream_.get_token_id(); tok_id != token_id::Is) {
     log_expected_actual(token_id::Is, tok_id);
+    log_error_lang(stream_.token()->get_span(), token_id::Is, tok_id);
     return {};
   }
 
@@ -534,6 +550,8 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_generic() {
       return {class_name};
     } else {
       log_expected_actual(token_id::RSBracket, bracket_id);
+      log_error_lang(stream_.token()->get_span(), token_id::RSBracket,
+                     bracket_id);
       return {nullptr};
     }
   }
@@ -561,8 +579,7 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends() {
     return {nullptr, true};
   } else {
     logger::error("expected:", tok_to_str(token_id::Extends), ",",
-                  tok_to_str(token_id::Is), ", but was",
-                  tok_to_str(tok_id));
+                  tok_to_str(token_id::Is), ", but was", tok_to_str(tok_id));
     return {nullptr};
   }
 }
@@ -579,7 +596,8 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
     return {nullptr};
   }
 
-  for (++stream_; stream_ && stream_.get_token_id() != token_id::End; ++stream_) {
+  for (++stream_; stream_ && stream_.get_token_id() != token_id::End;
+       ++stream_) {
     node->add_member(parse_member().value);
   }
 
