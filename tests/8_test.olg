@@ -1,6 +1,6 @@
 class Distance is
   method distance2(a: Point, b: Point): Real is
-    var math := Math
+    var math : Math
     return math.pow2(a.x.Minus(b.x)).Plus(math.pow2(a.y.Minus(b.y)))
   end
 end

@@ -6,6 +6,6 @@ class Main is
   this() is
     var gen : Generic[Integer]
 
-    gen.append(42)
+    gen.append(-42.129)
   end
 end
