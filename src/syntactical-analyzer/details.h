@@ -55,6 +55,7 @@ class ast_node {
   explicit ast_node() : meta_info_{meta{}} {}
   explicit ast_node(const meta& meta_info) : meta_info_{meta_info} {}
 
+  virtual void print() = 0;
   virtual ~ast_node() = default;
 };
 
@@ -84,7 +85,57 @@ class identifier_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void print() override { std::cout << name_; }
 };
+
+class primary_node : public ast_node {
+ private:
+  std::string representation_;
+
+ public:
+  void print() override { std::cout << representation_; }
+};
+
+class class_name_node : public primary_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<class_name_node> generic_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
+    return identifier_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<class_name_node>& get_generic() const {
+    return generic_;
+  }
+
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = std::move(identifier);
+  }
+
+  void set_generic(std::shared_ptr<class_name_node> generic) {
+    generic_ = std::move(generic);
+  }
+
+  void print() override {
+    if (identifier_) {
+      std::cout << "class ";
+      identifier_->print();
+    }
+    if (generic_) {
+      std::cout << "[";
+      generic_->print();
+      std::cout << "] ";
+    }
+  }
+};
+
+class member_node : public ast_node {};
 
 class class_node : public ast_node {
   std::shared_ptr<class_name_node> class_name_;
@@ -120,36 +171,22 @@ class class_node : public ast_node {
   void add_member(std::shared_ptr<member_node> member) {
     members_.push_back(std::move(member));
   }
-};
 
-class primary_node : public ast_node {
- private:
-  std::string representation_;
-};
+  void print() override {
+    if (class_name_) {
+      class_name_->print();
+    }
+    if (extends_) {
+      std::cout << " extends ";
+      extends_->print();
+    }
+    std::cout << "Is\n";
 
-class class_name_node : public primary_node {
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<class_name_node> generic_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
-    return identifier_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_generic() const {
-    return generic_;
-  }
-
-  void set_identifier(std::shared_ptr<identifier_node> identifier) {
-    identifier_ = std::move(identifier);
-  }
-
-  void set_generic(std::shared_ptr<class_name_node> generic) {
-    generic_ = std::move(generic);
+    for (const auto& member : members_) {
+      if (member) {
+        member->print();
+      }
+    }
   }
 };
 
@@ -169,286 +206,17 @@ class program_node : public ast_node {
   void add_class(std::shared_ptr<class_node> class_) {
     classes_.push_back(std::move(class_));
   }
-};
 
-class member_node : public ast_node {};
-
-class variable_node : public member_node {
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<expression_node> expression_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
-    return identifier_;
+  void print() override {
+    for (const auto& clazz : classes_) {
+      if (clazz) {
+        clazz->print();
+      }
+    }
   }
-
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression() const {
-    return expression_;
-  }
-
-  void set_identifier(std::shared_ptr<identifier_node> identifier) {
-    identifier_ = std::move(identifier);
-  }
-
-  void set_expression(std::shared_ptr<expression_node> expression) {
-    expression_ = std::move(expression);
-  }
-};
-
-class method_node : public member_node {
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<parameters_node> parameters_;
-  std::shared_ptr<identifier_node> return_type_;
-  std::shared_ptr<body_node> body_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
-    return identifier_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<parameters_node>& get_parameters() const {
-    return parameters_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_return_type()
-      const {
-    return return_type_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<body_node>& get_body() const {
-    return body_;
-  }
-
-  void set_identifier(std::shared_ptr<identifier_node> identifier) {
-    identifier_ = std::move(identifier);
-  }
-
-  void set_parameters(std::shared_ptr<parameters_node> parameters) {
-    parameters_ = std::move(parameters);
-  }
-
-  void set_body(std::shared_ptr<body_node> body) { body_ = std::move(body); }
-  void set_return_type(std::shared_ptr<identifier_node> return_type) {
-    return_type_ = std::move(return_type);
-  }
-};
-
-class constructor_node : public member_node {
-  std::shared_ptr<parameters_node> parameters_;
-  std::shared_ptr<body_node> body_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::shared_ptr<parameters_node>& get_parameters() const {
-    return parameters_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<body_node>& get_body() const {
-    return body_;
-  }
-
-  void set_parameters(std::shared_ptr<parameters_node> parameters) {
-    parameters_ = std::move(parameters);
-  }
-
-  void set_body(std::shared_ptr<body_node> body) { body_ = std::move(body); }
-};
-
-class parameters_node : public ast_node {
-  std::vector<std::shared_ptr<parameter_node>> parameters_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::vector<std::shared_ptr<parameter_node>>&
-  getParameters() const {
-    return parameters_;
-  }
-
-  void add_parameter(std::shared_ptr<parameter_node> parameter) {
-    parameters_.push_back(std::move(parameter));
-  }
-};
-
-class parameter_node : public ast_node {
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<class_name_node> class_name_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
-    return identifier_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
-    return class_name_;
-  }
-
-  void set_identifier(std::shared_ptr<identifier_node> identifier) {
-    identifier_ = std::move(identifier);
-  }
-  void set_class_name(std::shared_ptr<class_name_node> class_name) {
-    class_name_ = std::move(class_name);
-  }
-};
-
-class body_node : public ast_node {
- private:
-  std::vector<std::shared_ptr<ast_node>> nodes_;
-
- public:
-  [[nodiscard]] const std::vector<std::shared_ptr<ast_node>>& get_nodes()
-      const noexcept {
-    return nodes_;
-  }
-
-  void set_nodes(
-      const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
-    nodes_ = nodes;
-  }
-
-  void add_node(std::shared_ptr<ast_node> node) noexcept {
-    nodes_.push_back(std::move(node));
-  }
-
-  bool validate() override { return true; }
-
-  void generate() override {}
 };
 
 class statement_node : public ast_node {};
-
-class assignment_node : public statement_node {
- private:
-  std::shared_ptr<expression_node> lexpression_;
-  std::shared_ptr<expression_node> rexpression_;
-
- public:
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_lexpression()
-      const noexcept {
-    return lexpression_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_rexpression()
-      const noexcept {
-    return rexpression_;
-  }
-
-  void set_lexpression(std::shared_ptr<expression_node> lexpression) noexcept {
-    lexpression_ = std::move(lexpression);
-  }
-
-  void set_rexpression(std::shared_ptr<expression_node> rexpression) noexcept {
-    rexpression_ = std::move(rexpression);
-  }
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
-
-class while_loop_node : public statement_node {
- private:
-  std::shared_ptr<expression_node> expression_;
-  std::shared_ptr<body_node> body_;
-
- public:
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
-      const noexcept {
-    return expression_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<body_node>& get_body_node()
-      const noexcept {
-    return body_;
-  }
-
-  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
-    expression_ = std::move(expression);
-  }
-
-  void set_body_node(std::shared_ptr<body_node> body_node) noexcept {
-    body_ = std::move(body_node);
-  }
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
-
-class if_statement_node : public statement_node {
- private:
-  std::shared_ptr<expression_node> expression_;
-  std::shared_ptr<body_node> true_body_;
-  std::shared_ptr<body_node> false_body_;
-
- public:
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
-      const noexcept {
-    return expression_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<body_node>& get_true_body()
-      const noexcept {
-    return true_body_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<body_node>& get_false_body()
-      const noexcept {
-    return false_body_;
-  }
-
-  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
-    expression_ = std::move(expression);
-  }
-
-  void set_true_body(std::shared_ptr<body_node> true_body) noexcept {
-    true_body_ = std::move(true_body);
-  }
-
-  void set_false_body(std::shared_ptr<body_node> false_body) noexcept {
-    false_body_ = std::move(false_body);
-  }
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
-
-class return_statement_node : public statement_node {
- private:
-  std::shared_ptr<expression_node> expression_;
-
- public:
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
-      const noexcept {
-    return expression_;
-  }
-
-  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
-    expression_ = std::move(expression);
-  }
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-};
 
 class expression_node : public statement_node {
  private:
@@ -495,6 +263,322 @@ class expression_node : public statement_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void print() override {}
+};
+
+class variable_node : public member_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<expression_node> expression_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
+    return identifier_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression() const {
+    return expression_;
+  }
+
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = std::move(identifier);
+  }
+
+  void set_expression(std::shared_ptr<expression_node> expression) {
+    expression_ = std::move(expression);
+  }
+
+  void print() override {
+    std::cout << "var ";
+    identifier_->print();
+    std::cout << " := ";
+    expression_->print();
+    std::cout << std::endl;
+  }
+};
+
+class method_node : public member_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<parameters_node> parameters_;
+  std::shared_ptr<identifier_node> return_type_;
+  std::shared_ptr<body_node> body_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
+    return identifier_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<parameters_node>& get_parameters() const {
+    return parameters_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<identifier_node>& get_return_type()
+      const {
+    return return_type_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<body_node>& get_body() const {
+    return body_;
+  }
+
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = std::move(identifier);
+  }
+
+  void set_parameters(std::shared_ptr<parameters_node> parameters) {
+    parameters_ = std::move(parameters);
+  }
+
+  void set_body(std::shared_ptr<body_node> body) { body_ = std::move(body); }
+  void set_return_type(std::shared_ptr<identifier_node> return_type) {
+    return_type_ = std::move(return_type);
+  }
+
+  void print() override {}
+};
+
+class constructor_node : public member_node {
+  std::shared_ptr<parameters_node> parameters_;
+  std::shared_ptr<body_node> body_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::shared_ptr<parameters_node>& get_parameters() const {
+    return parameters_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<body_node>& get_body() const {
+    return body_;
+  }
+
+  void set_parameters(std::shared_ptr<parameters_node> parameters) {
+    parameters_ = std::move(parameters);
+  }
+
+  void set_body(std::shared_ptr<body_node> body) { body_ = std::move(body); }
+
+  void print() override {}
+};
+
+class parameters_node : public ast_node {
+  std::vector<std::shared_ptr<parameter_node>> parameters_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::vector<std::shared_ptr<parameter_node>>&
+  getParameters() const {
+    return parameters_;
+  }
+
+  void add_parameter(std::shared_ptr<parameter_node> parameter) {
+    parameters_.push_back(std::move(parameter));
+  }
+
+  void print() override {}
+};
+
+class parameter_node : public ast_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<class_name_node> class_name_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
+    return identifier_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
+    return class_name_;
+  }
+
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = std::move(identifier);
+  }
+  void set_class_name(std::shared_ptr<class_name_node> class_name) {
+    class_name_ = std::move(class_name);
+  }
+
+  void print() override {}
+};
+
+class body_node : public ast_node {
+ private:
+  std::vector<std::shared_ptr<ast_node>> nodes_;
+
+ public:
+  [[nodiscard]] const std::vector<std::shared_ptr<ast_node>>& get_nodes()
+      const noexcept {
+    return nodes_;
+  }
+
+  void set_nodes(const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
+    nodes_ = nodes;
+  }
+
+  void add_node(std::shared_ptr<ast_node> node) noexcept {
+    nodes_.push_back(std::move(node));
+  }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+  void print() override {}
+};
+
+class assignment_node : public statement_node {
+ private:
+  std::shared_ptr<expression_node> lexpression_;
+  std::shared_ptr<expression_node> rexpression_;
+
+ public:
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_lexpression()
+      const noexcept {
+    return lexpression_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_rexpression()
+      const noexcept {
+    return rexpression_;
+  }
+
+  void set_lexpression(std::shared_ptr<expression_node> lexpression) noexcept {
+    lexpression_ = std::move(lexpression);
+  }
+
+  void set_rexpression(std::shared_ptr<expression_node> rexpression) noexcept {
+    rexpression_ = std::move(rexpression);
+  }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+  void print() override {}
+};
+
+class while_loop_node : public statement_node {
+ private:
+  std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<body_node> body_;
+
+ public:
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
+      const noexcept {
+    return expression_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<body_node>& get_body_node()
+      const noexcept {
+    return body_;
+  }
+
+  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
+    expression_ = std::move(expression);
+  }
+
+  void set_body_node(std::shared_ptr<body_node> body_node) noexcept {
+    body_ = std::move(body_node);
+  }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+  void print() override {}
+};
+
+class if_statement_node : public statement_node {
+ private:
+  std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<body_node> true_body_;
+  std::shared_ptr<body_node> false_body_;
+
+ public:
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
+      const noexcept {
+    return expression_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<body_node>& get_true_body()
+      const noexcept {
+    return true_body_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<body_node>& get_false_body()
+      const noexcept {
+    return false_body_;
+  }
+
+  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
+    expression_ = std::move(expression);
+  }
+
+  void set_true_body(std::shared_ptr<body_node> true_body) noexcept {
+    true_body_ = std::move(true_body);
+  }
+
+  void set_false_body(std::shared_ptr<body_node> false_body) noexcept {
+    false_body_ = std::move(false_body);
+  }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+  void print() override {
+    std::cout << "if ";
+    expression_->print();
+    std::cout << " then\n";
+    true_body_->print();
+    if (false_body_) {
+      std::cout << "else ";
+      false_body_->print();
+    }
+    std::cout << "end" << std::endl;
+  }
+};
+
+class return_statement_node : public statement_node {
+ private:
+  std::shared_ptr<expression_node> expression_;
+
+ public:
+  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
+      const noexcept {
+    return expression_;
+  }
+
+  void set_expression(std::shared_ptr<expression_node> expression) noexcept {
+    expression_ = std::move(expression);
+  }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+  void print() override {
+    std::cout << "if ";
+    expression_->print();
+    std::cout << "end" << std::endl;
+  }
 };
 
 class arguments_node : public ast_node {
@@ -514,11 +598,17 @@ class arguments_node : public ast_node {
 
   void add_expression(std::shared_ptr<expression_node> expression) {
     expressions_.push_back(std::move(expression));
-  } 
+  }
 
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void print() override {
+    for (const auto& expression : expressions_) {
+      expression->print();
+    }
+  }
 };
 
 template <typename T>
@@ -534,6 +624,8 @@ class literal_node : public primary_node {
   void set_value(const T& value) { value_ = value; }
 
   const T& value() const { return value_; }
+
+  void print() override { std::cout << value_ << std::endl; }
 };
 
 class this_node : public primary_node {
@@ -546,5 +638,7 @@ class null_node : public primary_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void print() override { std::cout << "this" << std::endl; }
 };
 }  // namespace details
