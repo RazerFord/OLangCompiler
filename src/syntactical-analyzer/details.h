@@ -132,7 +132,89 @@ class class_name_node : public primary_node {
       generic_->print();
       std::cout << "] ";
     }
+    std::cout << " ";
   }
+};
+
+class parameter_node : public ast_node {
+  std::shared_ptr<identifier_node> identifier_;
+  std::shared_ptr<class_name_node> class_name_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
+    return identifier_;
+  }
+
+  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
+    return class_name_;
+  }
+
+  void set_identifier(std::shared_ptr<identifier_node> identifier) {
+    identifier_ = std::move(identifier);
+  }
+  void set_class_name(std::shared_ptr<class_name_node> class_name) {
+    class_name_ = std::move(class_name);
+  }
+
+  void print() override {
+    if (identifier_) {
+      identifier_->print();
+      class_name_->print();
+    }
+  }
+};
+
+class parameters_node : public ast_node {
+  std::vector<std::shared_ptr<parameter_node>> parameters_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  [[nodiscard]] const std::vector<std::shared_ptr<parameter_node>>&
+  getParameters() const {
+    return parameters_;
+  }
+
+  void add_parameter(std::shared_ptr<parameter_node> parameter) {
+    parameters_.push_back(std::move(parameter));
+  }
+
+  void print() override {
+    for (const auto& parameter : parameters_) {
+      parameter->print();
+    }
+  }
+};
+
+class body_node : public ast_node {
+ private:
+  std::vector<std::shared_ptr<ast_node>> nodes_;
+
+ public:
+  [[nodiscard]] const std::vector<std::shared_ptr<ast_node>>& get_nodes()
+      const noexcept {
+    return nodes_;
+  }
+
+  void set_nodes(const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
+    nodes_ = nodes;
+  }
+
+  void add_node(std::shared_ptr<ast_node> node) noexcept {
+    nodes_.push_back(std::move(node));
+  }
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+  void print() override {}
 };
 
 class member_node : public ast_node {};
@@ -180,13 +262,15 @@ class class_node : public ast_node {
       std::cout << " extends ";
       extends_->print();
     }
-    std::cout << "Is\n";
+    std::cout << "is\n";
 
     for (const auto& member : members_) {
       if (member) {
         member->print();
       }
     }
+
+    std::cout << "end\n";
   }
 };
 
@@ -342,7 +426,22 @@ class method_node : public member_node {
     return_type_ = std::move(return_type);
   }
 
-  void print() override {}
+  void print() override {
+    std::cout << "method ";
+    identifier_->print();
+    std::cout << "(";
+    parameters_->print();
+    std::cout << ")";
+    
+    if (return_type_) {
+      std::cout << " : ";
+      return_type_->print();
+    }
+    
+    std::cout << " is\n";
+    body_->print();
+    std::cout << "end\n";
+  }
 };
 
 class constructor_node : public member_node {
@@ -368,79 +467,13 @@ class constructor_node : public member_node {
 
   void set_body(std::shared_ptr<body_node> body) { body_ = std::move(body); }
 
-  void print() override {}
-};
-
-class parameters_node : public ast_node {
-  std::vector<std::shared_ptr<parameter_node>> parameters_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::vector<std::shared_ptr<parameter_node>>&
-  getParameters() const {
-    return parameters_;
+  void print() override {
+    std::cout << "this(";
+    parameters_->print();
+    std::cout << ") is\n";
+    body_->print();
+    std::cout << "end\n";
   }
-
-  void add_parameter(std::shared_ptr<parameter_node> parameter) {
-    parameters_.push_back(std::move(parameter));
-  }
-
-  void print() override {}
-};
-
-class parameter_node : public ast_node {
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<class_name_node> class_name_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
-    return identifier_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
-    return class_name_;
-  }
-
-  void set_identifier(std::shared_ptr<identifier_node> identifier) {
-    identifier_ = std::move(identifier);
-  }
-  void set_class_name(std::shared_ptr<class_name_node> class_name) {
-    class_name_ = std::move(class_name);
-  }
-
-  void print() override {}
-};
-
-class body_node : public ast_node {
- private:
-  std::vector<std::shared_ptr<ast_node>> nodes_;
-
- public:
-  [[nodiscard]] const std::vector<std::shared_ptr<ast_node>>& get_nodes()
-      const noexcept {
-    return nodes_;
-  }
-
-  void set_nodes(const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
-    nodes_ = nodes;
-  }
-
-  void add_node(std::shared_ptr<ast_node> node) noexcept {
-    nodes_.push_back(std::move(node));
-  }
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
-  void print() override {}
 };
 
 class assignment_node : public statement_node {
