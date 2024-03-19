@@ -34,26 +34,26 @@ class token_stream {
   }
 
   [[nodiscard]] const std::unique_ptr<token::token>& next_token() const {
-    return tokens_[cursor_ + 1];
+    return tokens_.at(cursor_ + 1);
   }
 
   [[nodiscard]] const std::unique_ptr<token::token>& token() const {
-    return tokens_[cursor_];
+    return tokens_.at(cursor_);
   }
 
   [[nodiscard]] token_id next_token_id() const {
-    return tokens_[cursor_ + 1]->get_token_id();
+    return tokens_.at(cursor_ + 1)->get_token_id();
   }
 
-  const std::unique_ptr<token::token>& next_and_token() { return tokens_[++cursor_]; }
+  const std::unique_ptr<token::token>& next_and_token() { return tokens_.at(++cursor_); }
   
-  token_id next_and_token_id() { return tokens_[++cursor_]->get_token_id(); }
+  token_id next_and_token_id() { return tokens_.at(++cursor_)->get_token_id(); }
 
 
-  [[nodiscard]] token_id get_token_id() const { return tokens_[cursor_]->get_token_id(); }
+  [[nodiscard]] token_id get_token_id() const { return tokens_.at(cursor_)->get_token_id(); }
 
   const std::unique_ptr<token::token>& operator*() const {
-    return tokens_[cursor_];
+    return tokens_.at(cursor_);
   }
 
   explicit operator bool() const { return cursor_ < tokens_.size(); }

@@ -4,7 +4,7 @@
 #include <source_location>
 
 #ifndef LEVEL
-#define LEVEL 3
+#define LEVEL 0
 #endif
 
 namespace logger {

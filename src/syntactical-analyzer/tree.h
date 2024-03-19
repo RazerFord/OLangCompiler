@@ -42,6 +42,10 @@ void log_error_lang(const span& span, const token_id& e, const token_id& a) {
             << "\", but was \"" << act << "\"" << std::endl;
 }
 
+void log_error_lang(const span& span, const std::string& msg) {
+  std::cout << span.line_ << ":" << span.offset_ << " " << msg << std::endl;
+}
+
 template <class T>
 struct result {
   T value;
@@ -171,29 +175,6 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
   return {statement, scope.ok};
 }
 
-// inline result<std::shared_ptr<statement_node>> ast_parser::parse_assign(
-//     std::size_t& first_token) {
-//   auto& identifier = stream_[first_token];
-//   if (identifier->get_token_id(body->add_node(lexpression.value);) !=
-//   token_id::Identifier) {
-//     std::cout << "[ ERROR ] expected Identifier for assignment, but was "
-//               << token_id_to_string(identifier->get_token_id()) << std::endl;
-//     return {};
-//   }
-//   auto statement = std::make_shared<assignment_node>();
-//   statement->set_identifier(parse_identifier(first_token).value);
-
-//   if (stream_[++first_token]->get_token_id() != token_id::Assign) {
-//     std::cout << "[ ERROR ] expected Assign for assignment, but was "
-//               << token_id_to_string(stream_[first_token - 1]->get_token_id())
-//               << std::endl;
-//     return {};
-//   }
-//   auto expr = parse_expression(first_token);
-//   statement->set_expression(expr.value);
-//   return {statement, expr.ok};
-// }
-
 inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier() {
   auto id_node = std::make_shared<identifier_node>();
 
@@ -227,7 +208,8 @@ inline result<std::shared_ptr<parameter_node>> ast_parser::parse_parameter() {
     return {parameter};
   }
   logger::error("parameter parsing error");
-
+  log_error_lang(stream_.token()->get_span(), token_id::Colon,
+                 stream_.get_token_id());
   return {nullptr};
 }
 
@@ -257,6 +239,8 @@ inline result<std::shared_ptr<parameters_node>> ast_parser::parse_parameters() {
     return {parameters, true};
   }
   logger::error("parameters parsing error");
+  log_error_lang(stream_.token()->get_span(), token_id::LBracket,
+                 stream_.next_token_id());
 
   return {nullptr};
 }
@@ -264,7 +248,6 @@ inline result<std::shared_ptr<parameters_node>> ast_parser::parse_parameters() {
 inline result<std::shared_ptr<constructor_node>>
 ast_parser::parse_constructor() {
   result<std::shared_ptr<body_node>> body;
-  // ++stream_;
   if (auto parameters = parse_parameters();
       parameters && stream_.next_and_token_id() == token_id::Is &&
       (body = parse_body()) && stream_.get_token_id() == token_id::End) {
@@ -277,6 +260,14 @@ ast_parser::parse_constructor() {
     return {constructor};
   }
   logger::error("constructor parsing error");
+  if (stream_.get_token_id() == token_id::Is) {
+    log_error_lang(stream_.token()->get_span(), token_id::Is,
+                   stream_.get_token_id());
+  }
+  if (stream_.next_and_token_id() == token_id::End) {
+    log_error_lang(stream_.token()->get_span(), token_id::End,
+                   stream_.get_token_id());
+  }
 
   return {nullptr};
 }
@@ -319,9 +310,13 @@ inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable() {
 
       return {variable};
     }
+    log_error_lang(stream_.next_token()->get_span(), token_id::Colon,
+                   stream_.next_token_id());
+  } else {
+    logger::error("variable parsing error", tok_to_str(stream_.get_token_id()));
+    log_error_lang(stream_.token()->get_span(), token_id::Colon,
+                   stream_.get_token_id());
   }
-  logger::error("variable parsing error", tok_to_str(stream_.get_token_id()));
-
   return {nullptr};
 }
 
@@ -342,6 +337,8 @@ inline result<std::shared_ptr<member_node>> ast_parser::parse_member() {
       }
       default: {
         logger::error("raw token", tok_to_str(stream_.get_token_id()));
+        log_error_lang(stream_.token()->get_span(),
+                       " class member parsing error");
       }
     }
   }
@@ -447,19 +444,23 @@ inline result<std::shared_ptr<arguments_node>> ast_parser::parse_arguments() {
 
 inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
   auto expression = std::make_shared<expression_node>();
-  expression->set_primary(parse_primary().value);
-  if (stream_.next_token_id() == token_id::Dot) {
-    while (stream_.next_token_id() == token_id::Dot) {
-      ++stream_;
-      expression->set_identifier(parse_identifier().value);
-      expression->set_arguments(parse_arguments().value);
+  if (auto primary = parse_primary(); primary) {
+    expression->set_primary(primary.value);
+    if (stream_.next_token_id() == token_id::Dot) {
+      while (stream_.next_token_id() == token_id::Dot) {
+        ++stream_;
+        expression->set_identifier(parse_identifier().value);
+        expression->set_arguments(parse_arguments().value);
+      }
+    } else if (auto arguments = parse_arguments(); arguments) {
+      expression->set_arguments(arguments.value);
     }
-  } else if (auto arguments = parse_arguments(); arguments) {
-    expression->set_arguments(arguments.value);
+    logger::info("arguments parsed");
+    return {expression};
+  } else {
+    log_error_lang(stream_.token()->get_span(), "expression parsing error");
   }
-  logger::info("arguments parsed");
-
-  return {expression};
+  return {};
 }
 
 inline result<std::shared_ptr<return_statement_node>>
@@ -489,12 +490,6 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope() {
   for (++stream_; stream_; ++stream_) {
     auto& tok = stream_.token();
     switch (tok->get_token_id()) {
-        // case token_id::Assign: {
-        //   first_token--;  // to identifier
-        //   body->add_node(parse_assign(first_token).value);
-        //   continue;
-        // }
-
       case token_id::While: {
         body->add_node(parse_while().value);
         continue;
@@ -594,6 +589,7 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_extends() {
   } else {
     logger::error("expected:", tok_to_str(token_id::Extends), ",",
                   tok_to_str(token_id::Is), ", but was", tok_to_str(tok_id));
+
     return {nullptr};
   }
 }
@@ -604,9 +600,10 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
   node->set_class_name(parse_class_name().value);
   node->set_extends(parse_extends().value);
 
-  auto tok_id = stream_.next_and_token_id();
-  if (tok_id != token_id::Is) {
+  auto& token = stream_.next_and_token();
+  if (auto tok_id = token->get_token_id(); tok_id != token_id::Is) {
     log_expected_actual(token_id::Is, tok_id);
+    log_error_lang(stream_.token()->get_span(), token_id::Is, tok_id);
     return {nullptr};
   }
 
@@ -614,7 +611,9 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
        ++stream_) {
     node->add_member(parse_member().value);
   }
-
+  if (!stream_) {
+    log_error_lang(token->get_span(), R"("end" not found for "is")");
+  }
   return {node};
 }
 
@@ -631,6 +630,7 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program() {
 
       default: {
         log_expected_actual(token_id::Class, tok_id);
+        log_error_lang(stream_.token()->get_span(), token_id::Class, tok_id);
       }
     }
   }

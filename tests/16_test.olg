@@ -1,0 +1,14 @@
+class Main is
+  this() is
+    var gen : Integer[Integer]
+
+    gen.append(-42.129)
+  end
+end
+
+class Main is
+  this() is
+    var gen : Integer[Integer]
+
+    gen.append(-42.129)
+  end
