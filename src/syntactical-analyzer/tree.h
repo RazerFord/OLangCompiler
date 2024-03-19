@@ -23,6 +23,8 @@ class ast {
 
  public:
   ast(const std::shared_ptr<program_node>& root) : root_{root} {}
+
+  void print() const noexcept { root_->print(); }
 };
 
 namespace {
@@ -318,7 +320,7 @@ inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable() {
       return {variable};
     }
   }
-  logger::error("variable parsing error");
+  logger::error("variable parsing error", tok_to_str(stream_.get_token_id()));
 
   return {nullptr};
 }
@@ -436,11 +438,9 @@ inline result<std::shared_ptr<arguments_node>> ast_parser::parse_arguments() {
       }
     }
     ++stream_;
-    logger::error("arguments parsed");
 
     return {arguments};
   }
-  logger::error("arguments parsing error");
 
   return {nullptr};
 }
@@ -571,7 +571,6 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_generic() {
       return {nullptr};
     }
   }
-  logger::error("generic parsing error");
 
   return {nullptr};
 }
@@ -620,13 +619,13 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
 }
 
 inline result<std::shared_ptr<program_node>> ast_parser::parse_program() {
-  program_node program;
+  auto program = std::make_shared<program_node>();
 
   for (; stream_; ++stream_) {
     auto tok_id = stream_.get_token_id();
     switch (tok_id) {
       case token_id::Class: {
-        program.add_class(parse_class().value);
+        program->add_class(parse_class().value);
         break;
       }
 
@@ -636,28 +635,24 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program() {
     }
   }
 
-  return {nullptr};
+  return {program};
 }
 }  // namespace
 
 inline ast make_ast(token_vector& tokens) {
   token_vector valid_tokens;
-  for (int i = 0; i < tokens.size(); ++i) {
-    auto id = tokens[i]->get_token_id();
+  for (auto& token : tokens) {
+    auto id = token->get_token_id();
     if ((id != token_id::Space && id != token_id::NewLine) ||
         (id == token_id::NewLine &&
          valid_tokens.back()->get_token_id() == token_id::Return))
-      valid_tokens.emplace_back(std::move(tokens[i]));
+      valid_tokens.emplace_back(std::move(token));
   }
 
   ast_parser parser(valid_tokens);
 
-  std::cout << "after erased" << std::endl;
-
-  for (auto& tok : valid_tokens) {
-    tok->print();
-  }
-
-  return {parser.parse_program().value};
+  ast tree(parser.parse_program().value);
+  tree.print();
+  return tree;
 }
 }  // namespace tree
