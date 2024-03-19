@@ -171,29 +171,6 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
   return {statement, scope.ok};
 }
 
-// inline result<std::shared_ptr<statement_node>> ast_parser::parse_assign(
-//     std::size_t& first_token) {
-//   auto& identifier = stream_[first_token];
-//   if (identifier->get_token_id(body->add_node(lexpression.value);) !=
-//   token_id::Identifier) {
-//     std::cout << "[ ERROR ] expected Identifier for assignment, but was "
-//               << token_id_to_string(identifier->get_token_id()) << std::endl;
-//     return {};
-//   }
-//   auto statement = std::make_shared<assignment_node>();
-//   statement->set_identifier(parse_identifier(first_token).value);
-
-//   if (stream_[++first_token]->get_token_id() != token_id::Assign) {
-//     std::cout << "[ ERROR ] expected Assign for assignment, but was "
-//               << token_id_to_string(stream_[first_token - 1]->get_token_id())
-//               << std::endl;
-//     return {};
-//   }
-//   auto expr = parse_expression(first_token);
-//   statement->set_expression(expr.value);
-//   return {statement, expr.ok};
-// }
-
 inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier() {
   auto id_node = std::make_shared<identifier_node>();
 
@@ -652,7 +629,6 @@ inline ast make_ast(token_vector& tokens) {
   ast_parser parser(valid_tokens);
 
   ast tree(parser.parse_program().value);
-  tree.print();
   return tree;
 }
 }  // namespace tree
