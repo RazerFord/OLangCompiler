@@ -124,15 +124,13 @@ class class_name_node : public primary_node {
 
   void print() override {
     if (identifier_) {
-      std::cout << "class ";
       identifier_->print();
     }
     if (generic_) {
       std::cout << "[";
       generic_->print();
-      std::cout << "] ";
+      std::cout << "]";
     }
-    std::cout << " ";
   }
 };
 
@@ -163,6 +161,7 @@ class parameter_node : public ast_node {
   void print() override {
     if (identifier_) {
       identifier_->print();
+      std::cout << ": ";
       class_name_->print();
     }
   }
@@ -186,8 +185,11 @@ class parameters_node : public ast_node {
   }
 
   void print() override {
-    for (const auto& parameter : parameters_) {
-      parameter->print();
+    for (std::size_t i = 0, size = parameters_.size(); i < size; i++) {
+      parameters_[i]->print();
+      if (i != size - 1) {
+        std::cout << ", ";
+      }
     }
   }
 };
@@ -214,7 +216,12 @@ class body_node : public ast_node {
 
   void generate() override {}
 
-  void print() override {}
+  void print() override {
+    for (auto& st : nodes_) {
+      st->print();
+      std::cout << "\n";
+    }
+  }
 };
 
 class member_node : public ast_node {};
@@ -256,17 +263,20 @@ class class_node : public ast_node {
 
   void print() override {
     if (class_name_) {
+      std::cout << "class ";
       class_name_->print();
+      std::cout << " ";
     }
     if (extends_) {
       std::cout << " extends ";
       extends_->print();
     }
-    std::cout << "is\n";
+    std::cout << " is\n";
 
     for (const auto& member : members_) {
       if (member) {
         member->print();
+        std::cout << "\n";
       }
     }
 
@@ -348,7 +358,7 @@ class expression_node : public statement_node {
 
   void generate() override {}
 
-  void print() override {}
+  void print() override;
 };
 
 class variable_node : public member_node {
@@ -379,9 +389,8 @@ class variable_node : public member_node {
   void print() override {
     std::cout << "var ";
     identifier_->print();
-    std::cout << " := ";
+    std::cout << " : ";
     expression_->print();
-    std::cout << std::endl;
   }
 };
 
@@ -432,15 +441,15 @@ class method_node : public member_node {
     std::cout << "(";
     parameters_->print();
     std::cout << ")";
-    
+
     if (return_type_) {
       std::cout << " : ";
       return_type_->print();
     }
-    
+
     std::cout << " is\n";
     body_->print();
-    std::cout << "end\n";
+    std::cout << "end";
   }
 };
 
@@ -472,7 +481,7 @@ class constructor_node : public member_node {
     parameters_->print();
     std::cout << ") is\n";
     body_->print();
-    std::cout << "end\n";
+    std::cout << "end";
   }
 };
 
@@ -504,7 +513,11 @@ class assignment_node : public statement_node {
 
   void generate() override {}
 
-  void print() override {}
+  void print() override {
+    lexpression_->print();
+    std::cout << " := ";
+    rexpression_->print();
+  }
 };
 
 class while_loop_node : public statement_node {
@@ -535,7 +548,13 @@ class while_loop_node : public statement_node {
 
   void generate() override {}
 
-  void print() override {}
+  void print() override {
+    std::cout << "while ";
+    expression_->print();
+    std::cout << " loop\n";
+    body_->print();
+    std::cout << "end";
+  }
 };
 
 class if_statement_node : public statement_node {
@@ -585,7 +604,7 @@ class if_statement_node : public statement_node {
       std::cout << "else ";
       false_body_->print();
     }
-    std::cout << "end" << std::endl;
+    std::cout << "end";
   }
 };
 
@@ -608,9 +627,10 @@ class return_statement_node : public statement_node {
   void generate() override {}
 
   void print() override {
-    std::cout << "if ";
-    expression_->print();
-    std::cout << "end" << std::endl;
+    std::cout << "return ";
+    if (expression_) {
+      expression_->print();
+    }
   }
 };
 
@@ -638,9 +658,14 @@ class arguments_node : public ast_node {
   void generate() override {}
 
   void print() override {
-    for (const auto& expression : expressions_) {
-      expression->print();
+    std::cout << "(";
+    for (std::size_t i = 0, size = expressions_.size(); i < size; i++) {
+      expressions_[i]->print();
+      if (i != size - 1) {
+        std::cout << ", ";
+      }
     }
+    std::cout << ")";
   }
 };
 
@@ -658,13 +683,17 @@ class literal_node : public primary_node {
 
   const T& value() const { return value_; }
 
-  void print() override { std::cout << value_ << std::endl; }
+  void print() override {
+    std::cout << std::boolalpha << value_ << std::noboolalpha;
+  }
 };
 
 class this_node : public primary_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void print() override { std::cout << "this"; }
 };
 
 class null_node : public primary_node {
@@ -672,7 +701,7 @@ class null_node : public primary_node {
 
   void generate() override {}
 
-  void print() override { std::cout << "this" << std::endl; }
+  void print() override { std::cout << "null"; }
 };
 
 class base_node : public primary_node {
@@ -691,6 +720,15 @@ class base_node : public primary_node {
     arguments_ = std::move(arguments);
   }
 
-  void print() override { std::cout << "base" << std::endl; }
+  void print() override { std::cout << "base"; }
 };
+
+inline void expression_node::print() {
+  primary_->print();
+  if (identifier_) {
+    std::cout << ".";
+    identifier_->print();
+  }
+  if (arguments_) arguments_->print();
+}
 }  // namespace details
