@@ -315,8 +315,9 @@ class statement_node : public ast_node {};
 class expression_node : public statement_node {
  private:
   std::shared_ptr<primary_node> primary_;
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<arguments_node> arguments_;
+  using value_type = std::vector<std::pair<std::shared_ptr<identifier_node>,
+                                           std::shared_ptr<arguments_node>>>;
+  value_type expression_values;
 
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
@@ -324,34 +325,14 @@ class expression_node : public statement_node {
     return primary_;
   }
 
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier()
-      const noexcept {
-    return identifier_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<arguments_node>& get_arguments()
-      const noexcept {
-    return arguments_;
-  }
-
   void set_primary(std::shared_ptr<primary_node> primary) noexcept {
     primary_ = std::move(primary);
   }
 
-  void set_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
-    identifier_ = std::move(identifier);
-  }
-
-  void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
-    arguments_ = std::move(arguments);
-  }
-
-  void get_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
-    identifier_ = std::move(identifier);
-  }
-
-  void get_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
-    arguments_ = std::move(arguments);
+  void add_value(std::pair<std::shared_ptr<identifier_node>,
+                           std::shared_ptr<arguments_node>>
+                     value) noexcept {
+    expression_values.push_back(std::move(value));
   }
 
   bool validate() override { return true; }
@@ -725,10 +706,12 @@ class base_node : public primary_node {
 
 inline void expression_node::print() {
   primary_->print();
-  if (identifier_) {
-    std::cout << ".";
-    identifier_->print();
+  for (auto& [identifier, arguments] : expression_values) {
+    if (identifier) {
+      std::cout << ".";
+      identifier->print();
+    }
+    if (arguments) arguments->print();
   }
-  if (arguments_) arguments_->print();
 }
 }  // namespace details
