@@ -450,11 +450,10 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
     if (stream_.next_token_id() == token_id::Dot) {
       while (stream_.next_token_id() == token_id::Dot) {
         ++stream_;
-        expression->set_identifier(parse_identifier().value);
-        expression->set_arguments(parse_arguments().value);
+        expression->add_value({parse_identifier().value, parse_arguments().value});
       }
     } else if (auto arguments = parse_arguments(); arguments) {
-      expression->set_arguments(arguments.value);
+      expression->add_value({nullptr, arguments.value});
     }
     logger::info("arguments parsed");
     return {expression};

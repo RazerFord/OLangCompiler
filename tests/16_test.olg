@@ -9,6 +9,7 @@ end
 class Main is
   this() is
     var gen : Integer[Integer]
-
+    gen.sas.tas(2).cas := pek
     gen.append(-42.129)
   end
+end

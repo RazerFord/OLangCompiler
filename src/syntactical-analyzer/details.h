@@ -430,10 +430,17 @@ class statement_node : public ast_node {};
 class expression_node : public statement_node {
  private:
   std::shared_ptr<primary_node> primary_;
-  std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<arguments_node> arguments_;
+  using value_type = std::vector<std::pair<std::shared_ptr<identifier_node>,
+                                           std::shared_ptr<arguments_node>>>;
+  value_type expression_values;
 
-  void fill();
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(primary_);
+    for (const auto& ev : expression_values) {
+      fill(ev);
+    }
+  }
 
   void fill(std::shared_ptr<ast_node> node) {
     if (node) {
@@ -441,20 +448,14 @@ class expression_node : public statement_node {
     }
   }
 
+  void fill(std::pair<std::shared_ptr<identifier_node>,
+                      std::shared_ptr<arguments_node>>
+                value);
+
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
       const noexcept {
     return primary_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier()
-      const noexcept {
-    return identifier_;
-  }
-
-  [[nodiscard]] const std::shared_ptr<arguments_node>& get_arguments()
-      const noexcept {
-    return arguments_;
   }
 
   void set_primary(std::shared_ptr<primary_node> primary) noexcept {
@@ -462,22 +463,11 @@ class expression_node : public statement_node {
     fill();
   }
 
-  void set_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
-    identifier_ = std::move(identifier);
-    fill();
-  }
-
-  void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
-    arguments_ = std::move(arguments);
-    fill();
-  }
-
-  void get_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
-    identifier_ = std::move(identifier);
-  }
-
-  void get_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
-    arguments_ = std::move(arguments);
+  void add_value(std::pair<std::shared_ptr<identifier_node>,
+                           std::shared_ptr<arguments_node>>
+                     value) noexcept {
+    expression_values.push_back(std::move(value));
+    fill(value);
   }
 
   bool validate() override { return true; }
@@ -1004,17 +994,19 @@ class base_node : public primary_node {
 
 inline void expression_node::print() {
   primary_->print();
-  if (identifier_) {
-    std::cout << ".";
-    identifier_->print();
+  for (auto& [identifier, arguments] : expression_values) {
+    if (identifier) {
+      std::cout << ".";
+      identifier->print();
+    }
+    if (arguments) arguments->print();
   }
-  if (arguments_) arguments_->print();
 }
 
-inline void expression_node::fill() {
-  meta_info_.span_ = zero_span;
-  fill(primary_);
-  fill(identifier_);
-  fill(arguments_);
+inline void expression_node::fill(
+    std::pair<std::shared_ptr<identifier_node>, std::shared_ptr<arguments_node>>
+        value) {
+  fill(value.first);
+  fill(value.second);
 }
 }  // namespace details
