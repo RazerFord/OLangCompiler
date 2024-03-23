@@ -6,8 +6,19 @@
 #include <vector>
 
 #include "./../lexical-analyzer/token.h"
+#include "lexical-analyzer/token-code.h"
 
 namespace details {
+const token::span zero_span{0, 0, 0, 0};
+
+void merge_in_left(token::span& l, const token::span& r) {
+  if (l == zero_span) {
+    l = r;
+  } else {
+    l.merge(r);
+  }
+}
+
 enum class ast_token {
   Program,
   Class,
@@ -33,12 +44,12 @@ using token::span;
 
 struct meta {
   std::string name_;
-  ast_token token_;
-  token::span span_{};
+  token_id token_;
+  token::span span_{zero_span};
 
   meta() = default;
 
-  explicit meta(std::string name, const ast_token& token, const span& span)
+  explicit meta(std::string name, const token_id& token, const span& span)
       : name_{std::move(name)}, token_{token}, span_{span} {}
 
   meta(const meta& meta)
@@ -54,6 +65,8 @@ class ast_node {
  public:
   explicit ast_node() : meta_info_{meta{}} {}
   explicit ast_node(const meta& meta_info) : meta_info_{meta_info} {}
+
+  const meta& get_meta_info() const noexcept { return meta_info_; }
 
   virtual void print() = 0;
   virtual ~ast_node() = default;
@@ -80,6 +93,11 @@ class identifier_node : public ast_node {
  public:
   void set_name(const std::string& name) noexcept { name_ = name; }
 
+  void set_name(const token::identifier& i) noexcept {
+    set_name(i.get_value());
+    meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
+  }
+
   [[nodiscard]] const std::string& get_name() const noexcept { return name_; }
 
   bool validate() override { return true; }
@@ -105,6 +123,18 @@ class class_name_node : public primary_node {
 
   void generate() override {}
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(identifier_);
+    fill(generic_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
     return identifier_;
@@ -116,10 +146,12 @@ class class_name_node : public primary_node {
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
+    fill();
   }
 
   void set_generic(std::shared_ptr<class_name_node> generic) {
     generic_ = std::move(generic);
+    fill();
   }
 
   void print() override {
@@ -142,6 +174,18 @@ class parameter_node : public ast_node {
 
   void generate() override {}
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(identifier_);
+    fill(class_name_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
     return identifier_;
@@ -153,9 +197,11 @@ class parameter_node : public ast_node {
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
+    fill();
   }
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
     class_name_ = std::move(class_name);
+    fill();
   }
 
   void print() override {
@@ -174,6 +220,21 @@ class parameters_node : public ast_node {
 
   void generate() override {}
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    for (const auto& p : parameters_) {
+      if (p) {
+        fill(p);
+      }
+    }
+  }
+
+  void fill(std::shared_ptr<parameter_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::vector<std::shared_ptr<parameter_node>>&
   getParameters() const {
@@ -182,6 +243,7 @@ class parameters_node : public ast_node {
 
   void add_parameter(std::shared_ptr<parameter_node> parameter) {
     parameters_.push_back(std::move(parameter));
+    fill(parameter);
   }
 
   void print() override {
@@ -198,6 +260,21 @@ class body_node : public ast_node {
  private:
   std::vector<std::shared_ptr<ast_node>> nodes_;
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    for (const auto& n : nodes_) {
+      if (n) {
+        fill(n);
+      }
+    }
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::vector<std::shared_ptr<ast_node>>& get_nodes()
       const noexcept {
@@ -206,10 +283,12 @@ class body_node : public ast_node {
 
   void set_nodes(const std::vector<std::shared_ptr<ast_node>>& nodes) noexcept {
     nodes_ = nodes;
+    fill();
   }
 
   void add_node(std::shared_ptr<ast_node> node) noexcept {
     nodes_.push_back(std::move(node));
+    fill(node);
   }
 
   bool validate() override { return true; }
@@ -235,6 +314,23 @@ class class_node : public ast_node {
 
   void generate() override {}
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(class_name_);
+    fill(extends_);
+    for (const auto& p : members_) {
+      if (p) {
+        fill(p);
+      }
+    }
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
     return class_name_;
@@ -251,14 +347,17 @@ class class_node : public ast_node {
 
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
     class_name_ = std::move(class_name);
+    fill();
   }
 
   void set_extends(std::shared_ptr<class_name_node> extends) {
     extends_ = std::move(extends);
+    fill();
   }
 
   void add_member(std::shared_ptr<member_node> member) {
     members_.push_back(std::move(member));
+    fill(member);
   }
 
   void print() override {
@@ -291,6 +390,21 @@ class program_node : public ast_node {
 
   void generate() override {}
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    for (const auto& c : classes_) {
+      if (c) {
+        fill(c);
+      }
+    }
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::vector<std::shared_ptr<class_node>>& get_classes()
       const {
@@ -299,6 +413,7 @@ class program_node : public ast_node {
 
   void add_class(std::shared_ptr<class_node> class_) {
     classes_.push_back(std::move(class_));
+    fill(class_);
   }
 
   void print() override {
@@ -318,6 +433,14 @@ class expression_node : public statement_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<arguments_node> arguments_;
 
+  void fill();
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
       const noexcept {
@@ -336,14 +459,17 @@ class expression_node : public statement_node {
 
   void set_primary(std::shared_ptr<primary_node> primary) noexcept {
     primary_ = std::move(primary);
+    fill();
   }
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
     identifier_ = std::move(identifier);
+    fill();
   }
 
   void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
     arguments_ = std::move(arguments);
+    fill();
   }
 
   void get_identifier(std::shared_ptr<identifier_node> identifier) noexcept {
@@ -365,6 +491,18 @@ class variable_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<expression_node> expression_;
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(identifier_);
+    fill(expression_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
@@ -380,10 +518,12 @@ class variable_node : public member_node {
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
+    fill();
   }
 
   void set_expression(std::shared_ptr<expression_node> expression) {
     expression_ = std::move(expression);
+    fill();
   }
 
   void print() override {
@@ -403,6 +543,20 @@ class method_node : public member_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(identifier_);
+    fill(parameters_);
+    fill(return_type_);
+    fill(body_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
 
  public:
   [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
@@ -424,15 +578,21 @@ class method_node : public member_node {
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
+    fill();
   }
 
   void set_parameters(std::shared_ptr<parameters_node> parameters) {
     parameters_ = std::move(parameters);
+    fill();
   }
 
-  void set_body(std::shared_ptr<body_node> body) { body_ = std::move(body); }
+  void set_body(std::shared_ptr<body_node> body) {
+    body_ = std::move(body);
+    fill();
+  }
   void set_return_type(std::shared_ptr<identifier_node> return_type) {
     return_type_ = std::move(return_type);
+    fill();
   }
 
   void print() override {
@@ -461,6 +621,18 @@ class constructor_node : public member_node {
 
   void generate() override {}
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(parameters_);
+    fill(body_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<parameters_node>& get_parameters() const {
     return parameters_;
@@ -472,9 +644,13 @@ class constructor_node : public member_node {
 
   void set_parameters(std::shared_ptr<parameters_node> parameters) {
     parameters_ = std::move(parameters);
+    fill();
   }
 
-  void set_body(std::shared_ptr<body_node> body) { body_ = std::move(body); }
+  void set_body(std::shared_ptr<body_node> body) {
+    body_ = std::move(body);
+    fill();
+  }
 
   void print() override {
     std::cout << "this(";
@@ -490,6 +666,18 @@ class assignment_node : public statement_node {
   std::shared_ptr<expression_node> lexpression_;
   std::shared_ptr<expression_node> rexpression_;
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(lexpression_);
+    fill(rexpression_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<expression_node>& get_lexpression()
       const noexcept {
@@ -503,10 +691,12 @@ class assignment_node : public statement_node {
 
   void set_lexpression(std::shared_ptr<expression_node> lexpression) noexcept {
     lexpression_ = std::move(lexpression);
+    fill();
   }
 
   void set_rexpression(std::shared_ptr<expression_node> rexpression) noexcept {
     rexpression_ = std::move(rexpression);
+    fill();
   }
 
   bool validate() override { return true; }
@@ -525,6 +715,18 @@ class while_loop_node : public statement_node {
   std::shared_ptr<expression_node> expression_;
   std::shared_ptr<body_node> body_;
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(expression_);
+    fill(body_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
       const noexcept {
@@ -538,10 +740,12 @@ class while_loop_node : public statement_node {
 
   void set_expression(std::shared_ptr<expression_node> expression) noexcept {
     expression_ = std::move(expression);
+    fill();
   }
 
   void set_body_node(std::shared_ptr<body_node> body_node) noexcept {
     body_ = std::move(body_node);
+    fill();
   }
 
   bool validate() override { return true; }
@@ -563,6 +767,19 @@ class if_statement_node : public statement_node {
   std::shared_ptr<body_node> true_body_;
   std::shared_ptr<body_node> false_body_;
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(expression_);
+    fill(true_body_);
+    fill(false_body_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
       const noexcept {
@@ -581,14 +798,17 @@ class if_statement_node : public statement_node {
 
   void set_expression(std::shared_ptr<expression_node> expression) noexcept {
     expression_ = std::move(expression);
+    fill();
   }
 
   void set_true_body(std::shared_ptr<body_node> true_body) noexcept {
     true_body_ = std::move(true_body);
+    fill();
   }
 
   void set_false_body(std::shared_ptr<body_node> false_body) noexcept {
     false_body_ = std::move(false_body);
+    fill();
   }
 
   bool validate() override { return true; }
@@ -612,6 +832,17 @@ class return_statement_node : public statement_node {
  private:
   std::shared_ptr<expression_node> expression_;
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(expression_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
       const noexcept {
@@ -620,6 +851,7 @@ class return_statement_node : public statement_node {
 
   void set_expression(std::shared_ptr<expression_node> expression) noexcept {
     expression_ = std::move(expression);
+    fill();
   }
 
   bool validate() override { return true; }
@@ -638,6 +870,19 @@ class arguments_node : public ast_node {
  private:
   std::vector<std::shared_ptr<expression_node>> expressions_;
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    for (const auto& e : expressions_) {
+      fill(e);
+    }
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   [[nodiscard]] const std::vector<std::shared_ptr<expression_node>>&
   get_expressions() const noexcept {
@@ -647,10 +892,12 @@ class arguments_node : public ast_node {
   void set_expressions(const std::vector<std::shared_ptr<expression_node>>&
                            expression) noexcept {
     expressions_ = expression;
+    fill();
   }
 
   void add_expression(std::shared_ptr<expression_node> expression) {
     expressions_.push_back(std::move(expression));
+    fill(expression);
   }
 
   bool validate() override { return true; }
@@ -679,7 +926,17 @@ class literal_node : public primary_node {
  public:
   literal_node() {}
   literal_node(T value) : value_(value) {}
+  literal_node(const token::basic_template_token<T>& value)
+      : value_(value.get_value()) {
+    meta_info_ = meta("literal", value.get_token_id(), value.get_span());
+  }
+
   void set_value(const T& value) { value_ = value; }
+
+  void set_value(const token::basic_template_token<T>& value) {
+    value_ = value.get_value();
+    meta_info_ = meta("literal", value.get_token_id(), value.get_span());
+  }
 
   const T& value() const { return value_; }
 
@@ -689,6 +946,11 @@ class literal_node : public primary_node {
 };
 
 class this_node : public primary_node {
+ public:
+  this_node(const token::identifier& i) {
+    meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
@@ -697,6 +959,11 @@ class this_node : public primary_node {
 };
 
 class null_node : public primary_node {
+ public:
+  null_node(const token::identifier& i) {
+    meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
+  }
+
   bool validate() override { return true; }
 
   void generate() override {}
@@ -711,9 +978,21 @@ class base_node : public primary_node {
 
   void generate() override {}
 
+  void fill() {
+    meta_info_.span_ = zero_span;
+    fill(arguments_);
+  }
+
+  void fill(std::shared_ptr<ast_node> node) {
+    if (node) {
+      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
+    }
+  }
+
  public:
   void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
     arguments_ = std::move(arguments);
+    fill();
   }
 
   void get_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
@@ -730,5 +1009,12 @@ inline void expression_node::print() {
     identifier_->print();
   }
   if (arguments_) arguments_->print();
+}
+
+inline void expression_node::fill() {
+  meta_info_.span_ = zero_span;
+  fill(primary_);
+  fill(identifier_);
+  fill(arguments_);
 }
 }  // namespace details

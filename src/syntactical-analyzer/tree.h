@@ -349,21 +349,19 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_literal() {
   auto&& tok = stream_.next_and_token();
   switch (stream_.get_token_id()) {
     case token_id::IntegerLiteral: {
-      auto literal_token =
+      token::basic_template_token<int32_t>* literal_token =
           dynamic_cast<token::basic_template_token<int32_t>*>(tok.get());
-      return {
-          std::make_shared<literal_node<int32_t>>(literal_token->get_value())};
+      return {std::make_shared<literal_node<int32_t>>(*literal_token)};
     }
     case token_id::RealLiteral: {
-      auto literal_token =
+      token::basic_template_token<double_t>* literal_token =
           dynamic_cast<token::basic_template_token<double_t>*>(tok.get());
-      return {
-          std::make_shared<literal_node<double_t>>(literal_token->get_value())};
+      return {std::make_shared<literal_node<double_t>>(*literal_token)};
     }
     case token_id::BooleanLiteral: {
-      auto literal_token =
+      token::basic_template_token<bool>* literal_token =
           dynamic_cast<token::basic_template_token<bool>*>(tok.get());
-      return {std::make_shared<literal_node<bool>>(literal_token->get_value())};
+      return {std::make_shared<literal_node<bool>>(*literal_token)};
     }
     default:
       logger::error("raw token");
@@ -372,12 +370,15 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_literal() {
 }
 
 inline result<std::shared_ptr<primary_node>> ast_parser::parse_keyword() {
-  switch (stream_.next_and_token_id()) {
+  const auto& tok = stream_.next_and_token();
+  switch (tok->get_token_id()) {
     case token_id::This: {
-      return {std::make_shared<this_node>()};
+      auto this_token = dynamic_cast<token::identifier*>(tok.get());
+      return {std::make_shared<this_node>(*this_token)};
     }
     case token_id::Null: {
-      return {std::make_shared<null_node>()};
+      auto null_token = dynamic_cast<token::identifier*>(tok.get());
+      return {std::make_shared<null_node>(*null_token)};
     }
     case token_id::Base: {
       auto base = std::make_shared<base_node>();

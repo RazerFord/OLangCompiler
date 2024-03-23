@@ -28,7 +28,17 @@ struct span {
   span& merge(const span& other) {
     begin_ = std::min(begin_, other.begin_);
     end_ = std::max(end_, other.end_);
+    line_ = std::min(line_, other.line_);
+    offset_ = std::min(offset_, other.offset_);
     return *this;
+  }
+
+  bool operator==(const span& other) const noexcept {
+    if (this == &other) {
+      return true;
+    }
+    return begin_ == other.begin_ && end_ == other.end_ &&
+           line_ == other.line_ && offset_ == other.offset_;
   }
 
   static span merge(const span& lspan, const span& rspan) {
