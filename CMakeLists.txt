@@ -12,6 +12,6 @@ endif()
 
 include_directories(src)
 
-add_executable(main src/main.cpp)
+add_executable(main src/main.cpp src/syntactical-analyzer/details.cpp)
 
 add_executable(lexical-analyzer-starter src/lexical-analyzer-starter.cpp)
