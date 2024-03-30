@@ -205,6 +205,15 @@ class class_name_node : public primary_node {
       std::cout << "]";
     }
   }
+
+  std::string mangle_class_name() {
+    auto name = identifier_->get_name();
+    std::string generic_mangle;
+    if (generic_) {
+      generic_mangle = generic_->mangle_class_name();
+    }
+    return std::to_string(name.size()) + name + "I" + generic_mangle;
+  }
 };
 
 class parameter_node : public ast_node {
@@ -254,6 +263,8 @@ class parameter_node : public ast_node {
       class_name_->print();
     }
   }
+
+  std::string mangle_param() { return class_name_->mangle_class_name(); }
 };
 
 class parameters_node : public ast_node {
@@ -298,6 +309,18 @@ class parameters_node : public ast_node {
         std::cout << ", ";
       }
     }
+  }
+
+  std::string mangle_parameters() {
+    if (parameters_.empty()) {
+      return "v";
+    }
+
+    std::string mangledParameters;
+    for (auto& param : parameters_) {
+      mangledParameters.append(param->mangle_param());
+    }
+    return mangledParameters + "E";
   }
 };
 
@@ -660,6 +683,11 @@ class method_node : public member_node {
     std::cout << " is\n";
     body_->print();
     std::cout << "end";
+  }
+
+  std::string mangle_method() {
+    return std::to_string(identifier_->get_name().size()) +
+           identifier_->get_name() + "E" + parameters_->mangle_parameters();
   }
 };
 

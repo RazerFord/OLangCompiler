@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <memory>
+#include <unordered_set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -66,8 +67,17 @@ class scope_visitor : public visitor {
         var->visit(this);
       }
     }
+    std::unordered_set<std::string> mangled_methods;
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
+        auto mangled_method = var->mangle_method();
+        if (mangled_methods.contains(mangled_method)) {
+          error_handling::error_t et{var->get_meta_info(),
+                                     "error: class member cannot be redeclared"};
+          error_.register_error(et);
+          continue;
+        }
+        mangled_methods.insert(mangled_method);
         var->visit(this);
       }
     }
@@ -79,7 +89,7 @@ class scope_visitor : public visitor {
     auto found = scope_->find(key);
     if (found) {
       error_.register_error(
-          make_error_t(v, "the class field is already declared"));
+          make_error_t(v, "error: the class field is already declared"));
     } else {
       scope_->add(key, std::make_shared<details::variable_node>(v));
     }

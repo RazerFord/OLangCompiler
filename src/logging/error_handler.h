@@ -14,10 +14,9 @@ class error_handling {
  public:
   void register_error(const error_t& err) { error_metadata_.push_back(err); }
   void print_errors() const {
-    for (auto& err : error_metadata_) {
-      auto& span = err.metadata.span_;
-      std::cout << span.line_ << ":" << span.offset_ << " " << err.error_message
-                << std::endl;
+    for (auto& err: error_metadata_) {
+        auto& span =  err.metadata.span_;
+        std::cout << span.line_ << ":" << span.offset_ << " " << err.error_message << std::endl;
     }
   }
 };
