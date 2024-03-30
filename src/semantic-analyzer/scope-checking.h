@@ -56,9 +56,7 @@ inline std::shared_ptr<scope> scope::push() {
 }
 
 inline std::shared_ptr<scope> scope::push(std::shared_ptr<scope_symbol> symbols) {
-  auto new_scope = push();
-  new_scope->symbol_ = symbols;
-  return new_scope;
+  return std::make_shared<scope>(shared_from_this(), symbols);
 }
 
 inline std::shared_ptr<scope> scope::pop() { return parent_; }
