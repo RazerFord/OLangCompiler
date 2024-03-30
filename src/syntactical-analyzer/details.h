@@ -100,7 +100,7 @@ class ast_node {
 
   const meta& get_meta_info() const noexcept { return meta_info_; }
 
-  virtual void visit(std::shared_ptr<visitor::visitor>) = 0;
+  virtual void visit(visitor::visitor*) = 0;
   virtual void print() = 0;
   virtual ~ast_node() = default;
 };
@@ -137,7 +137,7 @@ class identifier_node : public ast_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << name_; }
 };
@@ -147,7 +147,7 @@ class primary_node : public ast_node {
   std::string representation_;
 
  public:
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << representation_; }
 };
@@ -191,7 +191,7 @@ class class_name_node : public primary_node {
     fill();
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     if (identifier_) {
@@ -243,7 +243,7 @@ class parameter_node : public ast_node {
     fill();
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     if (identifier_) {
@@ -287,7 +287,7 @@ class parameters_node : public ast_node {
     fill(parameter);
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     for (std::size_t i = 0, size = parameters_.size(); i < size; i++) {
@@ -338,7 +338,7 @@ class body_node : public ast_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     for (auto& st : nodes_) {
@@ -405,7 +405,7 @@ class class_node : public ast_node {
     fill(member);
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     if (class_name_) {
@@ -463,7 +463,7 @@ class program_node : public ast_node {
     fill(class_);
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     for (const auto& clazz : classes_) {
@@ -523,7 +523,7 @@ class expression_node : public statement_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override;
 };
@@ -567,7 +567,7 @@ class variable_node : public member_node {
     fill();
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << "var ";
@@ -638,7 +638,7 @@ class method_node : public member_node {
     fill();
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << "method ";
@@ -697,7 +697,7 @@ class constructor_node : public member_node {
     fill();
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << "this(";
@@ -750,7 +750,7 @@ class assignment_node : public statement_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     lexpression_->print();
@@ -801,7 +801,7 @@ class while_loop_node : public statement_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << "while ";
@@ -866,7 +866,7 @@ class if_statement_node : public statement_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << "if ";
@@ -911,7 +911,7 @@ class return_statement_node : public statement_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << "return ";
@@ -959,7 +959,7 @@ class arguments_node : public ast_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << "(";
@@ -997,7 +997,7 @@ class literal_node : public primary_node {
 
   const T& value() const { return value_; }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override {
     std::cout << std::boolalpha << value_ << std::noboolalpha;
@@ -1014,7 +1014,7 @@ class this_node : public primary_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "this"; }
 };
@@ -1029,7 +1029,7 @@ class null_node : public primary_node {
 
   void generate() override {}
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "null"; }
 };
@@ -1062,7 +1062,7 @@ class base_node : public primary_node {
     arguments_ = std::move(arguments);
   }
 
-  void visit(std::shared_ptr<visitor::visitor> v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "base"; }
 };
