@@ -183,6 +183,7 @@ inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier() {
   if ((stream_.next_and_token_id() == token_id::Identifier) &&
       (id = dynamic_cast<ptr_tok_id>(stream_.token().get()))) {
     id_node->set_name(id->get_value());
+    id_node->set_meta(meta(id->get_value(), id->get_token_id(), id->get_span()));
     logger::info("identifier", id->get_value(), "parsed");
     return {id_node};
   } else {

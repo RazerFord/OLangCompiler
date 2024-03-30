@@ -6,7 +6,6 @@
 #include "./../syntactical-analyzer/details.h"
 
 namespace scope_checking {
-namespace {
 class scope_symbol {
  private:
   struct proxy {
@@ -51,12 +50,11 @@ class scope_symbol {
 
   proxy operator[](const std::string& key) { return proxy(key, this); }
 };
-}  // namespace
 
 class scope : public std::enable_shared_from_this<scope> {
  private:
   std::shared_ptr<scope> parent_;
-  std::shared_ptr<scope_symbol> symbol_;
+  std::shared_ptr<scope_symbol> symbol_{new scope_symbol};
 
  public:
   scope() = default;
@@ -66,7 +64,7 @@ class scope : public std::enable_shared_from_this<scope> {
   scope(std::shared_ptr<scope> parent, std::shared_ptr<scope_symbol> symbol)
       : parent_{std::move(parent)}, symbol_{std::move(symbol)} {}
 
-  scope(std::shared_ptr<scope_symbol> symbol)
+  explicit scope(std::shared_ptr<scope_symbol> symbol)
       : parent_{}, symbol_{std::move(symbol)} {}
 
   std::shared_ptr<scope> push();

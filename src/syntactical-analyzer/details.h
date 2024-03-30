@@ -126,6 +126,8 @@ class identifier_node : public ast_node {
  public:
   void set_name(const std::string& name) noexcept { name_ = name; }
 
+  void set_meta(const meta& meta) noexcept { meta_info_ = meta; }
+
   void set_name(const token::identifier& i) noexcept {
     set_name(i.get_value());
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
