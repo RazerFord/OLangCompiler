@@ -2,10 +2,10 @@
 
 #include <cmath>
 #include <memory>
-#include <unordered_set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "./../logging/error_handler.h"
 #include "scope-checking.h"
@@ -72,8 +72,8 @@ class scope_visitor : public visitor {
       if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
         auto mangled_method = var->mangle_method();
         if (mangled_methods.contains(mangled_method)) {
-          error_handling::error_t et{var->get_meta_info(),
-                                     "error: class member cannot be redeclared"};
+          error_handling::error_t et{
+              var->get_meta_info(), "error: class member cannot be redeclared"};
           error_.register_error(et);
           continue;
         }
@@ -178,7 +178,7 @@ class scope_visitor : public visitor {
   void visit(const details::if_statement_node& i) override {
     i.get_expression()->visit(this);
     i.get_true_body()->visit(this);
-    if (auto false_body = i.get_false_body(); false_body) {
+    if (const auto& false_body = i.get_false_body(); false_body) {
       false_body->visit(this);
     }
   }
