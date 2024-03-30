@@ -1,10 +1,6 @@
 #pragma once
 
-#include <algorithm>
-#include <cstddef>
-#include <iterator>
 #include <memory>
-#include <ranges>
 #include <vector>
 
 #include "./../lexical-analyzer/token-code.h"

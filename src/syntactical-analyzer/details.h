@@ -9,9 +9,60 @@
 #include "lexical-analyzer/token-code.h"
 
 namespace details {
+class identifier_node;
+class primary_node;
+class class_name_node;
+class parameter_node;
+class parameters_node;
+class body_node;
+class class_node;
+class program_node;
+class expression_node;
+class variable_node;
+class method_node;
+class constructor_node;
+class assignment_node;
+class while_loop_node;
+class if_statement_node;
+class return_statement_node;
+class arguments_node;
+class this_node;
+class null_node;
+class base_node;
+}  // namespace details
+
+namespace visitor {
+class visitor {
+ public:
+  virtual void visit(const details::identifier_node&) const = 0;
+  virtual void visit(const details::primary_node&) const = 0;
+  virtual void visit(const details::class_name_node&) const = 0;
+  virtual void visit(const details::parameter_node&) const = 0;
+  virtual void visit(const details::parameters_node&) const = 0;
+  virtual void visit(const details::body_node&) const = 0;
+  virtual void visit(const details::class_node&) const = 0;
+  virtual void visit(const details::program_node&) const = 0;
+  virtual void visit(const details::expression_node&) const = 0;
+  virtual void visit(const details::variable_node&) const = 0;
+  virtual void visit(const details::method_node&) const = 0;
+  virtual void visit(const details::constructor_node&) const = 0;
+  virtual void visit(const details::assignment_node&) const = 0;
+  virtual void visit(const details::while_loop_node&) const = 0;
+  virtual void visit(const details::if_statement_node&) const = 0;
+  virtual void visit(const details::return_statement_node&) const = 0;
+  virtual void visit(const details::arguments_node&) const = 0;
+  virtual void visit(const details::this_node&) const = 0;
+  virtual void visit(const details::null_node&) const = 0;
+  virtual void visit(const details::base_node&) const = 0;
+
+  virtual ~visitor() = default;
+};
+}  // namespace visitor
+
+namespace details {
 const token::span zero_span{0, 0, 0, 0};
 
-void merge_in_left(token::span& l, const token::span& r) {
+inline void merge_in_left(token::span& l, const token::span& r) {
   if (l == zero_span) {
     l = r;
   } else {
@@ -54,6 +105,8 @@ struct meta {
 
   meta(const meta& meta)
       : name_{meta.name_}, token_{meta.token_}, span_{meta.span_} {}
+
+  bool operator==(const meta& other) const = default;
 };
 
 class ast_node {
@@ -68,6 +121,7 @@ class ast_node {
 
   const meta& get_meta_info() const noexcept { return meta_info_; }
 
+  virtual void visit(const visitor::visitor&) = 0;
   virtual void print() = 0;
   virtual ~ast_node() = default;
 };
@@ -104,6 +158,8 @@ class identifier_node : public ast_node {
 
   void generate() override {}
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override { std::cout << name_; }
 };
 
@@ -112,6 +168,8 @@ class primary_node : public ast_node {
   std::string representation_;
 
  public:
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override { std::cout << representation_; }
 };
 
@@ -153,6 +211,8 @@ class class_name_node : public primary_node {
     generic_ = std::move(generic);
     fill();
   }
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override {
     if (identifier_) {
@@ -204,6 +264,8 @@ class parameter_node : public ast_node {
     fill();
   }
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     if (identifier_) {
       identifier_->print();
@@ -245,6 +307,8 @@ class parameters_node : public ast_node {
     parameters_.push_back(std::move(parameter));
     fill(parameter);
   }
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override {
     for (std::size_t i = 0, size = parameters_.size(); i < size; i++) {
@@ -294,6 +358,8 @@ class body_node : public ast_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override {
     for (auto& st : nodes_) {
@@ -360,6 +426,8 @@ class class_node : public ast_node {
     fill(member);
   }
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     if (class_name_) {
       std::cout << "class ";
@@ -415,6 +483,8 @@ class program_node : public ast_node {
     classes_.push_back(std::move(class_));
     fill(class_);
   }
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override {
     for (const auto& clazz : classes_) {
@@ -474,6 +544,8 @@ class expression_node : public statement_node {
 
   void generate() override {}
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override;
 };
 
@@ -515,6 +587,8 @@ class variable_node : public member_node {
     expression_ = std::move(expression);
     fill();
   }
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override {
     std::cout << "var ";
@@ -585,6 +659,8 @@ class method_node : public member_node {
     fill();
   }
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     std::cout << "method ";
     identifier_->print();
@@ -642,6 +718,8 @@ class constructor_node : public member_node {
     fill();
   }
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     std::cout << "this(";
     parameters_->print();
@@ -693,6 +771,8 @@ class assignment_node : public statement_node {
 
   void generate() override {}
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     lexpression_->print();
     std::cout << " := ";
@@ -741,6 +821,8 @@ class while_loop_node : public statement_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override {
     std::cout << "while ";
@@ -805,6 +887,8 @@ class if_statement_node : public statement_node {
 
   void generate() override {}
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     std::cout << "if ";
     expression_->print();
@@ -847,6 +931,8 @@ class return_statement_node : public statement_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override {
     std::cout << "return ";
@@ -894,6 +980,8 @@ class arguments_node : public ast_node {
 
   void generate() override {}
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     std::cout << "(";
     for (std::size_t i = 0, size = expressions_.size(); i < size; i++) {
@@ -930,6 +1018,8 @@ class literal_node : public primary_node {
 
   const T& value() const { return value_; }
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override {
     std::cout << std::boolalpha << value_ << std::noboolalpha;
   }
@@ -945,6 +1035,8 @@ class this_node : public primary_node {
 
   void generate() override {}
 
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
+
   void print() override { std::cout << "this"; }
 };
 
@@ -957,6 +1049,8 @@ class null_node : public primary_node {
   bool validate() override { return true; }
 
   void generate() override {}
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override { std::cout << "null"; }
 };
@@ -988,6 +1082,8 @@ class base_node : public primary_node {
   void get_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
     arguments_ = std::move(arguments);
   }
+
+  void visit(const visitor::visitor& v) override { v.visit(*this); }
 
   void print() override { std::cout << "base"; }
 };
