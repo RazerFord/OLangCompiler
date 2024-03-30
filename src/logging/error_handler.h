@@ -12,6 +12,7 @@ class error_handling {
   std::vector<error_t> error_metadata_;
 
  public:
+  
   void register_error(const error_t& err) { error_metadata_.push_back(err); }
   void print_errors() {
     for (auto& err: error_metadata_) {

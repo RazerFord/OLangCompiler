@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_set>
 
 #include "./../logging/error_handler.h"
 #include "scope-checking.h"
@@ -73,8 +74,17 @@ class scope_visitor : public visitor {
         var->visit(this);
       }
     }
+    std::unordered_set<std::string> mangled_methods;
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
+        auto mangled_method = var->mangle_method();
+        if (mangled_methods.contains(mangled_method)) {
+          error_handling::error_t et{var->get_meta_info(),
+                                     "error: class member cannot be redeclared"};
+          e.register_error(et);
+          continue;
+        }
+        mangled_methods.insert(mangled_method);
         var->visit(this);
       }
     }
@@ -86,12 +96,17 @@ class scope_visitor : public visitor {
     const std::string& key = v.get_identifier()->get_name();
     auto found = scope_->find(key);
     if (found) {
-      error_handling::error_t et(v.get_meta_info(),
-                                 "the class field is already declared");
+      error_handling::error_t et{v.get_meta_info(),
+                                 "error: the class field is already declared"};
       e.register_error(et);
     } else {
       scope_->add(key, std::make_shared<details::variable_node>(v));
     }
+  }
+
+  void visit(const details::method_node& method,
+             error_handling::error_handling& e) override {
+
   }
 };
 }  // namespace visitor
