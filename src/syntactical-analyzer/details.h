@@ -289,7 +289,7 @@ class parameters_node : public ast_node {
 
  public:
   [[nodiscard]] const std::vector<std::shared_ptr<parameter_node>>&
-  getParameters() const {
+  get_parameters() const {
     return parameters_;
   }
 
@@ -528,6 +528,9 @@ class expression_node : public statement_node {
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
       const noexcept {
     return primary_;
+  }
+  const value_type& get_expression_values() const noexcept {
+    return expression_values;
   }
 
   void set_primary(std::shared_ptr<primary_node> primary) noexcept {
