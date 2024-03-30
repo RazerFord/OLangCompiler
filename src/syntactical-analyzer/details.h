@@ -959,7 +959,8 @@ class return_statement_node : public statement_node {
 
 class arguments_node : public ast_node {
  private:
-  std::vector<std::shared_ptr<expression_node>> expressions_;
+  using arguments_holder = std::vector<std::shared_ptr<expression_node>>;
+  arguments_holder expressions_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -989,6 +990,10 @@ class arguments_node : public ast_node {
   void add_expression(std::shared_ptr<expression_node> expression) {
     expressions_.push_back(std::move(expression));
     fill(expression);
+  }
+
+  arguments_holder get_arguments() const {
+    return expressions_;
   }
 
   bool validate() override { return true; }
