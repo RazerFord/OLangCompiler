@@ -205,7 +205,7 @@ class class_name_node : public primary_node {
     }
   }
 
-  std::string mangle_class_name() {
+  std::string mangle_class_name() const {
     auto name = identifier_->get_name();
     std::string generic_mangle;
     if (generic_) {
@@ -263,7 +263,7 @@ class parameter_node : public ast_node {
     }
   }
 
-  std::string mangle_param() { return class_name_->mangle_class_name(); }
+  std::string mangle_param() const { return class_name_->mangle_class_name(); }
 };
 
 class parameters_node : public ast_node {
@@ -310,7 +310,7 @@ class parameters_node : public ast_node {
     }
   }
 
-  std::string mangle_parameters() {
+  std::string mangle_parameters() const {
     if (parameters_.empty()) {
       return "v";
     }
@@ -684,7 +684,7 @@ class method_node : public member_node {
     std::cout << "end";
   }
 
-  std::string mangle_method() {
+  std::string mangle_method() const {
     return std::to_string(identifier_->get_name().size()) +
            identifier_->get_name() + "E" + parameters_->mangle_parameters();
   }
@@ -737,6 +737,10 @@ class constructor_node : public member_node {
     std::cout << ") is\n";
     body_->print();
     std::cout << "end";
+  }
+
+  std::string mangle_ctr() const {
+    return "C" + parameters_->mangle_parameters();
   }
 };
 

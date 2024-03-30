@@ -80,6 +80,18 @@ class scope_visitor : public visitor {
         mangled_methods.insert(mangled_method);
         var->visit(this);
       }
+
+      if (auto var = dynamic_cast<details::constructor_node*>(m.get()); var) {
+        auto mangled_ctr = var->mangle_ctr();
+        if (mangled_methods.contains(mangled_ctr)) {
+          error_handling::error_t et{var->get_meta_info(),
+                                     "error: constructor cannot be redeclared"};
+          error_.register_error(et);
+          continue;
+        }
+        mangled_methods.insert(mangled_ctr);
+        var->visit(this);
+      }
     }
     scope_ = scope_->pop();
   }
@@ -107,6 +119,32 @@ class scope_visitor : public visitor {
     }
     scope_ = scope_->push(sym);
     for (const auto& s : m.get_body()->get_nodes()) {
+      if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
+        std::string key = var->get_identifier()->get_name();
+        if ((*sym)[key]) {
+          error_.register_error(make_error_t(*s, VariableRedefinition));
+          return;
+        }
+        (*sym)[key] = s;
+      } else {
+        s->visit(this);
+      }
+    }
+    scope_ = scope_->pop();
+  }
+
+  void visit(const details::constructor_node& ctr) override {
+    auto sym = std::make_shared<scope_checking::scope_symbol>();
+    for (const auto& p : ctr.get_parameters()->get_parameters()) {
+      std::string key = p->get_identifier()->get_name();
+      if ((*sym)[key]) {
+        error_.register_error(make_error_t(*p, VariableRedefinition));
+        return;
+      }
+      (*sym)[key] = p;
+    }
+    scope_ = scope_->push(sym);
+    for (const auto& s : ctr.get_body()->get_nodes()) {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
         std::string key = var->get_identifier()->get_name();
         if ((*sym)[key]) {
