@@ -1,10 +1,10 @@
 class Animal is
-  var weight : Real
-  var height : Real
+  var weight : Real()
+  var height : Real()
 
-  this is
-    this.weight = 0.0
-    this.height = 0.0
+  this() is
+    this.weight := 0.0
+    this.height := 0.0
   end
 
   method eat(food: Real) is
@@ -12,8 +12,9 @@ class Animal is
 end
 
 class Bird extends Animal is
-  var wingspan : Real
-  this is
+  var wingspan : Real()
+  this() is
+    base()
     this.weight := 5.0
     this.height := 23.0
     this.wingspan := 1.2
@@ -25,7 +26,8 @@ class Bird extends Animal is
 end
 
 class Dog extends Animal is
-  this is
+  this() is
+    base()
     this.weight := 55.0
     this.height := 65.0
   end

@@ -13,6 +13,7 @@ enum class token_id {
   Extends,
   Is,
   End,
+  Method,
   Var,
   Colon,
   Comma,
@@ -28,6 +29,8 @@ enum class token_id {
   Else,
   Return,
   This,
+  Null,
+  Base,
   Dot,
   IntegerLiteral,
   RealLiteral,
@@ -37,10 +40,10 @@ enum class token_id {
 };
 
 namespace {
-static std::uint8_t max_width = 15;
+const std::uint8_t max_width = 15;
 
 const std::unordered_map<token_id, std::string> string_by_token_id = {
-    {token_id::Unknown, "Unknow"},
+    {token_id::Unknown, "Unknown"},
     {token_id::Identifier, "Identifier"},
     {token_id::CharLiteral, "CharLiteral"},
     {token_id::Digit, "Digit"},
@@ -48,6 +51,7 @@ const std::unordered_map<token_id, std::string> string_by_token_id = {
     {token_id::Extends, "Extends"},
     {token_id::Is, "Is"},
     {token_id::End, "End"},
+    {token_id::Method, "Method"},
     {token_id::Var, "Var"},
     {token_id::Colon, "Colon"},
     {token_id::Comma, "Comma"},
@@ -63,6 +67,8 @@ const std::unordered_map<token_id, std::string> string_by_token_id = {
     {token_id::Else, "Else"},
     {token_id::Return, "Return"},
     {token_id::This, "This"},
+    {token_id::Null, "Null"},
+    {token_id::Base, "Base"},
     {token_id::Dot, "Dot"},
     {token_id::IntegerLiteral, "IntegerLiteral"},
     {token_id::RealLiteral, "RealLiteral"},

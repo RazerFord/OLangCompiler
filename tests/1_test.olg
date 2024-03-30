@@ -3,6 +3,6 @@ class Hello is
   var j : Real(0.0)
   var k : true
 
-  this is
+  this() is
   end
 end

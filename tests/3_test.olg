@@ -1,17 +1,17 @@
 class Hello is
   var i : Integer(42)
-  var j : Real
-  var k : Boolean
+  var j : Real()
+  var k : Boolean()
 
-  this is
-    hello(777)
+  this() is
+    this.hello(777)
   end
 
   method hello(i: Integer) is
     this.i := i
   end
 
-  method hello is
+  method hello() is
     this.i := 0
   end
 end

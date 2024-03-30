@@ -1,10 +1,10 @@
 class Math is
-  this is
+  this() is
   end
 
   method min(arr: Array[Integer]): Integer is
-    var min := Integer.Max
-    var i := Integer(0)
+    var min : Integer.Max()
+    var i : Integer(0)
     while i.Less(arr.Length) loop
       min := min(min, arr.get(i))
       i := i.Plus(1)

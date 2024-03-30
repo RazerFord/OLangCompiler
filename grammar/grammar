@@ -16,7 +16,7 @@ VariableDeclaration
   : var Identifier ':' Expression
 
 MethodDeclaration
-  : method Identifier [ Parameters ] [ : Identifier ]
+  : method Identifier '(' [ Parameters ] ')' [ : Identifier ]
     is Body end
 
 Parameters : ( ParameterDeclaration { , ParameterDeclaration } )
@@ -27,14 +27,15 @@ ParameterDeclaration
 Body : { VariableDeclaration | Statement }
 
 ConstructorDeclaration
-  : this [ Parameters ] is Body end
+  : this '(' [ Parameters ] ')' is Body end
 
 Statement : Assignment
   | WhileLoop
   | IfStatement
   | ReturnStatement
+  | Expression
 
-Assignment : Identifier ':=' Expression
+Assignment : Expression ':=' Expression
 
 WhileLoop : while Expression loop Body end
 
@@ -43,15 +44,19 @@ IfStatement : if Expression then Body [ else Body ] end
 ReturnStatement
   : return [ Expression ]
 
-Expression : Primary { '.' Identifier [ Arguments ] }
+Expression : Primary [ { '.' Identifier [ Arguments ] } | Arguments ]
 
 Arguments : '(' Expression { ',' Expression } ')'
 
-Primary : IntegerLiteral
-  | RealLiteral
-  | BooleanLiteral
+Primary : Literal
   | this
+  | base
+  | null
   | ClassName
+
+Literal : IntegerLiteral
+| RealLiteral
+| BooleanLiteral
 
 Identifier :  CharLiteral { CharLiteral | Digit }
 

@@ -17,13 +17,17 @@ class token_generator {
        {"extends", token_id::Extends},
        {"is", token_id::Is},
        {"end", token_id::End},
+       {"method", token_id::Method},
        {"var", token_id::Var},
        {"while", token_id::While},
        {"loop", token_id::Loop},
+       {"if", token_id::If},
        {"then", token_id::Then},
        {"else", token_id::Else},
        {"return", token_id::Return},
        {"this", token_id::This},
+       {"null", token_id::Null},
+       {"base", token_id::Base},
        {".", token_id::Dot},
        {":", token_id::Colon},
        {",", token_id::Comma},
@@ -37,7 +41,6 @@ class token_generator {
        {" ", token_id::Space},
        {"\n", token_id::NewLine}};
 
-
   enum class State {
     Start,
     Word,
@@ -48,51 +51,77 @@ class token_generator {
   struct generator_context {
     std::vector<std::unique_ptr<token::token>> tokens;
     std::string buff;
-    int position = 0;
     State state = State::Start;
+
+    int position = 0;
+    int line = 1;
+    int offset = 1;
+
+    int next() {
+      offset++;
+      return ++position;
+    }
+
+    int prev() {
+      offset--;
+      return --position;
+    }
+
+    int new_line() {
+      offset = 1;
+      return ++line;
+    }
   };
 
-  static void complete_token(generator_context& context, std::ifstream& source_code) {
-     if (context.buff.empty()) return;
+  inline static token::span create_span(const generator_context& context) {
+    return {context.position - context.buff.size(),
+            static_cast<size_t>(context.position),
+            static_cast<size_t>(context.line),
+            context.offset - context.buff.size()};
+  }
 
-      context.position--;
-      token::span span(context.position - context.buff.size(), context.position);
-      std::unique_ptr<token::token> token;
+  static void complete_token(generator_context& context,
+                             std::ifstream& source_code) {
+    if (context.buff.empty()) return;
 
-      switch (context.state) {
-        case State::Word: {
-          if (token_by_name.contains(context.buff)) {
-            auto token_id = token_by_name.at(context.buff);
-            if (token_id == token_id::BooleanLiteral) {
-              token = token::make<token::boolean_literal, bool>(span, token_id,
-                                                                context.buff);
-            } else {
-              token = std::make_unique<token::keyword>(
-                  span, token_by_name.at(context.buff), context.buff);
-            }
+    context.prev();
+    token::span span = create_span(context);
+    std::unique_ptr<token::token> token;
+
+    switch (context.state) {
+      case State::Word: {
+        if (token_by_name.contains(context.buff)) {
+          auto token_id = token_by_name.at(context.buff);
+          if (token_id == token_id::BooleanLiteral) {
+            token = token::make<token::boolean_literal, bool>(span, token_id,
+                                                              context.buff);
           } else {
-            token = std::make_unique<token::identifier>(
-                span, token_id::Identifier, context.buff);
+            token = std::make_unique<token::keyword>(
+                span, token_by_name.at(context.buff), context.buff);
           }
-        } break;
-        case State::Numeric: {
-          token = token::make<token::integer_literal, std::int32_t>(
-              span, token_id::IntegerLiteral, context.buff);
-        } break;
-        case State::RealNumeric: {
-          token = token::make<token::real_literal, std::double_t>(
-              span, token_id::RealLiteral, context.buff);
-          break;
+        } else {
+          token = std::make_unique<token::identifier>(
+              span, token_id::Identifier, context.buff);
         }
-        default: {
-        }
+      } break;
+      case State::Numeric: {
+        token = token::make<token::integer_literal, std::int32_t>(
+            span, token_id::IntegerLiteral, context.buff);
+      } break;
+      case State::RealNumeric: {
+        token = token::make<token::real_literal, std::double_t>(
+            span, token_id::RealLiteral, context.buff);
+        break;
       }
+      default: {
+      }
+    }
 
-      context.tokens.push_back(std::move(token));
-      context.buff.clear();
+    context.tokens.push_back(std::move(token));
+    context.buff.clear();
 
-      source_code.unget();
-      context.state = State::Start;
+    source_code.unget();
+    context.state = State::Start;
   }
 
  public:
@@ -104,13 +133,13 @@ class token_generator {
 
     char ch;
     while (source_code.get(ch)) {
-      context.position++;
+      context.next();
       switch (context.state) {
         case State::Start: {
           context.buff += ch;
           if (std::isalpha(ch)) {
             context.state = State::Word;
-          } else if (std::isdigit(ch)) {
+          } else if (std::isdigit(ch) || ch == '-') {
             context.state = State::Numeric;
           } else if (ch == ':' && source_code.peek() == '=') {
             continue;
@@ -119,7 +148,11 @@ class token_generator {
                                 ? token_by_name.at(context.buff)
                                 : token_id::Unknown;
 
-            token::span span(context.position - context.buff.size(), context.position);
+            if (token_id == token_id::NewLine) {
+              context.new_line();
+            }
+
+            token::span span = create_span(context);
 
             context.tokens.emplace_back(
                 std::make_unique<token::symbol>(span, token_id, context.buff));

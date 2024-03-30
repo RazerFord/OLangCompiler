@@ -1,14 +1,14 @@
 class Utils is
-  this is
+  this() is
   end
 
   method sort(arr: Array[Integer]) is
-    var i := Integer(0)
-    var j := Integer(0)
+    var i : Integer(0)
+    var j : Integer(0)
     while i.Less(arr.Length) loop
       while j.Less(arr.Length) loop
         if arr.get(i).Less(arr.get(j)) then
-          var tmp := arr.get(i)
+          var tmp : arr.get(i)
           arr.set(i, arr.get(j))
           arr.set(j, tmp)
         end

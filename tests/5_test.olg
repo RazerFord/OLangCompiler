@@ -1,18 +1,19 @@
 class Math is
-  this is
-  end
-
   method min(a: Integer, b: Integer, c: Integer) : Integer is
     if a.Less(b) then
       if a.Less(c) then
         return a
-      else if c.Less(a) then
-        return c
+      else 
+        if c.Less(a) then
+          return c
+        end
       end
-    else if b.Less(c) then
-      return b
     else 
-      return c
+      if b.Less(c) then
+        return b
+      else 
+        return c
+      end 
     end
   end
 
@@ -21,14 +22,6 @@ class Math is
       return a
     else
       return b
-    end
-  end
-
-  method max(a: Integer, b: Integer) : Integer is
-    if a.Less(b) then
-      return b
-    else
-      return a
     end
   end
 end
