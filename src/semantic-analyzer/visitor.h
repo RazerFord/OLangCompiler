@@ -1,12 +1,23 @@
 #pragma once
 
+#include <cmath>
 #include <memory>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
 
 #include "./../logging/error_handler.h"
 #include "scope-checking.h"
 #include "syntactical-analyzer/details.h"
 
 namespace visitor {
+inline const std::string VariableRedefinition =
+    "a parameter with the same name is already defined";
+inline error_handling::error_t make_error_t(const details::ast_node& node,
+                                            const std::string& msg) {
+  return error_handling::error_t{node.get_meta_info(), msg};
+}
+
 class visitor {
  public:
   virtual void visit(const details::identifier_node&,
@@ -49,6 +60,12 @@ class visitor {
                      error_handling::error_handling&) = 0;
   virtual void visit(const details::base_node&,
                      error_handling::error_handling&) = 0;
+  virtual void visit(const details::literal_node<int32_t>&,
+                     error_handling::error_handling&) = 0;
+  virtual void visit(const details::literal_node<bool>&,
+                     error_handling::error_handling&) = 0;
+  virtual void visit(const details::literal_node<double_t>&,
+                     error_handling::error_handling&) = 0;
 
   virtual ~visitor() = default;
 };
@@ -86,12 +103,129 @@ class scope_visitor : public visitor {
     const std::string& key = v.get_identifier()->get_name();
     auto found = scope_->find(key);
     if (found) {
-      error_handling::error_t et(v.get_meta_info(),
-                                 "the class field is already declared");
-      e.register_error(et);
+      e.register_error(make_error_t(v, "the class field is already declared"));
     } else {
       scope_->add(key, std::make_shared<details::variable_node>(v));
     }
+  }
+
+  void visit(const details::method_node& m,
+             error_handling::error_handling& e) override {
+    auto sym = std::make_shared<scope_checking::scope_symbol>();
+    for (const auto& p : m.get_parameters()->get_parameters()) {
+      std::string key = p->get_identifier()->get_name();
+      if ((*sym)[key]) {
+        e.register_error(make_error_t(*p, VariableRedefinition));
+        return;
+      }
+      (*sym)[key] = p;
+    }
+    scope_ = scope_->push(sym);
+    for (const auto& s : m.get_body()->get_nodes()) {
+      if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
+        std::string key = var->get_identifier()->get_name();
+        if ((*sym)[key]) {
+          e.register_error(make_error_t(*s, VariableRedefinition));
+          return;
+        }
+        (*sym)[key] = s;
+      } else {
+        s->visit(this);
+      }
+    }
+    scope_ = scope_->pop();
+  }
+
+  void visit(const details::expression_node& expr,
+             error_handling::error_handling& e) override {
+    expr.get_primary()->visit(this);
+    for (const auto& e : expr.get_expression_values()) {
+      if (e.second) {
+        e.second->visit(this);
+      }
+    }
+  }
+
+  void visit(const details::class_name_node& c,
+             error_handling::error_handling& e) override {
+    std::string key = c.get_identifier()->get_name();
+    if (auto var = scope_->find(key); !var) {
+      e.register_error(make_error_t(c, "variable \"" + key + "\" undefined"));
+    }
+  }
+
+  void visit(const details::primary_node& p,
+             error_handling::error_handling& e) override {
+    throw std::runtime_error("unsupported operation");
+  }
+
+  void visit(const details::this_node& t,
+             error_handling::error_handling&) override {
+    // this code block must be empty
+  }
+
+  void visit(const details::null_node& n,
+             error_handling::error_handling&) override {
+    // this code block must be empty
+  }
+
+  void visit(const details::base_node& b,
+             error_handling::error_handling&) override {
+    // this code block must be empty
+  }
+
+  void visit(const details::literal_node<int32_t>& l,
+             error_handling::error_handling&) override {
+    // this code block must be empty
+  }
+
+  void visit(const details::literal_node<bool>&,
+             error_handling::error_handling&) override {
+    // this code block must be empty
+  }
+
+  void visit(const details::literal_node<double_t>&,
+             error_handling::error_handling&) override {
+    // this code block must be empty
+  }
+
+  void visit(const details::assignment_node& a,
+             error_handling::error_handling& e) override {
+    // this code block must be empty
+  }
+
+  void visit(const details::while_loop_node& w,
+             error_handling::error_handling& e) override {
+    w.get_expression()->visit(this);
+    w.get_body_node()->visit(this);
+  }
+
+  void visit(const details::if_statement_node& i,
+             error_handling::error_handling& e) override {
+    i.get_expression()->visit(this);
+    i.get_true_body()->visit(this);
+    if (auto false_body = i.get_false_body(); false_body) {
+      false_body->visit(this);
+    }
+  }
+
+  void visit(const details::body_node& b,
+             error_handling::error_handling& e) override {
+    auto sym = std::make_shared<scope_checking::scope_symbol>();
+    scope_ = scope_->push(sym);
+    for (const auto& s : b.get_nodes()) {
+      if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
+        std::string key = var->get_identifier()->get_name();
+        if ((*sym)[key]) {
+          e.register_error(make_error_t(*s, VariableRedefinition));
+          return;
+        }
+        (*sym)[key] = s;
+      } else {
+        s->visit(this);
+      }
+    }
+    scope_ = scope_->pop();
   }
 };
 }  // namespace visitor
