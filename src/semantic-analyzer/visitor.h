@@ -20,36 +20,36 @@ inline error_handling::error_t make_error_t(const details::ast_node& node,
 
 class visitor {
  public:
-  virtual void visit(const details::identifier_node&) = 0;
-  virtual void visit(const details::primary_node&) = 0;
-  virtual void visit(const details::class_name_node&) = 0;
-  virtual void visit(const details::parameter_node&) = 0;
-  virtual void visit(const details::parameters_node&) = 0;
-  virtual void visit(const details::body_node&) = 0;
-  virtual void visit(const details::class_node&) = 0;
-  virtual void visit(const details::program_node&) = 0;
-  virtual void visit(const details::expression_node&) = 0;
-  virtual void visit(const details::variable_node&) = 0;
-  virtual void visit(const details::method_node&) = 0;
-  virtual void visit(const details::constructor_node&) = 0;
-  virtual void visit(const details::assignment_node&) = 0;
-  virtual void visit(const details::while_loop_node&) = 0;
-  virtual void visit(const details::if_statement_node&) = 0;
-  virtual void visit(const details::return_statement_node&) = 0;
-  virtual void visit(const details::arguments_node&) = 0;
-  virtual void visit(const details::this_node&) = 0;
-  virtual void visit(const details::null_node&) = 0;
-  virtual void visit(const details::base_node&) = 0;
-  virtual void visit(const details::literal_node<int32_t>&) = 0;
-  virtual void visit(const details::literal_node<bool>&) = 0;
-  virtual void visit(const details::literal_node<double_t>&) = 0;
+  virtual void visit(const details::identifier_node&){};
+  virtual void visit(const details::primary_node&){};
+  virtual void visit(const details::class_name_node&){};
+  virtual void visit(const details::parameter_node&){};
+  virtual void visit(const details::parameters_node&){};
+  virtual void visit(const details::body_node&){};
+  virtual void visit(const details::class_node&){};
+  virtual void visit(const details::program_node&){};
+  virtual void visit(const details::expression_node&){};
+  virtual void visit(const details::variable_node&){};
+  virtual void visit(const details::method_node&){};
+  virtual void visit(const details::constructor_node&){};
+  virtual void visit(const details::assignment_node&){};
+  virtual void visit(const details::while_loop_node&){};
+  virtual void visit(const details::if_statement_node&){};
+  virtual void visit(const details::return_statement_node&){};
+  virtual void visit(const details::arguments_node&){};
+  virtual void visit(const details::this_node&){};
+  virtual void visit(const details::null_node&){};
+  virtual void visit(const details::base_node&){};
+  virtual void visit(const details::literal_node<int32_t>&){};
+  virtual void visit(const details::literal_node<bool>&){};
+  virtual void visit(const details::literal_node<double_t>&){};
 
   virtual ~visitor() = default;
 };
 
 class scope_visitor : public visitor {
  private:
-  std::shared_ptr<scope_checking::scope> scope_;
+  std::shared_ptr<scope_checking::scope> scope_{new scope_checking::scope};
   error_handling::error_handling error_;
 
  public:
@@ -78,7 +78,8 @@ class scope_visitor : public visitor {
     const std::string& key = v.get_identifier()->get_name();
     auto found = scope_->find(key);
     if (found) {
-      error_.register_error(make_error_t(v, "the class field is already declared"));
+      error_.register_error(
+          make_error_t(v, "the class field is already declared"));
     } else {
       scope_->add(key, std::make_shared<details::variable_node>(v));
     }
@@ -122,7 +123,8 @@ class scope_visitor : public visitor {
   void visit(const details::class_name_node& c) override {
     std::string key = c.get_identifier()->get_name();
     if (auto var = scope_->find(key); !var) {
-      error_.register_error(make_error_t(c, "variable \"" + key + "\" undefined"));
+      error_.register_error(
+          make_error_t(c, "variable \"" + key + "\" undefined"));
     }
   }
 
@@ -188,5 +190,7 @@ class scope_visitor : public visitor {
     }
     scope_ = scope_->pop();
   }
+
+  void print_error() const { error_.print_errors(); }
 };
 }  // namespace visitor

@@ -6,6 +6,7 @@
 #include "./../lexical-analyzer/token-code.h"
 #include "./../lexical-analyzer/token.h"
 #include "./../logging/logger.h"
+#include "./../semantic-analyzer/visitor.h"
 #include "details.h"
 #include "syntactical-analyzer/token_stream.h"
 
@@ -19,6 +20,8 @@ class ast {
 
  public:
   ast(const std::shared_ptr<program_node>& root) : root_{root} {}
+
+  void visit(visitor::visitor* v) { root_->visit(v); }
 
   void print() const noexcept { root_->print(); }
 };
@@ -446,7 +449,8 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
     if (stream_.next_token_id() == token_id::Dot) {
       while (stream_.next_token_id() == token_id::Dot) {
         ++stream_;
-        expression->add_value({parse_identifier().value, parse_arguments().value});
+        expression->add_value(
+            {parse_identifier().value, parse_arguments().value});
       }
     } else if (auto arguments = parse_arguments(); arguments) {
       expression->add_value({nullptr, arguments.value});
