@@ -16,7 +16,7 @@ class error_handling {
   void print_errors() {
     for (auto& err: error_metadata_) {
         auto& span =  err.metadata.span_;
-        std::cout << span.line_ << ":" << span.offset_ << " " << err.error_message;
+        std::cout << span.line_ << ":" << span.offset_ << " " << err.error_message << std::endl;
     }
   }
 };
