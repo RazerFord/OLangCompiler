@@ -15,7 +15,13 @@ class scope_symbol {
  public:
   std::shared_ptr<details::ast_node> operator[](
       const details::meta& key) const {
-    return symbols_.at(key);
+    auto it = symbols_.find(key);
+
+    if (it == symbols_.end()) {
+      return {};
+    }
+
+    return it->second;
   }
 };
 }  // namespace
@@ -42,6 +48,19 @@ class scope : public std::enable_shared_from_this<scope> {
 
   std::shared_ptr<scope> pop();
 
-  std::shared_ptr<details::ast_node> find(details::meta);
+  std::shared_ptr<details::ast_node> find(const details::meta&);
 };
+
+inline std::shared_ptr<scope> scope::pop() { return parent_; }
+
+inline std::shared_ptr<details::ast_node> scope::find(
+    const details::meta& key) {
+  for (std::shared_ptr<scope> scope = this->shared_from_this(); scope;
+       scope = scope->parent_) {
+    if (auto value = (*scope->symbol_)[key]; value) {
+      return value;
+    }
+  }
+  return nullptr;
+}
 }  // namespace scope_checking
