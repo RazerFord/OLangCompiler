@@ -44,4 +44,16 @@ class scope : public std::enable_shared_from_this<scope> {
 
   std::shared_ptr<details::ast_node> find(details::meta);
 };
+
+
+inline std::shared_ptr<scope> scope::push() {
+  return std::make_shared<scope>(shared_from_this());
+}
+
+inline std::shared_ptr<scope> scope::push(std::shared_ptr<scope_symbol> symbols) {
+  auto new_scope = push();
+  new_scope->symbol_ = symbols;
+  return new_scope;
+}
+
 }  // namespace scope_checking
