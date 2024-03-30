@@ -2,6 +2,7 @@
 
 #include "lexical-analyzer/token-generator.h"
 #include "lexical-analyzer/token.h"
+#include "semantic-analyzer/visitor.h"
 #include "syntactical-analyzer/tree.h"
 
 int main(int argc, char**argv) {
@@ -10,5 +11,8 @@ int main(int argc, char**argv) {
   auto vec = tokgen.generate_token("./../tests/16_test.olg");
 
   auto ast = tree::make_ast(vec);
+  visitor::scope_visitor scope_visitor;
+  ast.visit(&scope_visitor);
+  scope_visitor.print_error();
   assert(true);
 }

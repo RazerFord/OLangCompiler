@@ -168,6 +168,12 @@ class scope_visitor : public visitor {
     }
   }
 
+  void visit(const details::arguments_node& expr) override {
+    for (const auto& arg: expr.get_arguments()) {
+      arg->visit(this);
+    }
+  }
+
   void visit(const details::class_name_node& c) override {
     std::string key = c.get_identifier()->get_name();
     if (auto var = scope_->find(key); !var) {
