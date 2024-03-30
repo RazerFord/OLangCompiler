@@ -98,7 +98,8 @@ class ast_node {
   explicit ast_node() : meta_info_{meta{}} {}
   explicit ast_node(const meta& meta_info) : meta_info_{meta_info} {}
 
-  const meta& get_meta_info() const noexcept { return meta_info_; }
+  [[nodiscard]] const meta& get_meta_info() const noexcept { return meta_info_; }
+  void set_meta(const meta& meta) noexcept { meta_info_ = meta; }
 
   virtual void visit(visitor::visitor*) = 0;
   virtual void print() = 0;
@@ -125,8 +126,6 @@ class identifier_node : public ast_node {
 
  public:
   void set_name(const std::string& name) noexcept { name_ = name; }
-
-  void set_meta(const meta& meta) noexcept { meta_info_ = meta; }
 
   void set_name(const token::identifier& i) noexcept {
     set_name(i.get_value());
