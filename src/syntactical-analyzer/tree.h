@@ -246,6 +246,7 @@ inline result<std::shared_ptr<parameters_node>> ast_parser::parse_parameters() {
 
 inline result<std::shared_ptr<constructor_node>>
 ast_parser::parse_constructor() {
+  const auto& prev_tok = stream_.prev_token();
   result<std::shared_ptr<body_node>> body;
   if (auto parameters = parse_parameters();
       parameters && stream_.next_and_token_id() == token_id::Is &&
@@ -253,6 +254,7 @@ ast_parser::parse_constructor() {
     auto constructor = std::make_shared<constructor_node>();
     constructor->set_parameters(parameters.value);
     constructor->set_body(body.value);
+    constructor->set_meta(meta("this", prev_tok->get_token_id(), prev_tok->get_span()));
 
     logger::info("constructor parsed");
 

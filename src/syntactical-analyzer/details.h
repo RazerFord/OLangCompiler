@@ -98,7 +98,9 @@ class ast_node {
   explicit ast_node() : meta_info_{meta{}} {}
   explicit ast_node(const meta& meta_info) : meta_info_{meta_info} {}
 
-  [[nodiscard]] const meta& get_meta_info() const noexcept { return meta_info_; }
+  [[nodiscard]] const meta& get_meta_info() const noexcept {
+    return meta_info_;
+  }
   void set_meta(const meta& meta) noexcept { meta_info_ = meta; }
 
   virtual void visit(visitor::visitor*) = 0;
@@ -699,11 +701,12 @@ class constructor_node : public member_node {
 
   void fill() {
     meta_info_.span_ = zero_span;
-    fill(parameters_);
-    fill(body_);
+    if (parameters_ && !parameters_->get_parameters().empty()) {
+      fill(parameters_);
+    }
   }
 
-  void fill(std::shared_ptr<ast_node> node) {
+  void fill(const std::shared_ptr<ast_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -991,9 +994,7 @@ class arguments_node : public ast_node {
     expressions_.push_back(std::move(expression));
   }
 
-  arguments_holder get_arguments() const {
-    return expressions_;
-  }
+  arguments_holder get_arguments() const { return expressions_; }
 
   bool validate() override { return true; }
 
