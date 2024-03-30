@@ -107,7 +107,7 @@ class ast_parser {
   inline result<std::shared_ptr<primary_node>> parse_keyword();
 
  public:
-  ast_parser(const token_vector& token) : stream_{token} {}
+  explicit ast_parser(const token_vector& token) : stream_{token} {}
   inline result<std::shared_ptr<program_node>> parse_program();
 };
 
@@ -182,8 +182,7 @@ inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier() {
 
   if ((stream_.next_and_token_id() == token_id::Identifier) &&
       (id = dynamic_cast<ptr_tok_id>(stream_.token().get()))) {
-    id_node->set_name(id->get_value());
-    id_node->set_meta(meta(id->get_value(), id->get_token_id(), id->get_span()));
+    id_node->set_name(*id);
     logger::info("identifier", id->get_value(), "parsed");
     return {id_node};
   } else {

@@ -282,7 +282,7 @@ class parameters_node : public ast_node {
     }
   }
 
-  void fill(std::shared_ptr<parameter_node> node) {
+  void fill(const std::shared_ptr<parameter_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -295,8 +295,8 @@ class parameters_node : public ast_node {
   }
 
   void add_parameter(std::shared_ptr<parameter_node> parameter) {
-    parameters_.push_back(std::move(parameter));
     fill(parameter);
+    parameters_.push_back(std::move(parameter));
   }
 
   void visit(visitor::visitor* v) override;
@@ -310,7 +310,7 @@ class parameters_node : public ast_node {
     }
   }
 
-  std::string mangle_parameters() const {
+  [[nodiscard]] std::string mangle_parameters() const {
     if (parameters_.empty()) {
       return "v";
     }
@@ -354,8 +354,8 @@ class body_node : public ast_node {
   }
 
   void add_node(std::shared_ptr<ast_node> node) noexcept {
-    nodes_.push_back(std::move(node));
     fill(node);
+    nodes_.push_back(std::move(node));
   }
 
   bool validate() override { return true; }
@@ -425,8 +425,8 @@ class class_node : public ast_node {
   }
 
   void add_member(std::shared_ptr<member_node> member) {
-    members_.push_back(std::move(member));
     fill(member);
+    members_.push_back(std::move(member));
   }
 
   void visit(visitor::visitor* v) override;
@@ -483,8 +483,8 @@ class program_node : public ast_node {
   }
 
   void add_class(std::shared_ptr<class_node> class_) {
-    classes_.push_back(std::move(class_));
     fill(class_);
+    classes_.push_back(std::move(class_));
   }
 
   void visit(visitor::visitor* v) override;
@@ -542,8 +542,8 @@ class expression_node : public statement_node {
   void add_value(std::pair<std::shared_ptr<identifier_node>,
                            std::shared_ptr<arguments_node>>
                      value) noexcept {
-    expression_values.push_back(std::move(value));
     fill(value);
+    expression_values.push_back(std::move(value));
   }
 
   bool validate() override { return true; }
@@ -619,10 +619,9 @@ class method_node : public member_node {
     fill(identifier_);
     fill(parameters_);
     fill(return_type_);
-    fill(body_);
   }
 
-  void fill(std::shared_ptr<ast_node> node) {
+  void fill(const std::shared_ptr<ast_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -987,8 +986,8 @@ class arguments_node : public ast_node {
   }
 
   void add_expression(std::shared_ptr<expression_node> expression) {
-    expressions_.push_back(std::move(expression));
     fill(expression);
+    expressions_.push_back(std::move(expression));
   }
 
   bool validate() override { return true; }
