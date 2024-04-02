@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -9,7 +10,7 @@
 #include "./../lexical-analyzer/token.h"
 #include "lexical-analyzer/token-code.h"
 
-namespace scope_checking {
+namespace scope {
 class scope;
 }
 
@@ -23,7 +24,8 @@ class error_handling;
 
 namespace details {
 using token::span;
-const span zero_span{0, 0, 0, 0};
+const span zero_span{std::string::npos, std::string::npos, std::string::npos,
+                     std::string::npos};
 
 struct meta {
   std::string name_;
@@ -163,7 +165,7 @@ class primary_node : public ast_node {
 class class_name_node : public primary_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<class_name_node> generic_;
-  std::shared_ptr<scope_checking::scope> scope_;
+  std::shared_ptr<scope::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -190,7 +192,7 @@ class class_name_node : public primary_node {
     return generic_;
   }
 
-  [[nodiscard]] const std::shared_ptr<scope_checking::scope>& get_scope() const {
+  [[nodiscard]] const std::shared_ptr<scope::scope>& get_scope() const {
     return scope_;
   }
 
@@ -204,9 +206,7 @@ class class_name_node : public primary_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope_checking::scope> scope) {
-    scope_ = scope;
-  }
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
 
   void visit(visitor::visitor* v) override;
 
@@ -247,7 +247,6 @@ class type_node : public ast_node {
 
   value_type get_class_name() const { return type_; }
 
-
   bool operator==(const type_node& other) {
     return type_->mangle_class_name() == other.type_->mangle_class_name();
   }
@@ -261,19 +260,19 @@ class type_node : public ast_node {
   }
 
   static std::shared_ptr<class_node> find(const std::string& class_name) {
-    if (types_.contains(class_name))
-      return types_[class_name];
+    if (types_.contains(class_name)) return types_[class_name];
 
     return nullptr;
   }
 
-  inline static std::unordered_map<std::string, std::shared_ptr<class_node>> types_ = {};
+  inline static std::unordered_map<std::string, std::shared_ptr<class_node>>
+      types_ = {};
 };
 
 class parameter_node : public ast_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<class_name_node> class_name_;
-  std::shared_ptr<scope_checking::scope> scope_;
+  std::shared_ptr<scope::scope> scope_;
   std::shared_ptr<type_node> type_;
 
   bool validate() override { return true; }
@@ -305,7 +304,7 @@ class parameter_node : public ast_node {
     return class_name_;
   }
 
-  [[nodiscard]] const std::shared_ptr<scope_checking::scope> get_scope() const {
+  [[nodiscard]] const std::shared_ptr<scope::scope> get_scope() const {
     return scope_;
   }
 
@@ -318,9 +317,7 @@ class parameter_node : public ast_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope_checking::scope> scope) {
-    scope_ = scope;
-  }
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
 
   void visit(visitor::visitor* v) override;
 
@@ -443,7 +440,8 @@ class body_node : public ast_node {
 
 class member_node : public ast_node {};
 
-class class_node : public ast_node, public std::enable_shared_from_this<class_node> {
+class class_node : public ast_node,
+                   public std::enable_shared_from_this<class_node> {
   std::shared_ptr<type_node> class_name_;
   std::shared_ptr<type_node> extends_;
   std::vector<std::shared_ptr<member_node>> members_;
@@ -490,8 +488,7 @@ class class_node : public ast_node, public std::enable_shared_from_this<class_no
   }
 
   void set_extends(std::shared_ptr<class_name_node> extends) {
-    if (extends)
-      extends_ = std::make_shared<type_node>(std::move(extends));
+    if (extends) extends_ = std::make_shared<type_node>(std::move(extends));
     fill();
   }
 
@@ -578,6 +575,7 @@ class expression_node : public statement_node {
                                            std::shared_ptr<arguments_node>>>;
   value_type expression_values;
   std::shared_ptr<type_node> expression_type_;
+  std::shared_ptr<scope::scope> scope_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -602,13 +600,23 @@ class expression_node : public statement_node {
       const noexcept {
     return primary_;
   }
-  const value_type& get_expression_values() const noexcept {
+
+  [[nodiscard]] const value_type& get_expression_values() const noexcept {
     return expression_values;
+  }
+
+  [[nodiscard]] const std::shared_ptr<scope::scope>& get_scope()
+      const noexcept {
+    return scope_;
   }
 
   void set_primary(std::shared_ptr<primary_node> primary) noexcept {
     primary_ = std::move(primary);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) noexcept {
+    scope_ = scope;
   }
 
   void add_value(std::pair<std::shared_ptr<identifier_node>,
@@ -626,15 +634,13 @@ class expression_node : public statement_node {
 
   void print() override;
 
-  std::shared_ptr<type_node> get_type() { 
-    return expression_type_;
-  }
+  std::shared_ptr<type_node> get_type() { return expression_type_; }
 };
 
 class variable_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<expression_node> expression_;
-  std::shared_ptr<scope_checking::scope> scope_;
+  std::shared_ptr<scope::scope> scope_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -661,8 +667,7 @@ class variable_node : public member_node {
     return expression_;
   }
 
-  [[nodiscard]] const std::shared_ptr<scope_checking::scope>& get_scope()
-      const {
+  [[nodiscard]] const std::shared_ptr<scope::scope>& get_scope() const {
     return scope_;
   }
 
@@ -676,9 +681,7 @@ class variable_node : public member_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope_checking::scope> scope) {
-    scope_ = scope;
-  }
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
 
   void visit(visitor::visitor* v) override;
 
@@ -722,8 +725,7 @@ class method_node : public member_node {
     return parameters_;
   }
 
-  [[nodiscard]] const std::shared_ptr<type_node>& get_return_type()
-      const {
+  [[nodiscard]] const std::shared_ptr<type_node>& get_return_type() const {
     return return_type_;
   }
 

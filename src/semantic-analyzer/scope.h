@@ -5,7 +5,7 @@
 
 #include "./../syntactical-analyzer/details.h"
 
-namespace scope_checking {
+namespace scope {
 class scope_symbol {
  private:
   struct proxy {
@@ -112,4 +112,4 @@ inline std::weak_ptr<details::ast_node> scope::add(
     const std::string& key, std::weak_ptr<details::ast_node> value) {
   return (*symbol_)[key] = value;
 }
-}  // namespace scope_checking
+}  // namespace scope

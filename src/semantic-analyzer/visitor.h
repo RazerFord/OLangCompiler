@@ -8,7 +8,7 @@
 #include <unordered_set>
 
 #include "./../logging/error_handler.h"
-#include "scope-checking.h"
+#include "scope.h"
 #include "syntactical-analyzer/details.h"
 
 namespace visitor {
@@ -23,7 +23,7 @@ class visitor {
  public:
   virtual void visit(details::identifier_node&){};
   virtual void visit(details::primary_node&){};
-   virtual void visit(details::type_node&){};
+  virtual void visit(details::type_node&){};
   virtual void visit(details::class_name_node&){};
   virtual void visit(details::parameter_node&){};
   virtual void visit(details::parameters_node&){};
@@ -51,7 +51,7 @@ class visitor {
 
 class scope_visitor : public visitor {
  private:
-  std::shared_ptr<scope_checking::scope> scope_{new scope_checking::scope};
+  std::shared_ptr<scope::scope> scope_{new scope::scope};
   error_handling::error_handling error_;
 
  public:
@@ -110,7 +110,7 @@ class scope_visitor : public visitor {
   }
 
   void visit(details::method_node& m) override {
-    auto sym = std::make_shared<scope_checking::scope_symbol>();
+    auto sym = std::make_shared<scope::scope_symbol>();
     scope_ = scope_->push(sym);  // change by pointer
     for (const auto& p : m.get_parameters()->get_parameters()) {
       std::string key = p->get_identifier()->get_name();
@@ -138,7 +138,7 @@ class scope_visitor : public visitor {
   }
 
   void visit(details::constructor_node& ctr) override {
-    auto sym = std::make_shared<scope_checking::scope_symbol>();
+    auto sym = std::make_shared<scope::scope_symbol>();
     for (const auto& p : ctr.get_parameters()->get_parameters()) {
       std::string key = p->get_identifier()->get_name();
       if ((*sym)[key]) {
@@ -166,6 +166,7 @@ class scope_visitor : public visitor {
   }
 
   void visit(details::expression_node& expr) override {
+    expr.set_scope(scope_);
     expr.get_primary()->visit(this);
     for (const auto& e : expr.get_expression_values()) {
       if (e.second) {
@@ -241,7 +242,7 @@ class scope_visitor : public visitor {
   }
 
   void visit(details::body_node& b) override {
-    auto sym = std::make_shared<scope_checking::scope_symbol>();
+    auto sym = std::make_shared<scope::scope_symbol>();
     scope_ = scope_->push(sym);
     for (const auto& s : b.get_nodes()) {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
