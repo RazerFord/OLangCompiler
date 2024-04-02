@@ -17,9 +17,17 @@ class scope_symbol {
     proxy(std::string key, scope_symbol* scope_symbol_)
         : key_{key}, scope_symbol_{scope_symbol_} {}
 
-    std::shared_ptr<details::ast_node> operator=(
-        std::shared_ptr<details::ast_node> value) {
+    std::weak_ptr<details::ast_node> operator=(
+        std::weak_ptr<details::ast_node> value) {
       return scope_symbol_->symbols_[key_] = value;
+    }
+
+    std::weak_ptr<details::ast_node> operator*() {
+      return scope_symbol_->symbols_[key_];
+    }
+
+    std::weak_ptr<details::ast_node>* operator->() {
+      return &scope_symbol_->symbols_[key_];
     }
 
     operator bool() {
@@ -27,12 +35,12 @@ class scope_symbol {
       return (syms.find(key_) != syms.end());
     }
 
-    operator std::shared_ptr<details::ast_node>() const {
+    operator std::weak_ptr<details::ast_node>() const {
       return scope_symbol_->tryFind(key_);
     }
   };
 
-  std::shared_ptr<details::ast_node> tryFind(const std::string& key) const {
+  std::weak_ptr<details::ast_node> tryFind(const std::string& key) const {
     auto it = symbols_.find(key);
     if (it == symbols_.end()) {
       return {};
@@ -41,10 +49,10 @@ class scope_symbol {
   }
 
  private:
-  std::unordered_map<std::string, std::shared_ptr<details::ast_node>> symbols_;
+  std::unordered_map<std::string, std::weak_ptr<details::ast_node>> symbols_;
 
  public:
-  std::shared_ptr<details::ast_node> operator[](const std::string& key) const {
+  std::weak_ptr<details::ast_node> operator[](const std::string& key) const {
     return tryFind(key);
   }
 
@@ -75,8 +83,8 @@ class scope : public std::enable_shared_from_this<scope> {
 
   std::shared_ptr<details::ast_node> find(const std::string&);
 
-  std::shared_ptr<details::ast_node> add(const std::string&,
-                                         std::shared_ptr<details::ast_node>);
+  std::weak_ptr<details::ast_node> add(const std::string&,
+                                       std::weak_ptr<details::ast_node>);
 };
 
 inline std::shared_ptr<scope> scope::push() {
@@ -93,15 +101,15 @@ inline std::shared_ptr<scope> scope::pop() { return parent_; }
 inline std::shared_ptr<details::ast_node> scope::find(const std::string& key) {
   for (std::shared_ptr<scope> scope = this->shared_from_this(); scope;
        scope = scope->parent_) {
-    if (auto value = (*scope->symbol_)[key]; value) {
-      return value;
+    if (auto value = (*scope->symbol_)[key]; value && value->expired()) {
+      return value->lock();
     }
   }
   return nullptr;
 }
 
-inline std::shared_ptr<details::ast_node> scope::add(
-    const std::string& key, std::shared_ptr<details::ast_node> value) {
+inline std::weak_ptr<details::ast_node> scope::add(
+    const std::string& key, std::weak_ptr<details::ast_node> value) {
   return (*symbol_)[key] = value;
 }
 }  // namespace scope_checking
