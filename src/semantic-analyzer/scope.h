@@ -101,7 +101,7 @@ inline std::shared_ptr<scope> scope::pop() { return parent_; }
 inline std::shared_ptr<details::ast_node> scope::find(const std::string& key) {
   for (std::shared_ptr<scope> scope = this->shared_from_this(); scope;
        scope = scope->parent_) {
-    if (auto value = (*scope->symbol_)[key]; value && value->expired()) {
+    if (auto value = (*scope->symbol_)[key]; value && !value->expired()) {
       return value->lock();
     }
   }
