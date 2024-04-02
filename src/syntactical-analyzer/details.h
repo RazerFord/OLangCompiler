@@ -8,6 +8,10 @@
 #include "./../lexical-analyzer/token.h"
 #include "lexical-analyzer/token-code.h"
 
+namespace scope_checking {
+class scope;
+}
+
 namespace visitor {
 class visitor;
 }
@@ -158,6 +162,7 @@ class primary_node : public ast_node {
 class class_name_node : public primary_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<class_name_node> generic_;
+  std::shared_ptr<scope_checking::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -184,6 +189,10 @@ class class_name_node : public primary_node {
     return generic_;
   }
 
+  [[nodiscard]] const std::shared_ptr<scope_checking::scope>& get_scope() const {
+    return scope_;
+  }
+
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
     fill();
@@ -192,6 +201,10 @@ class class_name_node : public primary_node {
   void set_generic(std::shared_ptr<class_name_node> generic) {
     generic_ = std::move(generic);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope_checking::scope> scope) {
+    scope_ = scope;
   }
 
   void visit(visitor::visitor* v) override;
@@ -220,6 +233,7 @@ class class_name_node : public primary_node {
 class parameter_node : public ast_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<class_name_node> class_name_;
+  std::shared_ptr<scope_checking::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -246,6 +260,10 @@ class parameter_node : public ast_node {
     return class_name_;
   }
 
+  [[nodiscard]] const std::shared_ptr<scope_checking::scope> get_scope() const {
+    return scope_;
+  }
+
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
     fill();
@@ -253,6 +271,10 @@ class parameter_node : public ast_node {
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
     class_name_ = std::move(class_name);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope_checking::scope> scope) {
+    scope_ = scope;
   }
 
   void visit(visitor::visitor* v) override;
@@ -560,6 +582,7 @@ class expression_node : public statement_node {
 class variable_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<scope_checking::scope> scope_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -586,6 +609,11 @@ class variable_node : public member_node {
     return expression_;
   }
 
+  [[nodiscard]] const std::shared_ptr<scope_checking::scope>& get_scope()
+      const {
+    return scope_;
+  }
+
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
     fill();
@@ -594,6 +622,10 @@ class variable_node : public member_node {
   void set_expression(std::shared_ptr<expression_node> expression) {
     expression_ = std::move(expression);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope_checking::scope> scope) {
+    scope_ = scope;
   }
 
   void visit(visitor::visitor* v) override;
