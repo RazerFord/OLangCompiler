@@ -223,11 +223,7 @@ class class_name_node : public primary_node {
 
   std::string mangle_class_name() const {
     auto name = identifier_->get_name();
-    std::string generic_mangle;
-    if (generic_) {
-      generic_mangle = generic_->mangle_class_name();
-    }
-    return std::to_string(name.size()) + name + "I" + generic_mangle;
+    return std::to_string(name.size()) + name;
   }
 };
 
