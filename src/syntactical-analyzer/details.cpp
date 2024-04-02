@@ -9,6 +9,8 @@ void identifier_node::visit(visitor::visitor* v) { v->visit(*this); }
 
 void primary_node::visit(visitor::visitor* v) { v->visit(*this); }
 
+void type_node::visit(visitor::visitor* v) { v-> visit(*this); }
+
 void class_name_node::visit(visitor::visitor* v) { v->visit(*this); }
 
 void parameter_node::visit(visitor::visitor* v) { v->visit(*this); }

@@ -16,7 +16,7 @@ VariableDeclaration
   : var Identifier ':' Expression
 
 MethodDeclaration
-  : method Identifier '(' [ Parameters ] ')' [ : Identifier ]
+  : method Identifier '(' [ Parameters ] ')' [ : ClassName ]
     is Body end
 
 Parameters : ( ParameterDeclaration { , ParameterDeclaration } )

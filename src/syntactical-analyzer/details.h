@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -217,9 +218,48 @@ class class_name_node : public primary_node {
   }
 };
 
+class type_node : public ast_node {
+  using value_type = std::shared_ptr<class_name_node>;
+  value_type type_;
+
+  bool validate() override { return true; }
+
+  void visit(visitor::visitor* v) override;
+
+  void generate() override {}
+
+ public:
+  type_node(value_type class_name) : type_(std::move(class_name)) {}
+  void set_type(value_type type) { type_ = std::move(type); }
+
+  value_type get_class_name() const { return type_; }
+
+
+  bool operator==(const type_node& other) {
+    return type_->mangle_class_name() == other.type_->mangle_class_name();
+  }
+
+  std::string get_type() const { return type_->mangle_class_name(); }
+
+  void print() override { type_->print(); }
+
+  void register_class(std::shared_ptr<class_node> clazz) {
+    types_.insert({get_type(), clazz});
+  }
+
+  static std::shared_ptr<class_node> find(const std::string& class_name) {
+    if (types_.contains(class_name))
+      return types_[class_name];
+
+    return nullptr;
+  }
+
+  inline static std::unordered_map<std::string, std::shared_ptr<class_node>> types_ = {};
+};
+
 class parameter_node : public ast_node {
   std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<class_name_node> class_name_;
+  std::shared_ptr<type_node> type_;
 
   bool validate() override { return true; }
 
@@ -228,7 +268,7 @@ class parameter_node : public ast_node {
   void fill() {
     meta_info_.span_ = zero_span;
     fill(identifier_);
-    fill(class_name_);
+    fill(type_);
   }
 
   void fill(std::shared_ptr<ast_node> node) {
@@ -242,8 +282,8 @@ class parameter_node : public ast_node {
     return identifier_;
   }
 
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
-    return class_name_;
+  [[nodiscard]] const std::shared_ptr<type_node>& get_type() const {
+    return type_;
   }
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
@@ -251,7 +291,7 @@ class parameter_node : public ast_node {
     fill();
   }
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
-    class_name_ = std::move(class_name);
+    type_ = std::make_shared<type_node>(std::move(class_name));
     fill();
   }
 
@@ -261,11 +301,11 @@ class parameter_node : public ast_node {
     if (identifier_) {
       identifier_->print();
       std::cout << ": ";
-      class_name_->print();
+      type_->print();
     }
   }
 
-  std::string mangle_param() const { return class_name_->mangle_class_name(); }
+  std::string mangle_param() const { return type_->get_type(); }
 };
 
 class parameters_node : public ast_node {
@@ -376,9 +416,9 @@ class body_node : public ast_node {
 
 class member_node : public ast_node {};
 
-class class_node : public ast_node {
-  std::shared_ptr<class_name_node> class_name_;
-  std::shared_ptr<class_name_node> extends_;
+class class_node : public ast_node, public std::enable_shared_from_this<class_node> {
+  std::shared_ptr<type_node> class_name_;
+  std::shared_ptr<type_node> extends_;
   std::vector<std::shared_ptr<member_node>> members_;
 
   bool validate() override { return true; }
@@ -403,11 +443,11 @@ class class_node : public ast_node {
   }
 
  public:
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
+  [[nodiscard]] const std::shared_ptr<type_node>& get_class_name() const {
     return class_name_;
   }
 
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_extends() const {
+  [[nodiscard]] const std::shared_ptr<type_node>& get_extends() const {
     return extends_;
   }
 
@@ -417,12 +457,14 @@ class class_node : public ast_node {
   }
 
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
-    class_name_ = std::move(class_name);
+    class_name_ = std::make_shared<type_node>(std::move(class_name));
+    class_name_->register_class(shared_from_this());
     fill();
   }
 
   void set_extends(std::shared_ptr<class_name_node> extends) {
-    extends_ = std::move(extends);
+    if (extends)
+      extends_ = std::make_shared<type_node>(std::move(extends));
     fill();
   }
 
@@ -508,6 +550,7 @@ class expression_node : public statement_node {
   using value_type = std::vector<std::pair<std::shared_ptr<identifier_node>,
                                            std::shared_ptr<arguments_node>>>;
   value_type expression_values;
+  std::shared_ptr<type_node> expression_type_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -555,6 +598,20 @@ class expression_node : public statement_node {
   void visit(visitor::visitor* v) override;
 
   void print() override;
+
+  std::shared_ptr<type_node> get_type() { 
+    return expression_type_;
+  }
+
+  void detect_type() {
+    if (auto class_name = dynamic_cast<class_name_node*>(primary_.get()); class_name) {
+      //todo check in scope
+      
+      if (auto clazz = type_node::find(class_name->mangle_class_name()); clazz) {
+        expression_type_ = std::make_shared<type_node>(class_name);
+      }
+    }
+  }
 };
 
 class variable_node : public member_node {
@@ -609,7 +666,7 @@ class variable_node : public member_node {
 class method_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
-  std::shared_ptr<identifier_node> return_type_;
+  std::shared_ptr<type_node> return_type_;
   std::shared_ptr<body_node> body_;
 
   bool validate() override { return true; }
@@ -638,7 +695,7 @@ class method_node : public member_node {
     return parameters_;
   }
 
-  [[nodiscard]] const std::shared_ptr<identifier_node>& get_return_type()
+  [[nodiscard]] const std::shared_ptr<type_node>& get_return_type()
       const {
     return return_type_;
   }
@@ -661,8 +718,8 @@ class method_node : public member_node {
     body_ = std::move(body);
     fill();
   }
-  void set_return_type(std::shared_ptr<identifier_node> return_type) {
-    return_type_ = std::move(return_type);
+  void set_return_type(std::shared_ptr<class_name_node> return_type) {
+    return_type_ = std::make_shared<type_node>(std::move(return_type));
     fill();
   }
 

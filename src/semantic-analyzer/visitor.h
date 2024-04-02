@@ -23,6 +23,7 @@ class visitor {
  public:
   virtual void visit(const details::identifier_node&){};
   virtual void visit(const details::primary_node&){};
+  virtual void visit(const details::type_node&){};
   virtual void visit(const details::class_name_node&){};
   virtual void visit(const details::parameter_node&){};
   virtual void visit(const details::parameters_node&){};
@@ -174,6 +175,10 @@ class scope_visitor : public visitor {
     }
   }
 
+  void visit(const details::type_node& type) override {
+    type.get_class_name()->visit(this);
+  }
+
   void visit(const details::class_name_node& c) override {
     std::string key = c.get_identifier()->get_name();
     if (auto var = scope_->find(key); !var) {
@@ -211,7 +216,8 @@ class scope_visitor : public visitor {
   }
 
   void visit(const details::assignment_node& a) override {
-    // this code block must be empty
+    a.get_lexpression()->visit(this);
+    a.get_rexpression()->visit(this);
   }
 
   void visit(const details::while_loop_node& w) override {

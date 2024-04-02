@@ -1,5 +1,13 @@
 class Main is
   method nuuu(n: Integer,x: Integer) is
-   this.x := 10
+   var x: Integer()
+   x[Integer] := x[Integer]
+  end
+end
+
+class Main is
+  method nuuu(n: Integer,x: Integer) is
+   var x: Integer()
+   x[Integer] := x[Integer]
   end
 end

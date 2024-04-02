@@ -280,7 +280,7 @@ inline result<std::shared_ptr<method_node>> ast_parser::parse_method() {
     auto method = std::make_shared<method_node>();
     if (stream_.next_token_id() == token_id::Colon) {
       ++stream_;
-      method->set_return_type(parse_identifier().value);
+      method->set_return_type(parse_class_name().value);
     }
 
     result<std::shared_ptr<body_node>> body;
