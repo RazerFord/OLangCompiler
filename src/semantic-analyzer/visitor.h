@@ -59,14 +59,19 @@ class scope_visitor : public visitor {
  public:
   void visit(details::program_node& p) override {
     for (const auto& cls : p.get_classes()) {
+      scope_->add(cls->get_class_name()->get_identifier()->get_name(), cls);
+    }
+    for (const auto& cls : p.get_classes()) {
+      std::string class_name = cls->get_class_name()->mangle_class_name();
+      scope_ = scope_->push(class_name, scope::scope_type::Class);
+      scope_->add(class_name, cls);
+      cls->set_scope(scope_);
       cls->visit(this);
+      scope_ = scope_->pop();
     }
   }
 
   void visit(details::class_node& cls) override {
-    scope_ = scope_->push(cls.get_class_name()->mangle_class_name(),
-                          scope::scope_type::Class);
-    cls.set_scope(scope_);
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
         var->visit(this);
@@ -98,7 +103,6 @@ class scope_visitor : public visitor {
         var->visit(this);
       }
     }
-    scope_ = scope_->pop();
   }
 
   void visit(details::variable_node& v) override {
@@ -230,8 +234,15 @@ class scope_visitor : public visitor {
   }
 
   void visit(details::assignment_node& a) override {
-    a.get_lexpression()->visit(this);
-    a.get_rexpression()->visit(this);
+    const auto& left = a.get_lexpression();
+    if (auto p =
+            dynamic_cast<const details::this_node*>(left->get_primary().get());
+        p != nullptr && left->get_expression_values().empty()) {
+      error_.register_error(make_error_t(*p, "\"this\" cannot be assigned"));
+    } else {
+      a.get_lexpression()->visit(this);
+      a.get_rexpression()->visit(this);
+    }
   }
 
   void visit(details::while_loop_node& w) override {
