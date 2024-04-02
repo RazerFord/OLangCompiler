@@ -4,7 +4,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 
 #include "./../logging/error_handler.h"
@@ -12,6 +11,9 @@
 #include "syntactical-analyzer/details.h"
 
 namespace visitor {
+inline const std::string body = "$body";
+inline const std::string kw_this = "this";
+
 inline const std::string VariableRedefinition =
     "a parameter with the same name is already defined";
 inline error_handling::error_t make_error_t(const details::ast_node& node,
@@ -62,7 +64,9 @@ class scope_visitor : public visitor {
   }
 
   void visit(details::class_node& cls) override {
-    scope_ = scope_->push();
+    scope_ = scope_->push(cls.get_class_name()->mangle_class_name(),
+                          scope::scope_type::Class);
+    cls.set_scope(scope_);
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
         var->visit(this);
@@ -111,7 +115,8 @@ class scope_visitor : public visitor {
 
   void visit(details::method_node& m) override {
     auto sym = std::make_shared<scope::scope_symbol>();
-    scope_ = scope_->push(sym);  // change by pointer
+    scope_ = scope_->push(sym, m.mangle_method(),
+                          scope::scope_type::Method);  // change by pointer
     for (const auto& p : m.get_parameters()->get_parameters()) {
       std::string key = p->get_identifier()->get_name();
       if ((*sym)[key]) {
@@ -139,6 +144,8 @@ class scope_visitor : public visitor {
 
   void visit(details::constructor_node& ctr) override {
     auto sym = std::make_shared<scope::scope_symbol>();
+    scope_ =
+        scope_->push(sym, ctr.mangle_ctr(), scope::scope_type::Constructor);
     for (const auto& p : ctr.get_parameters()->get_parameters()) {
       std::string key = p->get_identifier()->get_name();
       if ((*sym)[key]) {
@@ -148,7 +155,6 @@ class scope_visitor : public visitor {
         p->set_scope(scope_);
       }
     }
-    scope_ = scope_->push(sym);
     for (const auto& s : ctr.get_body()->get_nodes()) {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
         std::string key = var->get_identifier()->get_name();
@@ -243,7 +249,7 @@ class scope_visitor : public visitor {
 
   void visit(details::body_node& b) override {
     auto sym = std::make_shared<scope::scope_symbol>();
-    scope_ = scope_->push(sym);
+    scope_ = scope_->push(sym, body, scope::scope_type::Body);
     for (const auto& s : b.get_nodes()) {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
         std::string key = var->get_identifier()->get_name();

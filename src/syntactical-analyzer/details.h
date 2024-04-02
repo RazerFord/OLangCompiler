@@ -241,7 +241,7 @@ class type_node : public ast_node {
   type_node(value_type class_name) : type_(std::move(class_name)) {}
   void set_type(value_type type) { type_ = std::move(type); }
 
-  value_type get_class_name() const { return type_; }
+  const value_type& get_class_name() const { return type_; }
 
   bool operator==(const type_node& other) {
     return type_->mangle_class_name() == other.type_->mangle_class_name();
@@ -441,6 +441,7 @@ class class_node : public ast_node,
   std::shared_ptr<type_node> class_name_;
   std::shared_ptr<type_node> extends_;
   std::vector<std::shared_ptr<member_node>> members_;
+  std::shared_ptr<scope::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -464,17 +465,22 @@ class class_node : public ast_node,
   }
 
  public:
-  [[nodiscard]] const std::shared_ptr<type_node>& get_class_name() const {
-    return class_name_;
+  [[nodiscard]] std::shared_ptr<class_name_node> get_class_name()
+      const noexcept {
+    return class_name_->get_class_name();
   }
 
-  [[nodiscard]] const std::shared_ptr<type_node>& get_extends() const {
+  [[nodiscard]] std::shared_ptr<type_node> get_extends() const noexcept {
     return extends_;
   }
 
   [[nodiscard]] const std::vector<std::shared_ptr<member_node>>& get_members()
-      const {
+      const noexcept {
     return members_;
+  }
+
+  [[nodiscard]] std::shared_ptr<scope::scope> get_scope() const noexcept {
+    return scope_;
   }
 
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
@@ -492,6 +498,8 @@ class class_node : public ast_node,
     fill(member);
     members_.push_back(std::move(member));
   }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
 
   void visit(visitor::visitor* v) override;
 
