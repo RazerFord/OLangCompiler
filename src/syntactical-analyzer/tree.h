@@ -24,6 +24,8 @@ class ast {
   void visit(visitor::visitor* v) { root_->visit(v); }
 
   void print() const noexcept { root_->print(); }
+
+  bool success() const noexcept { return root_ != nullptr; }
 };
 
 namespace {
@@ -61,6 +63,7 @@ struct result<std::shared_ptr<T>> {
 class ast_parser {
  private:
   token_stream stream_;
+  bool success_;
 
   inline result<std::shared_ptr<statement_node>> parse_if();
 
@@ -107,6 +110,8 @@ class ast_parser {
   inline result<std::shared_ptr<primary_node>> parse_keyword();
 
  public:
+  inline bool success() { return success_; }
+
   explicit ast_parser(const token_vector& token) : stream_{token} {}
   inline result<std::shared_ptr<program_node>> parse_program();
 };
@@ -115,6 +120,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
   if (auto tok_id = stream_.get_token_id(); tok_id != token_id::If) {
     log_expected_actual(token_id::If, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::If, tok_id);
+    success_ = false;
     return {};
   }
   auto statement = std::make_shared<if_statement_node>();
@@ -125,6 +131,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
       tok_id != token_id::Then || !expr) {
     log_expected_actual(token_id::Then, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::Then, tok_id);
+    success_ = false;
     return {};
   }
 
@@ -135,6 +142,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_if() {
       (tok_id != token_id::Else && tok_id != token_id::End) || !true_branch) {
     log_expected_actual(token_id::Else, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::Else, tok_id);
+    success_ = false;
     return {};
   }
 
@@ -153,6 +161,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
   if (auto tok_id = stream_.get_token_id(); tok_id != token_id::While) {
     log_expected_actual(token_id::While, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::While, tok_id);
+    success_ = false;
     return {};
   }
   auto statement = std::make_shared<while_loop_node>();
@@ -164,6 +173,7 @@ inline result<std::shared_ptr<statement_node>> ast_parser::parse_while() {
       tok_id != token_id::Loop || !expr) {
     log_expected_actual(token_id::Loop, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::Loop, tok_id);
+    success_ = false;
     return {};
   }
   auto scope = parse_scope();
@@ -189,6 +199,7 @@ inline result<std::shared_ptr<identifier_node>> ast_parser::parse_identifier() {
     log_expected_actual(token_id::Identifier, stream_.get_token_id());
     log_error_lang(stream_.token()->get_span(), token_id::Identifier,
                    stream_.get_token_id());
+    success_ = false;
     return {nullptr};
   }
 }
@@ -209,6 +220,7 @@ inline result<std::shared_ptr<parameter_node>> ast_parser::parse_parameter() {
   logger::error("parameter parsing error");
   log_error_lang(stream_.token()->get_span(), token_id::Colon,
                  stream_.get_token_id());
+  success_ = false;
   return {nullptr};
 }
 
@@ -240,6 +252,7 @@ inline result<std::shared_ptr<parameters_node>> ast_parser::parse_parameters() {
   logger::error("parameters parsing error");
   log_error_lang(stream_.token()->get_span(), token_id::LBracket,
                  stream_.next_token_id());
+  success_ = false;
 
   return {nullptr};
 }
@@ -254,7 +267,8 @@ ast_parser::parse_constructor() {
     auto constructor = std::make_shared<constructor_node>();
     constructor->set_parameters(parameters.value);
     constructor->set_body(body.value);
-    constructor->set_meta(meta("this", prev_tok->get_token_id(), prev_tok->get_span()));
+    constructor->set_meta(
+        meta("this", prev_tok->get_token_id(), prev_tok->get_span()));
 
     logger::info("constructor parsed");
 
@@ -264,10 +278,12 @@ ast_parser::parse_constructor() {
   if (stream_.get_token_id() == token_id::Is) {
     log_error_lang(stream_.token()->get_span(), token_id::Is,
                    stream_.get_token_id());
+    success_ = false;
   }
   if (stream_.next_and_token_id() == token_id::End) {
     log_error_lang(stream_.token()->get_span(), token_id::End,
                    stream_.get_token_id());
+    success_ = false;
   }
 
   return {nullptr};
@@ -313,10 +329,12 @@ inline result<std::shared_ptr<variable_node>> ast_parser::parse_variable() {
     }
     log_error_lang(stream_.next_token()->get_span(), token_id::Colon,
                    stream_.next_token_id());
+    success_ = false;
   } else {
     logger::error("variable parsing error", tok_to_str(stream_.get_token_id()));
     log_error_lang(stream_.token()->get_span(), token_id::Colon,
                    stream_.get_token_id());
+    success_ = false;
   }
   return {nullptr};
 }
@@ -340,6 +358,7 @@ inline result<std::shared_ptr<member_node>> ast_parser::parse_member() {
         logger::error("raw token", tok_to_str(stream_.get_token_id()));
         log_error_lang(stream_.token()->get_span(),
                        " class member parsing error");
+        success_ = false;
       }
     }
   }
@@ -461,6 +480,7 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
     return {expression};
   } else {
     log_error_lang(stream_.token()->get_span(), "expression parsing error");
+    success_ = false;
   }
   return {};
 }
@@ -480,6 +500,7 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_body() {
   if (auto tok_id = stream_.get_token_id(); tok_id != token_id::Is) {
     log_expected_actual(token_id::Is, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::Is, tok_id);
+    success_ = false;
     return {};
   }
 
@@ -565,6 +586,7 @@ inline result<std::shared_ptr<class_name_node>> ast_parser::parse_generic() {
       log_expected_actual(token_id::RSBracket, bracket_id);
       log_error_lang(stream_.token()->get_span(), token_id::RSBracket,
                      bracket_id);
+      success_ = false;
       return {nullptr};
     }
   }
@@ -606,6 +628,7 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
   if (auto tok_id = token->get_token_id(); tok_id != token_id::Is) {
     log_expected_actual(token_id::Is, tok_id);
     log_error_lang(stream_.token()->get_span(), token_id::Is, tok_id);
+    success_ = false;
     return {nullptr};
   }
 
@@ -615,11 +638,13 @@ inline result<std::shared_ptr<class_node>> ast_parser::parse_class() {
   }
   if (!stream_) {
     log_error_lang(token->get_span(), R"("end" not found for "is")");
+    success_ = false;
   }
   return {node};
 }
 
 inline result<std::shared_ptr<program_node>> ast_parser::parse_program() {
+  success_ = true;
   auto program = std::make_shared<program_node>();
 
   for (; stream_; ++stream_) {
@@ -633,11 +658,13 @@ inline result<std::shared_ptr<program_node>> ast_parser::parse_program() {
       default: {
         log_expected_actual(token_id::Class, tok_id);
         log_error_lang(stream_.token()->get_span(), token_id::Class, tok_id);
+        success_ = false;
       }
     }
   }
 
-  return {program};
+  if (!success_) return {};
+  return {program, success_};
 }
 }  // namespace
 
@@ -650,11 +677,8 @@ inline ast make_ast(token_vector& tokens) {
          valid_tokens.back()->get_token_id() == token_id::Return))
       valid_tokens.emplace_back(std::move(token));
   }
-
   ast_parser parser(valid_tokens);
 
-  ast tree(parser.parse_program().value);
-  tree.print();
-  return tree;
+  return {parser.parse_program().value};
 }
 }  // namespace tree
