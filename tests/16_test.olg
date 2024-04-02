@@ -1,15 +1,5 @@
 class Main is
-  this() is
-    var gen : Integer[Integer]
-
-    gen.append(-42.129)
-  end
-end
-
-class Main is
-  this() is
-    var gen : Integer[Integer]
-    gen.sas.tas(2).cas := pek
-    gen.append(-42.129)
+  method nuuu(n: Integer,x: Integer) is
+   this.x := 10
   end
 end

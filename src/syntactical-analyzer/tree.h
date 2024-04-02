@@ -374,11 +374,11 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_keyword() {
   const auto& tok = stream_.next_and_token();
   switch (tok->get_token_id()) {
     case token_id::This: {
-      auto this_token = dynamic_cast<token::identifier*>(tok.get());
+      auto this_token = dynamic_cast<token::keyword*>(tok.get());
       return {std::make_shared<this_node>(*this_token)};
     }
     case token_id::Null: {
-      auto null_token = dynamic_cast<token::identifier*>(tok.get());
+      auto null_token = dynamic_cast<token::keyword*>(tok.get());
       return {std::make_shared<null_node>(*null_token)};
     }
     case token_id::Base: {

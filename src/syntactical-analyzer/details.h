@@ -1047,7 +1047,7 @@ class literal_node : public primary_node {
 
 class this_node : public primary_node {
  public:
-  this_node(const token::identifier& i) {
+  this_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
 
@@ -1062,7 +1062,7 @@ class this_node : public primary_node {
 
 class null_node : public primary_node {
  public:
-  null_node(const token::identifier& i) {
+  null_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
 
