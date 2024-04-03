@@ -136,7 +136,7 @@ inline std::shared_ptr<details::ast_node> scope::find(const std::string& key) {
 
 inline std::weak_ptr<details::ast_node> scope::add(
     const std::string& key, std::weak_ptr<details::ast_node> value) {
-  return (*symbol_)[key] = value;
+  return (*symbol_)[key] = std::move(value);
 }
 
 inline const std::string* scope::get_name(scope_type type) const noexcept {

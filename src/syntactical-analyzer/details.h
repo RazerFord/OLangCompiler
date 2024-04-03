@@ -95,7 +95,7 @@ enum class ast_token {
   Identifier
 };
 
-class ast_node {
+class ast_node : public std::enable_shared_from_this<ast_node> {
  protected:
   meta meta_info_;
   virtual bool validate() = 0;
@@ -243,7 +243,7 @@ class type_node : public ast_node {
   void generate() override {}
 
  public:
-  type_node(value_type class_name) : type_(std::move(class_name)) {}
+  explicit type_node(value_type class_name) : type_(std::move(class_name)) {}
   void set_type(value_type type) { type_ = std::move(type); }
 
   const value_type& get_class_name() const { return type_; }
@@ -447,8 +447,7 @@ class body_node : public ast_node {
 
 class member_node : public ast_node {};
 
-class class_node : public ast_node,
-                   public std::enable_shared_from_this<class_node> {
+class class_node : public ast_node {
   std::shared_ptr<type_node> class_name_;
   std::shared_ptr<type_node> extends_;
   std::vector<std::shared_ptr<member_node>> members_;
@@ -469,7 +468,7 @@ class class_node : public ast_node,
     }
   }
 
-  void fill(std::shared_ptr<ast_node> node) {
+  void fill(const std::shared_ptr<ast_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -481,8 +480,9 @@ class class_node : public ast_node,
     return class_name_->get_class_name();
   }
 
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_extends() const {
-    return extends_->get_class_name();
+  [[nodiscard]] std::shared_ptr<class_name_node> get_extends() const {
+    if (extends_) return extends_->get_class_name();
+    return {};
   }
 
   std::shared_ptr<type_node> get_type() const { return class_name_; }
@@ -498,7 +498,7 @@ class class_node : public ast_node,
 
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
     class_name_ = std::make_shared<type_node>(std::move(class_name));
-    class_name_->register_class(shared_from_this());
+    class_name_->register_class(std::dynamic_pointer_cast<class_node>(shared_from_this()));
     fill();
   }
 
@@ -702,7 +702,7 @@ class variable_node : public member_node {
     fill(expression_);
   }
 
-  void fill(std::shared_ptr<ast_node> node) {
+  void fill(const std::shared_ptr<ast_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -738,6 +738,7 @@ class variable_node : public member_node {
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
+    if (expression_) expression_->set_scope(scope_);
   }
 
   void visit(visitor::visitor* v) override;
