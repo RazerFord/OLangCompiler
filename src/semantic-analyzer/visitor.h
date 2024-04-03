@@ -286,13 +286,17 @@ class scope_visitor : public visitor {
 
 class type_visitor : public visitor {
  private:
-  std::unordered_multimap<std::string, std::string> type_casting_ = {
-      {"Integer", {"Real"}},
-      {"Real", {"Integer"}},
-      {"Integer", {"Any"}},
-      {"Real", {"Any"}},
-  };
-  std::unordered_set<std::string> types_ = {"Integer", "Real", "Boolean"};
+  using type = details::type_node;
+
+  std::unordered_map<std::string, std::unordered_set<std::string>>
+      type_casting_ = {
+          {type::IntegerT, {type::RealT}},
+          {type::RealT, {type::IntegerT}},
+          {type::IntegerT, {type::AnyT}},
+          {type::RealT, {type::AnyT}},
+      };
+  std::unordered_set<std::string> types_ = {type::IntegerT, type::RealT,
+                                            type::BooleanT, type::AnyT};
   std::unordered_map<std::string, std::string> constructor_calls_;
   error_handling::error_handling error_;
   bool success_;
@@ -309,15 +313,18 @@ class type_visitor : public visitor {
       std::string derived = cls->get_class_name()->get_identifier()->get_name();
       if (cls->get_extends()) {
         std::string base = cls->get_extends()->get_identifier()->get_name();
-        type_casting_.insert({derived, base});
+        type_casting_[derived].insert(base);
       }
       types_.insert(derived);
-      type_casting_.insert({derived, "Any"});
+      type_casting_[derived].insert(type::AnyT);
+      type_casting_[derived].insert(derived);
     }
     std::cout << "//////////////////////////////////////////// CASTING "
                  "/////////////////////////////////////////////////\n";
-    for (const auto& [k, v] : type_casting_) {
-      std::cout << k << " -> " << v << '\n';
+    for (const auto& [k, s] : type_casting_) {
+      for (const auto& v : s) {
+        std::cout << k << " -> " << v << '\n';
+      }
     }
     std::cout << "//////////////////////////////////////////// TYPES "
                  "/////////////////////////////////////////////////\n";
@@ -346,7 +353,7 @@ class type_visitor : public visitor {
   }
 
   void visit(details::variable_node& v) override {
-    if (!v.get_expression()->get_type()) {
+    if (!v.get_expression()->get_type(error_)) {
       register_error(*v.get_expression(), "invalid expression");
     }
   }
@@ -359,12 +366,11 @@ class type_visitor : public visitor {
 
   void visit(details::method_node& m) override {
     m.get_parameters()->visit(this);
-    // TODO: replace on void
-    std::string return_type;
+    std::string return_type = type::voidT;
     if (m.get_return_type()) {
-      return_type = m.get_return_type()->type();
+      return_type = m.get_return_type()->simple_type();
     }
-    body_checker bc(return_type);
+    body_checker bc(return_type, *this);
     m.get_body()->visit(&bc);
   }
 
@@ -373,8 +379,7 @@ class type_visitor : public visitor {
     // checking that the first expression in the constructor is "this"
     this_checker tc(ctr.mangle_ctr(), constructor_calls_);
     ctr.get_body()->visit(&tc);
-    // TODO: replace on void
-    body_checker bc("");
+    body_checker bc(type::voidT, *this);
     ctr.get_body()->visit(&bc);
   }
 
@@ -387,9 +392,10 @@ class type_visitor : public visitor {
         register_error(*node, "\"" + class_name + "\" class not found");
       }
     }
-  };
 
-  void visit(details::expression_node& expr) override {}
+  }
+
+  void visit(details::expression_node& expr) override {expr.get_object(error_);}
 
   void visit(details::arguments_node& expr) override {}
 
@@ -465,11 +471,12 @@ class type_visitor : public visitor {
 
   class body_checker : public visitor {
    private:
-    const std::string return_type_;
+    const std::string ret_type_;
+    type_visitor& tv_;
 
    public:
-    explicit body_checker(std::string return_type)
-        : return_type_{std::move(return_type)} {}
+    explicit body_checker(std::string ret_type, type_visitor& tv)
+        : ret_type_{std::move(ret_type)}, tv_{tv} {}
 
     void visit(details::body_node& b) override {
       for (auto& n : b.get_nodes()) {
@@ -477,19 +484,54 @@ class type_visitor : public visitor {
       }
     }
 
-    void visit(details::expression_node& expr) override { expr.get_type(); }
+    void visit(details::expression_node& expr) override {expr.get_object(tv_.error_);}
 
-    void visit(details::if_statement_node& i) override {
-      if (i.get_expression()->get_type()->type() != "Boolean") {
-
+    void visit(details::assignment_node& a) override {
+      std::string ltype = a.get_lexpression()->get_type(tv_.error_)->simple_type();
+      std::string rtype = a.get_rexpression()->get_type(tv_.error_)->simple_type();
+      if (auto it = tv_.type_casting_.find(rtype);
+          it != tv_.type_casting_.end() && !it->second.contains(ltype)) {
+        tv_.register_error(
+            *a.get_lexpression(),
+            "error: casting error \"" + rtype + "\" to \"" + ltype + "\"");
       }
-      i.get_true_body()->visit(this);
     }
 
-    void visit(details::while_loop_node& w) override {}
+    void visit(details::if_statement_node& i) override {
+      if (i.get_expression()->get_type(tv_.error_)->simple_type() != type::BooleanT) {
+        tv_.register_error(
+            *i.get_expression(),
+            "error: in the \"if\" statement, Boolean type was expected");
+      }
+      i.get_true_body()->visit(this);
+      if (auto& f = i.get_false_body()) {
+        f->visit(this);
+      }
+    }
+
+    void visit(details::while_loop_node& w) override {
+      if (w.get_expression()->get_type(tv_.error_)->simple_type() != type::BooleanT) {
+        tv_.register_error(
+            *w.get_expression(),
+            "error: in the \"while\" statement, Boolean type was expected");
+      }
+      w.get_body_node()->visit(this);
+    }
 
     void visit(details::return_statement_node& r) override {
+      if (auto t = r.get_expression()->get_type(tv_.error_)->simple_type();
+          t != ret_type_) {
+        tv_.register_error(*r.get_expression(),
+                           "error: the type of expression \"" + t +
+                               "\" does not match the return \"" + ret_type_ +
+                               "\"");
+      }
+    }
 
+    void visit(details::variable_node& v) override {
+      if (!v.get_expression()->get_type(tv_.error_)) {
+        tv_.error_.register_error(error_handling::make_error_t(*v.get_expression(), "invalid expression"));
+      }
     }
   };
 };

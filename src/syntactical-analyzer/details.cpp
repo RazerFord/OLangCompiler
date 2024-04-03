@@ -218,6 +218,11 @@ std::shared_ptr<expression_ext> expression_node::this_type_checking(
     auto ctor = clazz->find_ctr(expression_values[0].second, error_handler);
     auto args = get_args_objects(expression_values[0].second->get_arguments(),
                                  error_handler);
+//    if (ctor) {
+//      error_handler.register_error(error_handling::make_error_t(
+//          *this_keyword, "error: cannot call another constructor\n"));
+//      return EMPTY_VAR;
+//    }
     return std::make_shared<constructor_call>(clazz, ctor, args);
   }
 
