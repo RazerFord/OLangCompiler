@@ -1,13 +1,8 @@
-class Main is
-  method nuuu(n: Integer,x: Integer) is
-   var x: Integer()
-   x[Integer] := x[Integer]
-  end
+class Integer is 
 end
 
 class Main is
   method nuuu(n: Integer,x: Integer) is
-   var x: Integer()
-   x[Integer] := x[Integer]
+   x := Integer()
   end
 end

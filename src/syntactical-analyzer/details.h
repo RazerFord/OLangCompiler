@@ -584,6 +584,7 @@ class statement_node : public ast_node {};
 
 class expression_ext : public ast_node {
  public:
+  virtual ~expression_ext() {}
   virtual std::shared_ptr<type_node> get_type() = 0;
 };
 
@@ -625,6 +626,7 @@ class constructor_call : public expression_ext {
 
  public:
   constructor_call() {}
+  constructor_call(const constructor_call& other): class_(other.class_), constr_(other.constr_), arguments_(other.arguments_) {}
   constructor_call(std::shared_ptr<class_node> clazz,
                    std::shared_ptr<constructor_node> constr,
                    std::vector<std::shared_ptr<ast_node>> args)
