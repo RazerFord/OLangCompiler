@@ -263,7 +263,7 @@ class type_node : public ast_node {
     id_ = type_id::Custom;
   }
 
-  const value_type& get_class_name() const { return type_; }
+  value_type get_class_name() const { return type_; }
 
   bool operator==(const type_node& other) {
     return mangle_name(type_->get_identifier()->get_name()) ==
@@ -504,7 +504,7 @@ class class_node : public ast_node {
     }
   }
 
-  void fill(std::shared_ptr<ast_node> node) {
+  void fill(const std::shared_ptr<ast_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -518,7 +518,7 @@ class class_node : public ast_node {
 
   [[nodiscard]] std::shared_ptr<class_name_node> get_extends() const {
     if (extends_) return extends_->get_class_name();
-    return nullptr;
+    return {};
   }
 
   std::shared_ptr<type_node> get_type() const { return class_name_; }
@@ -739,7 +739,7 @@ class variable_node : public member_node {
     fill(expression_);
   }
 
-  void fill(std::shared_ptr<ast_node> node) {
+  void fill(const std::shared_ptr<ast_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -775,7 +775,7 @@ class variable_node : public member_node {
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
-    expression_->set_scope(scope_);
+    if (expression_) expression_->set_scope(scope_);
   }
 
   void visit(visitor::visitor* v) override;
@@ -875,6 +875,7 @@ class method_node : public member_node {
 class constructor_node : public member_node {
   std::shared_ptr<parameters_node> parameters_;
   std::shared_ptr<body_node> body_;
+  std::shared_ptr<scope::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -894,12 +895,14 @@ class constructor_node : public member_node {
   }
 
  public:
-  [[nodiscard]] const std::shared_ptr<parameters_node>& get_parameters() const {
+  [[nodiscard]] std::shared_ptr<parameters_node> get_parameters() const {
     return parameters_;
   }
 
-  [[nodiscard]] const std::shared_ptr<body_node>& get_body() const {
-    return body_;
+  [[nodiscard]] std::shared_ptr<body_node> get_body() const { return body_; }
+
+  [[nodiscard]] std::shared_ptr<scope::scope> get_scope() const {
+    return scope_;
   }
 
   void set_parameters(std::shared_ptr<parameters_node> parameters) {
@@ -910,6 +913,10 @@ class constructor_node : public member_node {
   void set_body(std::shared_ptr<body_node> body) {
     body_ = std::move(body);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
   }
 
   void visit(visitor::visitor* v) override;
@@ -1244,7 +1251,7 @@ class literal_node : public literal_base_node {
 
 class this_node : public primary_node {
  public:
-  this_node(const token::keyword& i) {
+  explicit this_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
 

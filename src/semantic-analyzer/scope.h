@@ -76,25 +76,26 @@ class scope : public std::enable_shared_from_this<scope> {
  public:
   scope() = default;
 
-  scope(std::shared_ptr<scope> parent, const std::string& name = "",
-        scope_type type = scope_type::Class)
-      : parent_{std::move(parent)}, name_{name}, type_{type} {}
+  explicit scope(std::shared_ptr<scope> parent, std::string  name = "",
+                 scope_type type = scope_type::Class)
+      : parent_{std::move(parent)}, name_{std::move(name)}, type_{type} {}
 
-  scope(std::shared_ptr<scope_symbol> symbol, const std::string& name = "",
-        scope_type type = scope_type::Class)
-      : parent_{}, symbol_{std::move(symbol)}, name_{name}, type_{type} {}
+  explicit scope(std::shared_ptr<scope_symbol> symbol,
+                 std::string  name = "",
+                 scope_type type = scope_type::Class)
+      : parent_{}, symbol_{std::move(symbol)}, name_{std::move(name)}, type_{type} {}
 
   scope(std::shared_ptr<scope> parent, std::shared_ptr<scope_symbol> symbol,
-        const std::string& name = "", scope_type type = scope_type::Class)
+        std::string  name = "", scope_type type = scope_type::Class)
       : parent_{std::move(parent)},
         symbol_{std::move(symbol)},
-        name_{name},
+        name_{std::move(name)},
         type_{type} {}
 
   std::shared_ptr<scope> push(const std::string& name = "",
                               scope_type type = scope_type::Class);
 
-  std::shared_ptr<scope> push(std::shared_ptr<scope_symbol> symbols,
+  std::shared_ptr<scope> push(const std::shared_ptr<scope_symbol>& symbols,
                               const std::string& name = "",
                               scope_type type = scope_type::Class);
 
@@ -105,7 +106,7 @@ class scope : public std::enable_shared_from_this<scope> {
   std::weak_ptr<details::ast_node> add(const std::string&,
                                        std::weak_ptr<details::ast_node>);
 
-  inline const scope_type get_type() const noexcept { return type_; }
+  inline scope_type get_type() const noexcept { return type_; }
 
   inline const std::string* get_name(scope_type type) const noexcept;
   inline const std::string& get_name() const noexcept;
@@ -116,7 +117,7 @@ inline std::shared_ptr<scope> scope::push(const std::string& name,
   return std::make_shared<scope>(shared_from_this(), name, type);
 }
 
-inline std::shared_ptr<scope> scope::push(std::shared_ptr<scope_symbol> symbols,
+inline std::shared_ptr<scope> scope::push(const std::shared_ptr<scope_symbol>& symbols,
                                           const std::string& name,
                                           scope_type type) {
   return std::make_shared<scope>(shared_from_this(), symbols, name, type);
@@ -136,7 +137,7 @@ inline std::shared_ptr<details::ast_node> scope::find(const std::string& key) {
 
 inline std::weak_ptr<details::ast_node> scope::add(
     const std::string& key, std::weak_ptr<details::ast_node> value) {
-  return (*symbol_)[key] = value;
+  return (*symbol_)[key] = std::move(value);
 }
 
 inline const std::string* scope::get_name(scope_type type) const noexcept {
