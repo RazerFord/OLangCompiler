@@ -20,10 +20,6 @@ inline std::string variable_redefinition(const std::string& name);
 std::string variable_redefinition(const std::string& name) {
   return "variable named \"" + name + "\" is already defined";
 }
-inline error_handling::error_t make_error_t(const details::ast_node& node,
-                                            const std::string& msg) {
-  return error_handling::error_t{node.get_meta_info(), msg};
-}
 
 class visitor {
  public:
@@ -70,7 +66,7 @@ class scope_visitor : public visitor {
 
   void register_error(const details::ast_node& node, const std::string& msg) {
     success_ = false;
-    error_.register_error(make_error_t(node, msg));
+    error_.register_error(error_handling::make_error_t(node, msg));
   }
 
  public:
@@ -492,7 +488,9 @@ class type_visitor : public visitor {
 
     void visit(details::while_loop_node& w) override {}
 
-    void visit(details::return_statement_node& r) override {}
+    void visit(details::return_statement_node& r) override {
+
+    }
   };
 };
 

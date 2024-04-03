@@ -92,7 +92,7 @@ enum class ast_token {
   ReturnStatement,
   Expression,
   Primary,
-  Identifier
+  Identifier,
 };
 
 class ast_node : public std::enable_shared_from_this<ast_node> {
@@ -305,7 +305,7 @@ class type_node : public ast_node {
       {type_id::i, mangle_name("int")},
       {type_id::f, mangle_name("float")},
       {type_id::b, mangle_name("bool")},
-      {type_id::Void, mangle_name("Void")},
+      {type_id::Void, mangle_name("void")},
       {type_id::Undefined, mangle_name("/Undefined")},
   };
 };
@@ -679,7 +679,7 @@ class expression_node : public statement_node {
                       std::shared_ptr<arguments_node>>
                 value);
 
-  std::shared_ptr<expression_ext> this_type_checking(std::shared_ptr<this_node>);
+  std::shared_ptr<expression_ext> this_type_checking(std::shared_ptr<this_node>, error_handling::error_handling& error_handler);
 
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
@@ -721,11 +721,10 @@ class expression_node : public statement_node {
   void print() override;
 
   std::shared_ptr<type_node> get_type() {
-    get_object();
     if (final_object_) return final_object_->get_type();
     return nullptr;
   }
-  std::shared_ptr<expression_ext> get_object();
+  std::shared_ptr<expression_ext> get_object(error_handling::error_handling& error_handler);
 };
 
 class variable_node : public member_node {

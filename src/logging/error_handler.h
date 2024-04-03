@@ -8,6 +8,11 @@ struct error_t {
   std::string error_message;
 };
 
+inline error_t make_error_t(const details::ast_node& node,
+                                            const std::string& msg) {
+  return error_t{node.get_meta_info(), msg};
+}
+
 class error_handling {
   std::vector<error_t> error_metadata_;
 
