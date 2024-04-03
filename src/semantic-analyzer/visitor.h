@@ -362,6 +362,7 @@ class type_visitor : public visitor {
 
   void visit(details::method_node& m) override {
     m.get_parameters()->visit(this);
+    // TODO: replace on void
     std::string return_type;
     if (m.get_return_type()) {
       return_type = m.get_return_type()->type();
@@ -375,6 +376,7 @@ class type_visitor : public visitor {
     // checking that the first expression in the constructor is "this"
     this_checker tc(ctr.mangle_ctr(), constructor_calls_);
     ctr.get_body()->visit(&tc);
+    // TODO: replace on void
     body_checker bc("");
     ctr.get_body()->visit(&bc);
   }
@@ -472,9 +474,24 @@ class type_visitor : public visitor {
     explicit body_checker(std::string return_type)
         : return_type_{std::move(return_type)} {}
 
-    void visit(details::expression_node& expr) override {
-      expr.get_primary()->visit(this);
+    void visit(details::body_node& b) override {
+      for (auto& n : b.get_nodes()) {
+        n->visit(this);
+      }
     }
+
+    void visit(details::expression_node& expr) override { expr.get_type(); }
+
+    void visit(details::if_statement_node& i) override {
+      if (i.get_expression()->get_type()->type() != "Boolean") {
+
+      }
+      i.get_true_body()->visit(this);
+    }
+
+    void visit(details::while_loop_node& w) override {}
+
+    void visit(details::return_statement_node& r) override {}
   };
 };
 
