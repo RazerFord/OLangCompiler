@@ -4,6 +4,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "./../logging/error_handler.h"
@@ -58,11 +59,21 @@ class scope_visitor : public visitor {
 
  public:
   void visit(details::program_node& p) override {
+    p.set_scope(scope_);
     for (const auto& cls : p.get_classes()) {
-      scope_->add(cls->get_class_name()->get_identifier()->get_name(), cls);
+      std::string name = cls->get_class_name()->get_identifier()->get_name();
+      if (!scope_->find(name)) {
+        scope_->add(name, cls);
+      } else {
+        error_handling::error_t et{
+            cls->get_class_name()->get_meta_info(),
+            "error: the " + name + " class is already defined"};
+        error_.register_error(et);
+      }
     }
     for (const auto& cls : p.get_classes()) {
-      std::string class_name = cls->get_class_name()->mangle_class_name();
+      std::string class_name =
+          cls->get_class_name()->get_identifier()->get_name();
       scope_ = scope_->push(class_name, scope::scope_type::Class);
       scope_->add(class_name, cls);
       cls->set_scope(scope_);
@@ -209,30 +220,6 @@ class scope_visitor : public visitor {
     throw std::runtime_error("unsupported operation");
   }
 
-  void visit(details::this_node& t) override {
-    // this code block must be empty
-  }
-
-  void visit(details::null_node& n) override {
-    // this code block must be empty
-  }
-
-  void visit(details::base_node& b) override {
-    // this code block must be empty
-  }
-
-  void visit(details::literal_node<int32_t>& l) override {
-    // this code block must be empty
-  }
-
-  void visit(details::literal_node<bool>&) override {
-    // this code block must be empty
-  }
-
-  void visit(details::literal_node<double_t>&) override {
-    // this code block must be empty
-  }
-
   void visit(details::assignment_node& a) override {
     const auto& left = a.get_lexpression();
     if (auto p =
@@ -276,6 +263,89 @@ class scope_visitor : public visitor {
     }
     scope_ = scope_->pop();
   }
+
+  void print_error() const { error_.print_errors(); }
+};
+
+class type_visitor : public visitor {
+ private:
+  std::unordered_map<std::string, std::string> type_casting_ = {
+      {"Integer", "Real"}, {"Real", "Integer"}};
+
+  std::unordered_set<std::string> types_ = {"Integer", "Real", "Boolean"};
+
+  error_handling::error_handling error_;
+
+ public:
+  void visit(details::program_node& p) override {
+    for (const auto& cls : p.get_classes()) {
+      std::string derived = cls->get_class_name()->get_identifier()->get_name();
+      if (cls->get_extends()) {
+        std::string base =
+            cls->get_extends()->get_class_name()->get_identifier()->get_name();
+        type_casting_[derived] = base;
+      }
+      types_.insert(derived);
+    }
+    std::cout << "//////////////////////////////////////////// CASTING "
+                 "/////////////////////////////////////////////////\n";
+    for (const auto& [k, v] : type_casting_) {
+      std::cout << k << " -> " << v << std::endl;
+    }
+    std::cout << "//////////////////////////////////////////// TYPES "
+                 "/////////////////////////////////////////////////\n";
+    for (const std::string& type : types_) {
+      std::cout << type << std::endl;
+    }
+    for (const auto& cls : p.get_classes()) {
+      cls->visit(this);
+    }
+  }
+
+  void visit(details::class_node& cls) override {
+    for (const auto& m : cls.get_members()) {
+      if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
+        // TODO: variable type
+        var->visit(this);
+      }
+    }
+    for (const auto& m : cls.get_members()) {
+      if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
+        // TODO: constructor type
+        var->visit(this);
+      }
+      if (auto var = dynamic_cast<details::constructor_node*>(m.get()); var) {
+        // TODO: method type
+        var->visit(this);
+      }
+    }
+  }
+
+  void visit(details::variable_node& v) override {}
+
+  void visit(details::method_node& m) override {}
+
+  void visit(details::constructor_node& ctr) override {}
+
+  void visit(details::expression_node& expr) override {}
+
+  void visit(details::arguments_node& expr) override {}
+
+  void visit(details::type_node& type) override {}
+
+  void visit(details::class_name_node& c) override {}
+
+  void visit(details::primary_node& p) override {
+    throw std::runtime_error("unsupported operation");
+  }
+
+  void visit(details::assignment_node& a) override {}
+
+  void visit(details::while_loop_node& w) override {}
+
+  void visit(details::if_statement_node& i) override {}
+
+  void visit(details::body_node& b) override {}
 
   void print_error() const { error_.print_errors(); }
 };

@@ -206,7 +206,7 @@ class class_name_node : public primary_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
 
   void visit(visitor::visitor* v) override;
 
@@ -313,7 +313,7 @@ class parameter_node : public ast_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
 
   void visit(visitor::visitor* v) override;
 
@@ -499,7 +499,7 @@ class class_node : public ast_node,
     members_.push_back(std::move(member));
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
 
   void visit(visitor::visitor* v) override;
 
@@ -528,6 +528,7 @@ class class_node : public ast_node,
 
 class program_node : public ast_node {
   std::vector<std::shared_ptr<class_node>> classes_;
+  std::shared_ptr<scope::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -567,6 +568,12 @@ class program_node : public ast_node {
         clazz->print();
       }
     }
+  }
+
+  std::shared_ptr<scope::scope> get_scope() const noexcept { return scope_; }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
   }
 };
 
@@ -620,7 +627,7 @@ class expression_node : public statement_node {
   }
 
   void set_scope(std::shared_ptr<scope::scope> scope) noexcept {
-    scope_ = scope;
+    scope_ = std::move(scope);
   }
 
   void add_value(std::pair<std::shared_ptr<identifier_node>,
@@ -685,7 +692,7 @@ class variable_node : public member_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
+  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
 
   void visit(visitor::visitor* v) override;
 
