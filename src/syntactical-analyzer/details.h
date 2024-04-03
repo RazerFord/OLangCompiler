@@ -254,7 +254,7 @@ class type_node : public ast_node {
 
  public:
   type_node() = default;
-  type_node(type_id id): id_(id) {}
+  type_node(type_id id) : id_(id) {}
   type_node(value_type class_name) : type_(std::move(class_name)) {
     id_ = type_id::Custom;
   }
@@ -276,8 +276,7 @@ class type_node : public ast_node {
   }
 
   void print() override {
-    if (type_)
-      type_->print();
+    if (type_) type_->print();
   }
 
   void register_class(std::shared_ptr<class_node> clazz) {
@@ -555,14 +554,18 @@ class class_node : public ast_node {
 
   std::shared_ptr<method_node> find_method(
       const std::shared_ptr<identifier_node>& method_name,
-      const std::shared_ptr<arguments_node>& args);
-  std::shared_ptr<constructor_node> find_ctr();
+      const std::shared_ptr<arguments_node>& args,
+      error_handling::error_handling& error_handler);
+
+  std::shared_ptr<constructor_node> find_ctr(
+      error_handling::error_handling& error_handler);
   template <typename T>
   std::shared_ptr<constructor_node> find_ctr(
       std::shared_ptr<literal_node<T>> literal);
 
   std::shared_ptr<constructor_node> find_ctr(
-      const std::shared_ptr<arguments_node>& args);
+      const std::shared_ptr<arguments_node>& args,
+      error_handling::error_handling& error_handler);
 
   std::shared_ptr<variable_node> find_var_member(
       const std::shared_ptr<identifier_node>& var_name);
@@ -679,7 +682,9 @@ class expression_node : public statement_node {
                       std::shared_ptr<arguments_node>>
                 value);
 
-  std::shared_ptr<expression_ext> this_type_checking(std::shared_ptr<this_node>, error_handling::error_handling& error_handler);
+  std::shared_ptr<expression_ext> this_type_checking(
+      std::shared_ptr<this_node>,
+      error_handling::error_handling& error_handler);
 
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
@@ -724,7 +729,8 @@ class expression_node : public statement_node {
     if (final_object_) return final_object_->get_type();
     return nullptr;
   }
-  std::shared_ptr<expression_ext> get_object(error_handling::error_handling& error_handler);
+  std::shared_ptr<expression_ext> get_object(
+      error_handling::error_handling& error_handler);
 };
 
 class variable_node : public member_node {
@@ -790,7 +796,8 @@ class variable_node : public member_node {
 class method_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
-  std::shared_ptr<type_node> return_type_ = std::make_shared<type_node>(type_id::Void);
+  std::shared_ptr<type_node> return_type_ =
+      std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
 
   bool validate() override { return true; }

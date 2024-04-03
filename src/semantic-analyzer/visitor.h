@@ -299,7 +299,7 @@ class type_visitor : public visitor {
 
   void register_error(const details::ast_node& node, const std::string& msg) {
     success_ = false;
-    error_.register_error(make_error_t(node, msg));
+    error_.register_error(error_handling::make_error_t(node, msg));
   }
 
  public:
