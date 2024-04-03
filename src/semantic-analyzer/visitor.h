@@ -48,6 +48,10 @@ class visitor {
   virtual void visit(details::literal_node<int32_t>&){};
   virtual void visit(details::literal_node<bool>&){};
   virtual void visit(details::literal_node<double_t>&){};
+  virtual void visit(details::variable_call&){};
+  virtual void visit(details::constructor_call&){};
+  virtual void visit(details::method_call&){};
+  virtual void visit(details::member_call&){};
 
   virtual ~visitor() = default;
 };
@@ -194,6 +198,8 @@ class scope_visitor : public visitor {
         e.second->visit(this);
       }
     }
+    if (expr.get_type())
+      std::cout << expr.get_type()->type() << std::endl;
   }
 
   void visit(details::arguments_node& expr) override {
@@ -266,9 +272,23 @@ class scope_visitor : public visitor {
     }
     scope_ = scope_->pop();
   }
+  
+  void visit(details::variable_call& b) override {
+    // this code block must be empty
+  }
+  void visit(details::constructor_call& b) override {
+    // this code block must be empty
+  }
+  void visit(details::method_call& b) override {
+    // this code block must be empty
+  }
+  void visit(details::member_call& b) override {
+    // this code block must be empty
+  }
 
   void print_error() const { error_.print_errors(); }
 };
+
 
 class type_visitor : public visitor {
  private:
@@ -285,7 +305,7 @@ class type_visitor : public visitor {
       std::string derived = cls->get_class_name()->get_identifier()->get_name();
       if (cls->get_extends()) {
         std::string base =
-            cls->get_extends()->get_class_name()->get_identifier()->get_name();
+            cls->get_extends()->get_identifier()->get_name();
         type_casting_[derived] = base;
       }
       types_.insert(derived);
@@ -361,4 +381,5 @@ class type_visitor : public visitor {
 
   void print_error() const { error_.print_errors(); }
 };
+
 }  // namespace visitor
