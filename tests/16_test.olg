@@ -1,8 +1,13 @@
 class Integer is 
+  this() is
+  end
+  method get() : Integer is
+  end
 end
 
 class Main is
   method nuuu(n: Integer,x: Integer) is
-   x := Integer()
+    var p: n
+    p.get()
   end
 end

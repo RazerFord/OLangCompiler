@@ -209,7 +209,9 @@ class class_name_node : public primary_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -248,6 +250,10 @@ class type_node : public ast_node {
 
   bool operator==(const type_node& other) {
     return type_->mangle_class_name() == other.type_->mangle_class_name();
+  }
+
+  bool operator!=(const type_node& other) {
+    return type_->mangle_class_name() != other.type_->mangle_class_name();
   }
 
   std::string type() const { return type_->mangle_class_name(); }
@@ -316,7 +322,9 @@ class parameter_node : public ast_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -444,6 +452,7 @@ class class_node : public ast_node,
   std::shared_ptr<type_node> class_name_;
   std::shared_ptr<type_node> extends_;
   std::vector<std::shared_ptr<member_node>> members_;
+  std::shared_ptr<scope::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -467,7 +476,8 @@ class class_node : public ast_node,
   }
 
  public:
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
+  [[nodiscard]] std::shared_ptr<class_name_node> get_class_name()
+      const noexcept {
     return class_name_->get_class_name();
   }
 
@@ -478,8 +488,12 @@ class class_node : public ast_node,
   std::shared_ptr<type_node> get_type() const { return class_name_; }
 
   [[nodiscard]] const std::vector<std::shared_ptr<member_node>>& get_members()
-      const {
+      const noexcept {
     return members_;
+  }
+
+  [[nodiscard]] std::shared_ptr<scope::scope> get_scope() const noexcept {
+    return scope_;
   }
 
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
@@ -496,6 +510,10 @@ class class_node : public ast_node,
   void add_member(std::shared_ptr<member_node> member) {
     fill(member);
     members_.push_back(std::move(member));
+  }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
   }
 
   std::shared_ptr<variable_node> find_var_member(
@@ -538,6 +556,7 @@ class class_node : public ast_node,
 
 class program_node : public ast_node {
   std::vector<std::shared_ptr<class_node>> classes_;
+  std::shared_ptr<scope::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -578,6 +597,12 @@ class program_node : public ast_node {
       }
     }
   }
+
+  std::shared_ptr<scope::scope> get_scope() const noexcept { return scope_; }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
+  }
 };
 
 class statement_node : public ast_node {};
@@ -586,111 +611,6 @@ class expression_ext : public ast_node {
  public:
   virtual ~expression_ext() {}
   virtual std::shared_ptr<type_node> get_type() = 0;
-};
-
-class variable_call : public expression_ext {
-  std::shared_ptr<ast_node> variable_;
-  std::shared_ptr<type_node> type_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  variable_call() {}
-  variable_call(std::shared_ptr<ast_node> variable,
-                std::shared_ptr<type_node> type)
-      : variable_(variable), type_(type) {}
-
-  void set_object(std::shared_ptr<ast_node> caller_object) {
-    variable_ = std::move(caller_object);
-  }
-
-  void set_type(std::shared_ptr<type_node> type) { type_ = std::move(type); }
-
-  std::shared_ptr<type_node> get_type() override { return type_; }
-  // todo override
-  void visit(visitor::visitor* v) override;
-
-  void print() override{};
-};
-
-class constructor_call : public expression_ext {
-  std::shared_ptr<class_node> class_;
-  std::shared_ptr<constructor_node> constr_;
-  std::vector<std::shared_ptr<ast_node>> arguments_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  constructor_call() {}
-  constructor_call(const constructor_call& other): class_(other.class_), constr_(other.constr_), arguments_(other.arguments_) {}
-  constructor_call(std::shared_ptr<class_node> clazz,
-                   std::shared_ptr<constructor_node> constr,
-                   std::vector<std::shared_ptr<ast_node>> args)
-      : class_(clazz), constr_(constr), arguments_(args) {}
-
-  std::shared_ptr<type_node> get_type() override { return class_->get_type(); }
-
-  // todo override
-  void visit(visitor::visitor* v) override;
-
-  void print() override{};
-};
-
-class method_call : public expression_ext {
-  std::shared_ptr<class_node> clazz_;
-  std::shared_ptr<method_node> method_;
-  std::vector<std::shared_ptr<ast_node>> arguments_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  method_call() {}
-  method_call(std::shared_ptr<class_node> clazz,
-              std::shared_ptr<method_node> method,
-              std::vector<std::shared_ptr<ast_node>> args)
-      : clazz_(clazz), method_(method), arguments_(args) {}
-  std::shared_ptr<type_node> get_type() override { return clazz_->get_type(); }
-
-  // todo override
-  void visit(visitor::visitor* v) override;
-
-  void print() override{};
-};
-
-class member_call : public expression_ext {
-  std::shared_ptr<ast_node> object_;
-  std::shared_ptr<ast_node> member_ref_;
-  std::shared_ptr<type_node> type_;
-
-  bool validate() override { return true; }
-
-  void generate() override {}
-
- public:
-  member_call() {}
-  member_call(std::shared_ptr<ast_node> object,
-              std::shared_ptr<ast_node> member)
-      : object_(object), member_ref_(member) {}
-
-  void set_object(std::shared_ptr<ast_node> object) {
-    object_ = std::move(object);
-  }
-
-  void set_member(std::shared_ptr<ast_node> member) {
-    member_ref_ = std::move(member);
-  }
-
-  std::shared_ptr<type_node> get_type() override { return nullptr; }
-  // todo override
-  void visit(visitor::visitor* v) override;
-
-  void print() override{};
 };
 
 class expression_node : public statement_node {
@@ -742,7 +662,7 @@ class expression_node : public statement_node {
   }
 
   void set_scope(std::shared_ptr<scope::scope> scope) noexcept {
-    scope_ = scope;
+    scope_ = std::move(scope);
   }
 
   void add_value(std::pair<std::shared_ptr<identifier_node>,
@@ -813,7 +733,10 @@ class variable_node : public member_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = scope; }
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    if (expression_) expression_->set_scope(scope);
+    scope_ = std::move(scope);
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -857,7 +780,7 @@ class method_node : public member_node {
     return parameters_;
   }
 
-  [[nodiscard]] const std::shared_ptr<type_node>& get_return_type() const {
+  [[nodiscard]] std::shared_ptr<type_node> get_return_type() {
     return return_type_;
   }
 
@@ -1324,6 +1247,118 @@ class base_node : public primary_node {
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "base"; }
+};
+
+class variable_call : public expression_ext {
+  std::shared_ptr<ast_node> variable_;
+  std::shared_ptr<type_node> type_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  variable_call() {}
+  variable_call(std::shared_ptr<ast_node> variable,
+                std::shared_ptr<type_node> type)
+      : variable_(variable), type_(type) {}
+
+  void set_object(std::shared_ptr<ast_node> caller_object) {
+    variable_ = std::move(caller_object);
+  }
+
+  void set_type(std::shared_ptr<type_node> type) { type_ = std::move(type); }
+
+  std::shared_ptr<type_node> get_type() override { return type_; }
+  // todo override
+  void visit(visitor::visitor* v) override;
+
+  void print() override{};
+};
+
+class constructor_call : public expression_ext {
+  std::shared_ptr<class_node> class_;
+  std::shared_ptr<constructor_node> constr_;
+  std::vector<std::shared_ptr<ast_node>> arguments_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  constructor_call() {}
+  constructor_call(const constructor_call& other)
+      : class_(other.class_),
+        constr_(other.constr_),
+        arguments_(other.arguments_) {}
+  constructor_call(std::shared_ptr<class_node> clazz,
+                   std::shared_ptr<constructor_node> constr,
+                   std::vector<std::shared_ptr<ast_node>> args)
+      : class_(clazz), constr_(constr), arguments_(args) {}
+
+  std::shared_ptr<type_node> get_type() override { return class_->get_type(); }
+
+  // todo override
+  void visit(visitor::visitor* v) override;
+
+  void print() override{};
+};
+
+class method_call : public expression_ext {
+  std::shared_ptr<class_node> clazz_;
+  std::shared_ptr<method_node> method_;
+  std::vector<std::shared_ptr<ast_node>> arguments_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  method_call() {}
+  method_call(std::shared_ptr<class_node> clazz,
+              std::shared_ptr<method_node> method,
+              std::vector<std::shared_ptr<ast_node>> args)
+      : clazz_(clazz), method_(method), arguments_(args) {}
+
+  std::shared_ptr<type_node> get_type() override {
+    return method_->get_return_type();
+  }
+
+  // todo override
+  void visit(visitor::visitor* v) override;
+
+  void print() override{};
+};
+
+class member_call : public expression_ext {
+  std::shared_ptr<expression_ext> object_;
+  std::shared_ptr<expression_ext> member_ref_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  member_call() {}
+  member_call(std::shared_ptr<expression_ext> object,
+              std::shared_ptr<expression_ext> member)
+      : object_(object), member_ref_(member) {}
+
+  void set_object(std::shared_ptr<expression_ext> object) {
+    object_ = std::move(object);
+  }
+
+  void set_member(std::shared_ptr<expression_ext> member) {
+    member_ref_ = std::move(member);
+  }
+
+  std::shared_ptr<type_node> get_type() override {
+    return member_ref_->get_type();
+  }
+  // todo override
+  void visit(visitor::visitor* v) override;
+
+  void print() override{};
 };
 
 inline void expression_node::print() {
