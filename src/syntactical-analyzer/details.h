@@ -516,19 +516,6 @@ class class_node : public ast_node,
     scope_ = std::move(scope);
   }
 
-  std::shared_ptr<variable_node> find_var_member(
-      std::shared_ptr<identifier_node> var_name);
-
-  std::shared_ptr<constructor_node> find_ctr(
-      std::shared_ptr<arguments_node> args);
-  std::shared_ptr<constructor_node> find_ctr();
-  template <typename T>
-  std::shared_ptr<constructor_node> find_ctr(std::shared_ptr<literal_node<T>>);
-
-  std::shared_ptr<method_node> find_method(
-      std::shared_ptr<identifier_node> method_name,
-      std::shared_ptr<arguments_node> args);
-
   void visit(visitor::visitor* v) override;
 
   void print() override {
@@ -736,7 +723,6 @@ class variable_node : public member_node {
   }
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
-    if (expression_) expression_->set_scope(scope);
     scope_ = std::move(scope);
   }
 
@@ -1065,6 +1051,7 @@ class if_statement_node : public statement_node {
 class return_statement_node : public statement_node {
  private:
   std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<scope::scope> scope_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -1078,14 +1065,22 @@ class return_statement_node : public statement_node {
   }
 
  public:
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
+  [[nodiscard]] std::shared_ptr<expression_node> get_expression()
       const noexcept {
     return expression_;
+  }
+
+  [[nodiscard]] std::shared_ptr<scope::scope> get_scope() const noexcept {
+    return scope_;
   }
 
   void set_expression(std::shared_ptr<expression_node> expression) noexcept {
     expression_ = std::move(expression);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
   }
 
   bool validate() override { return true; }

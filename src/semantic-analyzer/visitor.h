@@ -215,11 +215,14 @@ class scope_visitor : public visitor {
   void visit(details::class_name_node& c) override {
     std::string key = c.get_identifier()->get_name();
     if (auto var = scope_->find(key); !var) {
-      error_.register_error(
-          make_error_t(c, "variable \"" + key + "\" undefined"));
+      error_.register_error(make_error_t(c, "token \"" + key + "\" undefined"));
     } else {
       c.set_scope(scope_);
     }
+  }
+
+  void visit(details::return_statement_node& r) override {
+    r.set_scope(scope_);
   }
 
   void visit(details::primary_node& p) override {
@@ -341,7 +344,16 @@ class type_visitor : public visitor {
     }
   }
 
-  void visit(details::variable_node& v) override {}
+  void visit(details::variable_node& v) override {
+    // TODO: calculate type
+  }
+
+  void visit(details::return_statement_node& r) override {
+    if (auto method_name = r.get_scope()->get_name(scope::scope_type::Method)) {
+       r.get_scope()->find(*method_name);
+    } else {
+    }
+  }
 
   void visit(details::method_node& m) override {}
 

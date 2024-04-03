@@ -1,13 +1,13 @@
-class Integer is 
-  this() is
-  end
-  method get() : Integer is
+class Main is
+  method nuuu(n: Integer,x: Integer) is
+   var x: Integer()
+   x[Integer] := x[Integer]
   end
 end
 
 class Main is
   method nuuu(n: Integer,x: Integer) is
-    var p: n
-    p.get()
+   var x: Integer()
+   x[Integer] := x[Integer]
   end
 end
