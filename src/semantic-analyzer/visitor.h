@@ -284,14 +284,34 @@ class scope_visitor : public visitor {
   void print_error() const { error_.print_errors(); }
 };
 
+namespace {
+void transitive(
+    std::unordered_map<std::string, std::unordered_map<std::string, bool>>& m) {
+  for (auto& [k1, v1] : m) {
+    for (auto& [k2, v2] : m) {
+      for (auto& [k3, v3] : m) {
+        auto it1 = m.find(k1);
+        auto it2 = m.find(k2);
+        if (it1 != m.end() && it2 != m.end() && it2->second.contains(k1) &&
+            it1->second.contains(k3)) {
+          m[k2][k3] = true;
+        }
+      }
+    }
+  }
+}
+}  // namespace
+
 class type_visitor : public visitor {
  private:
   using type = details::type_node;
 
   std::unordered_map<std::string, std::unordered_map<std::string, bool>>
       type_casting_ = {
-          {type::IntegerT, {{type::RealT, true}, {type::AnyT, true}}},
-          {type::RealT, {{type::IntegerT, true}, {type::AnyT, true}}},
+          {type::intT, {{type::realT, true}, {type::RealT, true}}},
+          {type::realT, {{type::intT, true}, {type::IntegerT, true}}},
+          {type::IntegerT, {{type::intT, true}, {type::RealT, true}, {type::AnyT, true}}},
+          {type::RealT, {{type::realT, true}, {type::IntegerT, true}, {type::AnyT, true}}},
       };
   std::unordered_set<std::string> types_ = {type::IntegerT, type::RealT,
                                             type::BooleanT, type::AnyT};
@@ -317,18 +337,8 @@ class type_visitor : public visitor {
       type_casting_[derived][type::AnyT] = true;
       type_casting_[derived][derived] = true;
     }
-    std::cout << "//////////////////////////////////////////// CASTING "
-                 "/////////////////////////////////////////////////\n";
-    for (const auto& [k, s] : type_casting_) {
-      for (const auto& v : s) {
-        std::cout << k << " -> " << v.first << '\n';
-      }
-    }
-    std::cout << "//////////////////////////////////////////// TYPES "
-                 "/////////////////////////////////////////////////\n";
-    for (const std::string& type : types_) {
-      std::cout << type << '\n';
-    }
+    type_casting_["Super"]["Any"] = true;
+    transitive(type_casting_);
     for (const auto& cls : p.get_classes()) {
       cls->visit(this);
     }
@@ -390,10 +400,11 @@ class type_visitor : public visitor {
         register_error(*node, "\"" + class_name + "\" class not found");
       }
     }
-
   }
 
-  void visit(details::expression_node& expr) override {expr.get_object(error_);}
+  void visit(details::expression_node& expr) override {
+    expr.get_object(error_);
+  }
 
   void visit(details::arguments_node& expr) override {}
 
@@ -482,11 +493,15 @@ class type_visitor : public visitor {
       }
     }
 
-    void visit(details::expression_node& expr) override {expr.get_object(tv_.error_);}
+    void visit(details::expression_node& expr) override {
+      expr.get_object(tv_.error_);
+    }
 
     void visit(details::assignment_node& a) override {
-      std::string ltype = a.get_lexpression()->get_type(tv_.error_)->simple_type();
-      std::string rtype = a.get_rexpression()->get_type(tv_.error_)->simple_type();
+      std::string ltype =
+          a.get_lexpression()->get_type(tv_.error_)->simple_type();
+      std::string rtype =
+          a.get_rexpression()->get_type(tv_.error_)->simple_type();
       if (auto it = tv_.type_casting_.find(rtype);
           it != tv_.type_casting_.end() && !it->second.contains(ltype)) {
         tv_.register_error(
@@ -496,7 +511,8 @@ class type_visitor : public visitor {
     }
 
     void visit(details::if_statement_node& i) override {
-      if (i.get_expression()->get_type(tv_.error_)->simple_type() != type::BooleanT) {
+      if (i.get_expression()->get_type(tv_.error_)->simple_type() !=
+          type::BooleanT) {
         tv_.register_error(
             *i.get_expression(),
             "error: in the \"if\" statement, Boolean type was expected");
@@ -508,7 +524,8 @@ class type_visitor : public visitor {
     }
 
     void visit(details::while_loop_node& w) override {
-      if (w.get_expression()->get_type(tv_.error_)->simple_type() != type::BooleanT) {
+      if (w.get_expression()->get_type(tv_.error_)->simple_type() !=
+          type::BooleanT) {
         tv_.register_error(
             *w.get_expression(),
             "error: in the \"while\" statement, Boolean type was expected");
@@ -528,7 +545,8 @@ class type_visitor : public visitor {
 
     void visit(details::variable_node& v) override {
       if (!v.get_expression()->get_type(tv_.error_)) {
-        tv_.error_.register_error(error_handling::make_error_t(*v.get_expression(), "invalid expression"));
+        tv_.error_.register_error(error_handling::make_error_t(
+            *v.get_expression(), "invalid expression"));
       }
     }
   };
