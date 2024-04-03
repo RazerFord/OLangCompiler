@@ -467,14 +467,13 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
   auto expression = std::make_shared<expression_node>();
   if (auto primary = parse_primary(); primary) {
     expression->set_primary(primary.value);
-    if (stream_.next_token_id() == token_id::Dot) {
-      while (stream_.next_token_id() == token_id::Dot) {
-        ++stream_;
-        expression->add_value(
-            {parse_identifier().value, parse_arguments().value});
-      }
-    } else if (auto arguments = parse_arguments(); arguments) {
+    if (auto arguments = parse_arguments(); arguments) {
       expression->add_value({nullptr, arguments.value});
+    }
+    while (stream_.next_token_id() == token_id::Dot) {
+      ++stream_;
+      expression->add_value(
+          {parse_identifier().value, parse_arguments().value});
     }
     logger::info("arguments parsed");
     return {expression};
@@ -537,6 +536,7 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope() {
         return {body};
       }
 
+      case token_id::Null:
       case token_id::Base:
       case token_id::This:
       case token_id::Identifier: {

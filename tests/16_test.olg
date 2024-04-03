@@ -1,13 +1,22 @@
-class Main is
-  method nuuu(n: Integer,x: Integer) is
-   var x: Integer()
-   x[Integer] := x[Integer]
-  end
+class Real is
+    this() is
+    end
+
+    this(value: float) is
+    end
+
+    this(value: Real) is
+    end
+
+    method get() is
+    end
 end
 
+
 class Main is
-  method nuuu(n: Integer,x: Integer) is
-   var x: Integer()
-   x[Integer] := x[Integer]
+    this(p: Real) is
+    end
+  method nuuu(n: Real, x: Integer) is
+    this(n)
   end
 end

@@ -80,6 +80,7 @@ class scope_visitor : public visitor {
           cls->get_class_name()->get_identifier()->get_name();
       scope_ = scope_->push(class_name, scope::scope_type::Class);
       scope_->add(class_name, cls);
+      scope_->add(kw_this, cls);
       cls->set_scope(scope_);
       cls->visit(this);
       scope_ = scope_->pop();

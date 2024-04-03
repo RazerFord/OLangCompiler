@@ -95,7 +95,7 @@ enum class ast_token {
   Identifier
 };
 
-class ast_node {
+class ast_node : public std::enable_shared_from_this<ast_node> {
  protected:
   meta meta_info_;
   virtual bool validate() = 0;
@@ -128,6 +128,7 @@ class arguments_node;
 class body_node;
 class this_node;
 class null_node;
+class variable_call;
 
 template <typename T>
 class literal_node;
@@ -225,14 +226,23 @@ class class_name_node : public primary_node {
       std::cout << "]";
     }
   }
+};
 
-  std::string mangle_class_name() const {
-    auto name = identifier_->get_name();
-    return std::to_string(name.size()) + name;
-  }
+enum class type_id {
+  Undefined,
+  Custom,
+  Integer,
+  Real,
+  Boolean,
+  Void,
+  i,
+  f,
+  b,
+  Null,
 };
 
 class type_node : public ast_node {
+  type_id id_;
   using value_type = std::shared_ptr<class_name_node>;
   value_type type_;
 
@@ -243,22 +253,32 @@ class type_node : public ast_node {
   void generate() override {}
 
  public:
-  type_node(value_type class_name) : type_(std::move(class_name)) {}
-  void set_type(value_type type) { type_ = std::move(type); }
+  type_node() = default;
+  type_node(type_id id): id_(id) {}
+  type_node(value_type class_name) : type_(std::move(class_name)) {
+    id_ = type_id::Custom;
+  }
+  void set_type(value_type type) {
+    type_ = std::move(type);
+    id_ = type_id::Custom;
+  }
 
   const value_type& get_class_name() const { return type_; }
 
   bool operator==(const type_node& other) {
-    return type_->mangle_class_name() == other.type_->mangle_class_name();
+    return mangle_name(type_->get_identifier()->get_name()) ==
+           mangle_name(other.type_->get_identifier()->get_name());
   }
 
-  bool operator!=(const type_node& other) {
-    return type_->mangle_class_name() != other.type_->mangle_class_name();
+  std::string type() const {
+    if (type_) return mangle_name(type_->get_identifier()->get_name());
+    return mangle_name(id_);
   }
 
-  std::string type() const { return type_->mangle_class_name(); }
-
-  void print() override { type_->print(); }
+  void print() override {
+    if (type_)
+      type_->print();
+  }
 
   void register_class(std::shared_ptr<class_node> clazz) {
     types_.insert({type(), clazz});
@@ -270,8 +290,24 @@ class type_node : public ast_node {
     return nullptr;
   }
 
+  static std::string mangle_name(const std::string& name) {
+    return std::to_string(name.size()) + name;
+  }
+
+  static std::string mangle_name(type_id id) { return type_id_str[id]; }
+
   inline static std::unordered_map<std::string, std::shared_ptr<class_node>>
       types_ = {};
+  inline static std::unordered_map<type_id, std::string> type_id_str = {
+      {type_id::Integer, mangle_name("Integer")},
+      {type_id::Real, mangle_name("Real")},
+      {type_id::Boolean, mangle_name("Boolean")},
+      {type_id::i, mangle_name("int")},
+      {type_id::f, mangle_name("float")},
+      {type_id::b, mangle_name("bool")},
+      {type_id::Void, mangle_name("Void")},
+      {type_id::Undefined, mangle_name("/Undefined")},
+  };
 };
 
 class parameter_node : public ast_node {
@@ -447,8 +483,7 @@ class body_node : public ast_node {
 
 class member_node : public ast_node {};
 
-class class_node : public ast_node,
-                   public std::enable_shared_from_this<class_node> {
+class class_node : public ast_node {
   std::shared_ptr<type_node> class_name_;
   std::shared_ptr<type_node> extends_;
   std::vector<std::shared_ptr<member_node>> members_;
@@ -481,8 +516,9 @@ class class_node : public ast_node,
     return class_name_->get_class_name();
   }
 
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_extends() const {
-    return extends_->get_class_name();
+  [[nodiscard]] std::shared_ptr<class_name_node> get_extends() const {
+    if (extends_) return extends_->get_class_name();
+    return nullptr;
   }
 
   std::shared_ptr<type_node> get_type() const { return class_name_; }
@@ -498,7 +534,8 @@ class class_node : public ast_node,
 
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
     class_name_ = std::make_shared<type_node>(std::move(class_name));
-    class_name_->register_class(shared_from_this());
+    class_name_->register_class(
+        std::dynamic_pointer_cast<class_node>(shared_from_this()));
     fill();
   }
 
@@ -642,7 +679,7 @@ class expression_node : public statement_node {
                       std::shared_ptr<arguments_node>>
                 value);
 
-  // void get_literal_object();
+  std::shared_ptr<expression_ext> this_type_checking(std::shared_ptr<this_node>);
 
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
@@ -738,6 +775,7 @@ class variable_node : public member_node {
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
+    expression_->set_scope(scope_);
   }
 
   void visit(visitor::visitor* v) override;
@@ -753,7 +791,7 @@ class variable_node : public member_node {
 class method_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
-  std::shared_ptr<type_node> return_type_;
+  std::shared_ptr<type_node> return_type_ = std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
 
   bool validate() override { return true; }
@@ -1166,15 +1204,20 @@ class arguments_node : public ast_node {
   }
 };
 
+class literal_base_node : public primary_node {
+ public:
+  virtual std::shared_ptr<variable_call> literal_expression_handle() = 0;
+};
+
 template <typename T>
-class literal_node : public primary_node {
+class literal_node : public literal_base_node {
   T value_;
   bool validate() override { return true; }
 
   void generate() override {}
 
  public:
-  literal_node() {}
+  literal_node() = default;
   literal_node(T value) : value_(value) {}
   literal_node(const token::basic_template_token<T>& value)
       : value_(value.get_value()) {
@@ -1189,6 +1232,8 @@ class literal_node : public primary_node {
   }
 
   const T& value() const { return value_; }
+
+  std::shared_ptr<variable_call> literal_expression_handle() override;
 
   void visit(visitor::visitor* v) override;
 
