@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "./../logging/error_handler.h"
 #include "scope.h"
@@ -15,8 +16,10 @@ namespace visitor {
 inline const std::string body = "$body";
 inline const std::string kw_this = "this";
 
-inline const std::string VariableRedefinition =
-    "a parameter with the same name is already defined";
+inline std::string variable_redefinition(const std::string& name);
+std::string variable_redefinition(const std::string& name) {
+  return "variable named \"" + name + "\" is already defined";
+}
 inline error_handling::error_t make_error_t(const details::ast_node& node,
                                             const std::string& msg) {
   return error_handling::error_t{node.get_meta_info(), msg};
@@ -53,8 +56,8 @@ class visitor {
   virtual void visit(details::method_call&){};
   virtual void visit(details::member_call&){};
 
-  virtual bool success() const noexcept { return false; };
-  virtual bool fail() const noexcept { return true; };
+  [[nodiscard]] virtual bool success() const noexcept { return false; };
+  [[nodiscard]] virtual bool fail() const noexcept { return true; };
 
   virtual ~visitor() = default;
 };
@@ -128,8 +131,10 @@ class scope_visitor : public visitor {
     const std::string& key = v.get_identifier()->get_name();
     auto found = scope_->find(key);
     if (found) {
-      register_error(v, "error: the field in this scope is already declared");
+      register_error(v, "error: the field \"" + key +
+                            "\" in this scope is already declared");
     } else {
+      v.get_expression()->visit(this);
       scope_->add(key, v.shared_from_this());
       v.set_scope(scope_);
     }
@@ -142,7 +147,7 @@ class scope_visitor : public visitor {
     for (const auto& p : m.get_parameters()->get_parameters()) {
       std::string key = p->get_identifier()->get_name();
       if ((*sym)[key]) {
-        register_error(*p, VariableRedefinition);
+        register_error(*p, variable_redefinition(key));
       } else {
         (*sym)[key] = p;
         p->set_scope(scope_);
@@ -152,8 +157,9 @@ class scope_visitor : public visitor {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
         std::string key = var->get_identifier()->get_name();
         if ((*sym)[key]) {
-          register_error(*s, VariableRedefinition);
+          register_error(*s, variable_redefinition(key));
         } else {
+          var->get_expression()->visit(this);
           (*sym)[key] = s;
           var->set_scope(scope_);
         }
@@ -171,7 +177,7 @@ class scope_visitor : public visitor {
     for (const auto& p : ctr.get_parameters()->get_parameters()) {
       std::string key = p->get_identifier()->get_name();
       if ((*sym)[key]) {
-        register_error(*p, VariableRedefinition);
+        register_error(*p, variable_redefinition(key));
       } else {
         (*sym)[key] = p;
         p->set_scope(scope_);
@@ -181,7 +187,7 @@ class scope_visitor : public visitor {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
         std::string key = var->get_identifier()->get_name();
         if ((*sym)[key]) {
-          register_error(*s, VariableRedefinition);
+          register_error(*s, variable_redefinition(key));
         } else {
           (*sym)[key] = s;
           var->set_scope(scope_);
@@ -216,7 +222,7 @@ class scope_visitor : public visitor {
   void visit(details::class_name_node& c) override {
     std::string key = c.get_identifier()->get_name();
     if (auto var = scope_->find(key); !var) {
-      register_error(c, "token \"" + key + "\" undefined");
+      register_error(c, "error: token \"" + key + "\" undefined");
     } else {
       c.set_scope(scope_);
     }
@@ -262,7 +268,7 @@ class scope_visitor : public visitor {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
         std::string key = var->get_identifier()->get_name();
         if ((*sym)[key]) {
-          register_error(*s, VariableRedefinition);
+          register_error(*s, variable_redefinition(key));
         } else {
           (*sym)[key] = s;
           var->set_scope(scope_);
@@ -274,33 +280,30 @@ class scope_visitor : public visitor {
     scope_ = scope_->pop();
   }
 
-  void visit(details::variable_call& b) override {
-    // this code block must be empty
-  }
-  void visit(details::constructor_call& b) override {
-    // this code block must be empty
-  }
-  void visit(details::method_call& b) override {
-    // this code block must be empty
-  }
-  void visit(details::member_call& b) override {
-    // this code block must be empty
-  }
+  [[nodiscard]] bool success() const noexcept override { return success_; }
 
-  bool success() const noexcept override { return success_; }
-
-  bool fail() const noexcept override { return !success_; }
+  [[nodiscard]] bool fail() const noexcept override { return !success_; }
 
   void print_error() const { error_.print_errors(); }
 };
 
 class type_visitor : public visitor {
  private:
-  std::unordered_map<std::string, std::string> type_casting_ = {
-      {"Integer", "Real"}, {"Real", "Integer"}};
+  std::unordered_multimap<std::string, std::string> type_casting_ = {
+      {"Integer", {"Real"}},
+      {"Real", {"Integer"}},
+      {"Integer", {"Any"}},
+      {"Real", {"Any"}},
+  };
   std::unordered_set<std::string> types_ = {"Integer", "Real", "Boolean"};
+  std::unordered_map<std::string, std::string> constructor_calls_;
   error_handling::error_handling error_;
   bool success_;
+
+  void register_error(const details::ast_node& node, const std::string& msg) {
+    success_ = false;
+    error_.register_error(make_error_t(node, msg));
+  }
 
  public:
   void visit(details::program_node& p) override {
@@ -309,9 +312,10 @@ class type_visitor : public visitor {
       std::string derived = cls->get_class_name()->get_identifier()->get_name();
       if (cls->get_extends()) {
         std::string base = cls->get_extends()->get_identifier()->get_name();
-        type_casting_[derived] = base;
+        type_casting_.insert({derived, base});
       }
       types_.insert(derived);
+      type_casting_.insert({derived, "Any"});
     }
     std::cout << "//////////////////////////////////////////// CASTING "
                  "/////////////////////////////////////////////////\n";
@@ -335,21 +339,18 @@ class type_visitor : public visitor {
       }
     }
     for (const auto& m : cls.get_members()) {
-      if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
-        // TODO: constructor type
-        var->visit(this);
-      } else if (auto var = dynamic_cast<details::constructor_node*>(m.get());
-                 var) {
-        // TODO: method type
-        var->visit(this);
+      if (auto method = dynamic_cast<details::method_node*>(m.get()); method) {
+        method->visit(this);
+      } else if (auto ctor = dynamic_cast<details::constructor_node*>(m.get());
+                 ctor) {
+        ctor->visit(this);
       }
     }
   }
 
   void visit(details::variable_node& v) override {
     if (!v.get_expression()->get_type()) {
-      error_.register_error(
-          make_error_t(*v.get_expression(), "invalid expression"));
+      register_error(*v.get_expression(), "invalid expression");
     }
   }
 
@@ -359,9 +360,35 @@ class type_visitor : public visitor {
     }
   }
 
-  void visit(details::method_node& m) override {}
+  void visit(details::method_node& m) override {
+    m.get_parameters()->visit(this);
+    std::string return_type;
+    if (m.get_return_type()) {
+      return_type = m.get_return_type()->type();
+    }
+    body_checker bc(return_type);
+    m.get_body()->visit(&bc);
+  }
 
-  void visit(details::constructor_node& ctr) override {}
+  void visit(details::constructor_node& ctr) override {
+    ctr.get_parameters()->visit(this);
+    // checking that the first expression in the constructor is "this"
+    this_checker tc(ctr.mangle_ctr(), constructor_calls_);
+    ctr.get_body()->visit(&tc);
+    body_checker bc("");
+    ctr.get_body()->visit(&bc);
+  }
+
+  void visit(details::parameters_node& params) override {
+    for (const auto& p : params.get_parameters()) {
+      auto node = p->get_type()->get_class_name();
+      const std::string& class_name = node->get_identifier()->get_name();
+      auto type = p->get_scope()->find(class_name);
+      if (!type) {
+        register_error(*node, "\"" + class_name + "\" class not found");
+      }
+    }
+  };
 
   void visit(details::expression_node& expr) override {}
 
@@ -383,11 +410,72 @@ class type_visitor : public visitor {
 
   void visit(details::body_node& b) override {}
 
-  bool success() const noexcept override { return success_; }
+  [[nodiscard]] bool success() const noexcept override { return success_; }
 
-  bool fail() const noexcept override { return !success_; }
+  [[nodiscard]] bool fail() const noexcept override { return !success_; }
 
   void print_error() const { error_.print_errors(); }
+
+ private:
+  class this_checker : public visitor {
+   private:
+    const std::string scope_name_;
+    const std::unordered_map<std::string, std::string>& constructor_calls_;
+    bool is_this_ctor = false;
+    bool is_base_ctor = false;
+
+   public:
+    explicit this_checker(
+        std::string scope_name,
+        std::unordered_map<std::string, std::string>& constructor_calls)
+        : scope_name_{std::move(scope_name)},
+          constructor_calls_{constructor_calls} {}
+
+    void visit(details::body_node& b) override {
+      const auto& nodes = b.get_nodes();
+      if (!nodes.empty()) {
+        nodes[0]->visit(this);
+      }
+    }
+
+    void visit(details::expression_node& expr) override {
+      expr.get_primary()->visit(this);
+      if (is_this_ctor) {
+        // TODO:
+        // calculate mangling and
+        // uncomment
+        // std::string mangle_name = ...;
+        // constructor_calls_(scope_name_, mangle_name);
+        // std::cerr << "to add mangling" << std::endl;
+      }
+      if (is_base_ctor) {
+        // TODO:
+        // check the existence of a parent constructor
+        // uncomment
+        // std::string mangle_name = ...;
+        // constructor_calls_(scope_name_, mangle_name);
+        // std::cerr << "to add mangling" << std::endl;
+      }
+      is_this_ctor = false;
+      is_base_ctor = false;
+    }
+
+    void visit(details::this_node& t) override { is_this_ctor = true; }
+    void visit(details::base_node& b) override { is_base_ctor = true; }
+  };
+
+  class body_checker : public visitor {
+   private:
+    const std::string return_type_;
+
+   public:
+    explicit body_checker(std::string return_type)
+        : return_type_{std::move(return_type)} {}
+
+    void visit(details::expression_node& expr) override {
+      expr.get_primary()->visit(this);
+    }
+  };
 };
 
 }  // namespace visitor

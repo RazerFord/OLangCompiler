@@ -246,7 +246,7 @@ class type_node : public ast_node {
   explicit type_node(value_type class_name) : type_(std::move(class_name)) {}
   void set_type(value_type type) { type_ = std::move(type); }
 
-  const value_type& get_class_name() const { return type_; }
+  value_type get_class_name() const { return type_; }
 
   bool operator==(const type_node& other) {
     return type_->mangle_class_name() == other.type_->mangle_class_name();
@@ -498,7 +498,8 @@ class class_node : public ast_node {
 
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
     class_name_ = std::make_shared<type_node>(std::move(class_name));
-    class_name_->register_class(std::dynamic_pointer_cast<class_node>(shared_from_this()));
+    class_name_->register_class(
+        std::dynamic_pointer_cast<class_node>(shared_from_this()));
     fill();
   }
 
@@ -838,6 +839,7 @@ class method_node : public member_node {
 class constructor_node : public member_node {
   std::shared_ptr<parameters_node> parameters_;
   std::shared_ptr<body_node> body_;
+  std::shared_ptr<scope::scope> scope_;
 
   bool validate() override { return true; }
 
@@ -857,12 +859,14 @@ class constructor_node : public member_node {
   }
 
  public:
-  [[nodiscard]] const std::shared_ptr<parameters_node>& get_parameters() const {
+  [[nodiscard]] std::shared_ptr<parameters_node> get_parameters() const {
     return parameters_;
   }
 
-  [[nodiscard]] const std::shared_ptr<body_node>& get_body() const {
-    return body_;
+  [[nodiscard]] std::shared_ptr<body_node> get_body() const { return body_; }
+
+  [[nodiscard]] std::shared_ptr<scope::scope> get_scope() const {
+    return scope_;
   }
 
   void set_parameters(std::shared_ptr<parameters_node> parameters) {
@@ -873,6 +877,10 @@ class constructor_node : public member_node {
   void set_body(std::shared_ptr<body_node> body) {
     body_ = std::move(body);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
   }
 
   void visit(visitor::visitor* v) override;
@@ -1200,7 +1208,7 @@ class literal_node : public primary_node {
 
 class this_node : public primary_node {
  public:
-  this_node(const token::keyword& i) {
+  explicit this_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
 

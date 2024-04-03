@@ -16,6 +16,12 @@ int main(int argc, char** argv) {
     visitor::scope_visitor scope_visitor;
     ast.visit(&scope_visitor);
     scope_visitor.print_error();
+
+    if (scope_visitor.success()) {
+      visitor::type_visitor type_visitor;
+      ast.visit(&type_visitor);
+      type_visitor.print_error();
+    }
   }
   assert(true);
 }
