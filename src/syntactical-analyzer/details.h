@@ -580,14 +580,18 @@ class class_node : public ast_node {
 
   std::shared_ptr<method_node> find_method(
       const std::shared_ptr<identifier_node>& method_name,
-      const std::shared_ptr<arguments_node>& args);
-  std::shared_ptr<constructor_node> find_ctr();
+      const std::shared_ptr<arguments_node>& args,
+      error_handling::error_handling& error_handler);
+
+  std::shared_ptr<constructor_node> find_ctr(
+      error_handling::error_handling& error_handler);
   template <typename T>
   std::shared_ptr<constructor_node> find_ctr(
       std::shared_ptr<literal_node<T>> literal);
 
   std::shared_ptr<constructor_node> find_ctr(
-      const std::shared_ptr<arguments_node>& args);
+      const std::shared_ptr<arguments_node>& args,
+      error_handling::error_handling& error_handler);
 
   std::shared_ptr<variable_node> find_var_member(
       const std::shared_ptr<identifier_node>& var_name);
@@ -704,7 +708,9 @@ class expression_node : public statement_node {
                       std::shared_ptr<arguments_node>>
                 value);
 
-  std::shared_ptr<expression_ext> this_type_checking(std::shared_ptr<this_node>, error_handling::error_handling& error_handler);
+  std::shared_ptr<expression_ext> this_type_checking(
+      std::shared_ptr<this_node>,
+      error_handling::error_handling& error_handler);
 
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
@@ -749,7 +755,15 @@ class expression_node : public statement_node {
     if (final_object_) return final_object_->get_type();
     return nullptr;
   }
-  std::shared_ptr<expression_ext> get_object(error_handling::error_handling& error_handler);
+
+  std::shared_ptr<type_node> get_type(error_handling::error_handling& error_handler) {
+    get_object(error_handler);
+    if (final_object_) return final_object_->get_type();
+    return nullptr;
+  }
+
+  std::shared_ptr<expression_ext> get_object(
+      error_handling::error_handling& error_handler);
 };
 
 class variable_node : public member_node {
@@ -785,7 +799,9 @@ class variable_node : public member_node {
   [[nodiscard]] const std::shared_ptr<scope::scope>& get_scope() const {
     return scope_;
   }
-  std::shared_ptr<type_node> get_type() { return expression_->get_type(); }
+  std::shared_ptr<type_node> get_type() {
+    return expression_->get_type();
+  }
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);

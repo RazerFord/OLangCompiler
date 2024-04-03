@@ -1,22 +1,62 @@
-class Real is
-    this() is
-    end
+class int is
+end
+class real is
+end
+class Integer is
+  this() is
+  end
 
-    this(value: float) is
-    end
+  this(i: int) is
+  end
 
-    this(value: Real) is
-    end
 
-    method get() is
-    end
+  this(i: Integer) is
+  end
 end
 
+class Real is
+  this() is
+  end
 
-class Main is
-    this(p: Real) is
+  this(i: real) is
+  end
+end
+
+class Boolean is
+  this() is
+  end
+end
+
+class Hello is
+  var i : Integer(42)
+  var j : Real()
+  var k : Boolean()
+
+  this() is
+    this(0, 0.0)
+  end
+
+  this(i: Integer, j: Real) is
+  end
+
+  method test(i: Integer) : Integer is
+    if k then
+    else if k then
     end
-  method nuuu(n: Real, x: Integer) is
-    this(n)
+    end
+    var tp : TP1()
+    var h : Hello()
+    h := tp
+    return 1
+  end
+end
+
+class TP extends Hello is
+  this() is
+  end
+end
+
+class TP1 extends TP is
+  this() is
   end
 end
