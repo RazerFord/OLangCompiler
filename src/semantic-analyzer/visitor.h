@@ -288,12 +288,10 @@ class type_visitor : public visitor {
  private:
   using type = details::type_node;
 
-  std::unordered_map<std::string, std::unordered_set<std::string>>
+  std::unordered_map<std::string, std::unordered_map<std::string, bool>>
       type_casting_ = {
-          {type::IntegerT, {type::RealT}},
-          {type::RealT, {type::IntegerT}},
-          {type::IntegerT, {type::AnyT}},
-          {type::RealT, {type::AnyT}},
+          {type::IntegerT, {{type::RealT, true}, {type::AnyT, true}}},
+          {type::RealT, {{type::IntegerT, true}, {type::AnyT, true}}},
       };
   std::unordered_set<std::string> types_ = {type::IntegerT, type::RealT,
                                             type::BooleanT, type::AnyT};
@@ -313,17 +311,17 @@ class type_visitor : public visitor {
       std::string derived = cls->get_class_name()->get_identifier()->get_name();
       if (cls->get_extends()) {
         std::string base = cls->get_extends()->get_identifier()->get_name();
-        type_casting_[derived].insert(base);
+        type_casting_[derived][base] = true;
       }
       types_.insert(derived);
-      type_casting_[derived].insert(type::AnyT);
-      type_casting_[derived].insert(derived);
+      type_casting_[derived][type::AnyT] = true;
+      type_casting_[derived][derived] = true;
     }
     std::cout << "//////////////////////////////////////////// CASTING "
                  "/////////////////////////////////////////////////\n";
     for (const auto& [k, s] : type_casting_) {
       for (const auto& v : s) {
-        std::cout << k << " -> " << v << '\n';
+        std::cout << k << " -> " << v.first << '\n';
       }
     }
     std::cout << "//////////////////////////////////////////// TYPES "
