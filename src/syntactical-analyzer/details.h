@@ -206,7 +206,9 @@ class class_name_node : public primary_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -313,7 +315,9 @@ class parameter_node : public ast_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -499,7 +503,9 @@ class class_node : public ast_node,
     members_.push_back(std::move(member));
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -692,7 +698,9 @@ class variable_node : public member_node {
     fill();
   }
 
-  void set_scope(std::shared_ptr<scope::scope> scope) { scope_ = std::move(scope); }
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -1019,6 +1027,7 @@ class if_statement_node : public statement_node {
 class return_statement_node : public statement_node {
  private:
   std::shared_ptr<expression_node> expression_;
+  std::shared_ptr<scope::scope> scope_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -1032,14 +1041,22 @@ class return_statement_node : public statement_node {
   }
 
  public:
-  [[nodiscard]] const std::shared_ptr<expression_node>& get_expression()
+  [[nodiscard]] std::shared_ptr<expression_node> get_expression()
       const noexcept {
     return expression_;
+  }
+
+  [[nodiscard]] std::shared_ptr<scope::scope> get_scope() const noexcept {
+    return scope_;
   }
 
   void set_expression(std::shared_ptr<expression_node> expression) noexcept {
     expression_ = std::move(expression);
     fill();
+  }
+
+  void set_scope(std::shared_ptr<scope::scope> scope) {
+    scope_ = std::move(scope);
   }
 
   bool validate() override { return true; }
