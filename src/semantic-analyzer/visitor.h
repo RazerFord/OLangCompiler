@@ -226,6 +226,7 @@ class scope_visitor : public visitor {
   }
 
   void visit(details::return_statement_node& r) override {
+    if (r.get_expression()) r.get_expression()->visit(this);
     r.set_scope(scope_);
   }
 
@@ -264,6 +265,7 @@ class scope_visitor : public visitor {
     for (const auto& s : b.get_nodes()) {
       if (auto var = dynamic_cast<details::variable_node*>(s.get()); var) {
         std::string key = var->get_identifier()->get_name();
+        var->get_expression()->visit(this);
         if ((*sym)[key]) {
           register_error(*s, variable_redefinition(key));
         } else {
@@ -392,10 +394,11 @@ class type_visitor : public visitor {
         register_error(*node, "\"" + class_name + "\" class not found");
       }
     }
-
   }
 
-  void visit(details::expression_node& expr) override {expr.get_object(error_);}
+  void visit(details::expression_node& expr) override {
+    expr.get_object(error_);
+  }
 
   void visit(details::arguments_node& expr) override {}
 
@@ -484,11 +487,15 @@ class type_visitor : public visitor {
       }
     }
 
-    void visit(details::expression_node& expr) override {expr.get_object(tv_.error_);}
+    void visit(details::expression_node& expr) override {
+      expr.get_object(tv_.error_);
+    }
 
     void visit(details::assignment_node& a) override {
-      std::string ltype = a.get_lexpression()->get_type(tv_.error_)->simple_type();
-      std::string rtype = a.get_rexpression()->get_type(tv_.error_)->simple_type();
+      std::string ltype =
+          a.get_lexpression()->get_type(tv_.error_)->simple_type();
+      std::string rtype =
+          a.get_rexpression()->get_type(tv_.error_)->simple_type();
       if (auto it = tv_.type_casting_.find(rtype);
           it != tv_.type_casting_.end() && !it->second.contains(ltype)) {
         tv_.register_error(
@@ -498,7 +505,8 @@ class type_visitor : public visitor {
     }
 
     void visit(details::if_statement_node& i) override {
-      if (i.get_expression()->get_type(tv_.error_)->simple_type() != type::BooleanT) {
+      if (i.get_expression()->get_type(tv_.error_)->simple_type() !=
+          type::BooleanT) {
         tv_.register_error(
             *i.get_expression(),
             "error: in the \"if\" statement, Boolean type was expected");
@@ -510,7 +518,8 @@ class type_visitor : public visitor {
     }
 
     void visit(details::while_loop_node& w) override {
-      if (w.get_expression()->get_type(tv_.error_)->simple_type() != type::BooleanT) {
+      if (w.get_expression()->get_type(tv_.error_)->simple_type() !=
+          type::BooleanT) {
         tv_.register_error(
             *w.get_expression(),
             "error: in the \"while\" statement, Boolean type was expected");
@@ -530,7 +539,8 @@ class type_visitor : public visitor {
 
     void visit(details::variable_node& v) override {
       if (!v.get_expression()->get_type(tv_.error_)) {
-        tv_.error_.register_error(error_handling::make_error_t(*v.get_expression(), "invalid expression"));
+        tv_.error_.register_error(error_handling::make_error_t(
+            *v.get_expression(), "invalid expression"));
       }
     }
   };

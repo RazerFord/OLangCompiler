@@ -2,13 +2,15 @@ class int is
 end
 class real is
 end
+class bool is
+end
+
 class Integer is
   this() is
   end
 
   this(i: int) is
   end
-
 
   this(i: Integer) is
   end
@@ -20,10 +22,19 @@ class Real is
 
   this(i: real) is
   end
+
+  this(i: Real) is
+  end
 end
 
 class Boolean is
   this() is
+  end
+
+  this(b: bool) is
+  end
+
+  this(b: Boolean) is
   end
 end
 
@@ -59,4 +70,17 @@ end
 class TP1 extends TP is
   this() is
   end
+end
+
+
+class Point2 is
+    var p1 : Point1
+    this() is
+    end
+end
+
+class Point1 is
+    var p2: Point1
+    this() is
+    end
 end

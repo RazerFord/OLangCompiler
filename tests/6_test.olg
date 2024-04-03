@@ -1,12 +1,71 @@
+class int is
+end
+class real is
+end
+class bool is
+end
+
+class Integer is
+  this() is
+  end
+
+  this(i: int) is
+  end
+
+  this(i: Integer) is
+  end
+
+  method Less(a: Integer) : Boolean is
+  end
+
+  method Plus(a: Integer): Integer is
+  end
+
+  method Max(): Integer is
+    return 1000000
+  end
+end
+
+class Real is
+  this() is
+  end
+
+  this(i: real) is
+  end
+
+  this(i: Real) is
+  end
+end
+
+class Boolean is
+  this() is
+  end
+
+  this(b: bool) is
+  end
+
+  this(b: Boolean) is
+  end
+end
+
+class Array[T] is
+    var Length: Integer
+    this() is
+    end
+    method get(i: Integer): Integer is
+       return i
+    end
+end
+
 class Math is
   this() is
   end
 
   method min(arr: Array[Integer]): Integer is
-    var min : Integer.Max()
+    var min : Integer().Max()
     var i : Integer(0)
     while i.Less(arr.Length) loop
-      min := min(min, arr.get(i))
+      min := this.min(i, arr.get(i))
       i := i.Plus(1)
     end
     return min

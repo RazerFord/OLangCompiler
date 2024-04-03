@@ -1,4 +1,77 @@
+class int is
+end
+class real is
+end
+class bool is
+end
+
+class Integer is
+  this() is
+  end
+
+  this(i: int) is
+  end
+
+  this(i: Integer) is
+  end
+
+  method Less(a: Integer) : Boolean is
+  end
+
+  method Plus(a: Integer): Integer is
+  end
+
+  method Minus(a: Integer): Integer is
+  end
+
+  method Max(): Integer is
+    return 1000000
+  end
+
+  method Equal(i: Integer): Boolean is
+  end
+end
+
+class Real is
+  this() is
+  end
+
+  this(i: real) is
+  end
+
+  this(i: Real) is
+  end
+
+  method Mult(v: Real): Real is
+  end
+
+  method Div(v: Integer): Real is
+  end
+
+   method Div(v: Real): Real is
+   end
+
+  method Plus(a: Real): Real is
+  end
+
+  method Minus(a: Real): Real is
+  end
+end
+
+class Boolean is
+  this() is
+  end
+
+  this(b: bool) is
+  end
+
+  this(b: Boolean) is
+  end
+end
+
 class Base is
+  this() is
+  end
   method test() : Integer is
     return 0
   end
@@ -9,6 +82,8 @@ class Base is
 end
 
 class A extends Base is
+  this() is
+  end
   method test() : Integer is
     return 3
   end
@@ -21,7 +96,7 @@ class Main is
     var v : Base
     v := A
 
-    if v.test.Equal(3) then success := true end
+    if v.test().Equal(3) then success := true end
     if v.test(1).Equal(1) then success := true end
   end
 end

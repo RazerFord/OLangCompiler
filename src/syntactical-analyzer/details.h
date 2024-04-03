@@ -594,7 +594,8 @@ class class_node : public ast_node {
       error_handling::error_handling& error_handler);
 
   std::shared_ptr<variable_node> find_var_member(
-      const std::shared_ptr<identifier_node>& var_name);
+      const std::shared_ptr<identifier_node>& var_name,
+      error_handling::error_handling& error_handler);
 
   void visit(visitor::visitor* v) override;
 
@@ -756,7 +757,8 @@ class expression_node : public statement_node {
     return nullptr;
   }
 
-  std::shared_ptr<type_node> get_type(error_handling::error_handling& error_handler) {
+  std::shared_ptr<type_node> get_type(
+      error_handling::error_handling& error_handler) {
     get_object(error_handler);
     if (final_object_) return final_object_->get_type();
     return nullptr;
@@ -799,9 +801,7 @@ class variable_node : public member_node {
   [[nodiscard]] const std::shared_ptr<scope::scope>& get_scope() const {
     return scope_;
   }
-  std::shared_ptr<type_node> get_type() {
-    return expression_->get_type();
-  }
+  std::shared_ptr<type_node> get_type() { return expression_->get_type(); }
 
   void set_identifier(std::shared_ptr<identifier_node> identifier) {
     identifier_ = std::move(identifier);
@@ -1181,6 +1181,7 @@ class return_statement_node : public statement_node {
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
+    if (expression_) expression_->set_scope(scope_);
   }
 
   bool validate() override { return true; }

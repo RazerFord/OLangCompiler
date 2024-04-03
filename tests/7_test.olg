@@ -1,3 +1,16 @@
+class Array[T] is
+    var test: Integer
+    var Length: test.Plus(test)
+    this() is
+    end
+    method get(i: Integer): Integer is
+       return i
+    end
+
+    method set(i: Integer, j: Integer) is
+    end
+end
+
 class Utils is
   this() is
   end

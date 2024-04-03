@@ -1,3 +1,47 @@
+class int is
+end
+class real is
+end
+class bool is
+end
+
+class Integer is
+  this() is
+  end
+
+  this(i: int) is
+  end
+
+  this(i: Integer) is
+  end
+
+  method Less(a: Integer) : Boolean is
+  end
+end
+
+class Real is
+  this() is
+  end
+
+  this(i: real) is
+  end
+
+  this(i: Real) is
+  end
+end
+
+class Boolean is
+  this() is
+  end
+
+  this(b: bool) is
+  end
+
+  this(b: Boolean) is
+  end
+end
+
+
 class Math is
   method min(a: Integer, b: Integer, c: Integer) : Integer is
     if a.Less(b) then

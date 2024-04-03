@@ -67,18 +67,23 @@ auto EMPTY_VAR =
     std::make_shared<variable_call>(nullptr, std::make_shared<type_node>());
 
 std::shared_ptr<variable_node> class_node::find_var_member(
-    const std::shared_ptr<identifier_node>& var_name) {
+    const std::shared_ptr<identifier_node>& var_name,
+    error_handling::error_handling& error_handler) {
   auto cur_class = std::dynamic_pointer_cast<class_node>(shared_from_this());
   while (cur_class) {
     for (auto& member : cur_class->get_members()) {
       if (auto var = std::dynamic_pointer_cast<variable_node>(member); var) {
         if (var->get_identifier()->get_name() == var_name->get_name()) {
+          var->get_expression()->get_type(error_handler);
           return var;
         }
       }
     }
-    cur_class = std::dynamic_pointer_cast<class_node>(
-        scope_->find(cur_class->get_extends()->get_identifier()->get_name()));
+    cur_class =
+        cur_class->get_extends()
+            ? std::dynamic_pointer_cast<class_node>(scope_->find(
+                  cur_class->get_extends()->get_identifier()->get_name()))
+            : nullptr;
   }
   return nullptr;
 }
@@ -92,10 +97,8 @@ std::shared_ptr<constructor_node> class_node::find_ctr(
       bool is_same = true;
       if (params.size() == args->get_arguments().size()) {
         for (size_t i = 0; i < args->get_arguments().size(); ++i) {
-          if (params[i]->get_type()->type() != args->get_arguments()[i]
-                                                   ->get_object(error_handler)
-                                                   ->get_type()
-                                                   ->type()) {
+          if (params[i]->get_type()->type() !=
+              args->get_arguments()[i]->get_type(error_handler)->type()) {
             is_same = false;
             break;
           }
@@ -153,10 +156,8 @@ std::shared_ptr<method_node> class_node::find_method(
         if (method->get_identifier()->get_name() == method_name->get_name() &&
             params.size() == args->get_arguments().size()) {
           for (size_t i = 0; i < args->get_arguments().size(); ++i) {
-            if (params[i]->get_type()->type() != args->get_arguments()[i]
-                                                     ->get_object(error_handler)
-                                                     ->get_type()
-                                                     ->type()) {
+            if (params[i]->get_type()->type() !=
+                args->get_arguments()[i]->get_type(error_handler)->type()) {
               is_same = false;
               break;
             }
@@ -166,8 +167,11 @@ std::shared_ptr<method_node> class_node::find_method(
       }
     }
 
-    cur_class = std::dynamic_pointer_cast<class_node>(
-        scope_->find(cur_class->get_extends()->get_identifier()->get_name()));
+    cur_class =
+        cur_class->get_extends()
+            ? std::dynamic_pointer_cast<class_node>(scope_->find(
+                  cur_class->get_extends()->get_identifier()->get_name()))
+            : nullptr;
   }
   return nullptr;
 }
@@ -208,22 +212,26 @@ std::shared_ptr<expression_ext> expression_node::this_type_checking(
     error_handling::error_handling& error_handler) {
   auto clazz =
       std::dynamic_pointer_cast<class_node>(scope_->find(visitor::kw_this));
-  if (!expression_values.empty() && expression_values[0].second) {
+  if (!expression_values.empty() && !expression_values[0].first &&
+      expression_values[0].second) {
     if (expression_values.size() > 1) {
       error_handler.register_error(error_handling::make_error_t(
-          *this_keyword, "error: invalid constructor call\n"));
+          *this_keyword, "error: invalid constructor call"));
       return EMPTY_VAR;
     }
 
     auto ctor = clazz->find_ctr(expression_values[0].second, error_handler);
     auto args = get_args_objects(expression_values[0].second->get_arguments(),
                                  error_handler);
-//    if (ctor) {
-//      error_handler.register_error(error_handling::make_error_t(
-//          *this_keyword, "error: cannot call another constructor\n"));
-//      return EMPTY_VAR;
-//    }
-    return std::make_shared<constructor_call>(clazz, ctor, args);
+    if (ctor) {
+      error_handler.register_error(error_handling::make_error_t(
+          *this_keyword, "error: cannot call another constructor"));
+    } else {
+      error_handler.register_error(error_handling::make_error_t(
+          *this_keyword, "error: cannot call another undeclared constructor"));
+    }
+
+    return EMPTY_VAR;
   }
 
   return std::make_shared<variable_call>(this_keyword, clazz->get_type());
@@ -243,14 +251,15 @@ std::shared_ptr<expression_ext> expression_node::get_object(
 
   if (final_object_) return final_object_;
 
-  bool is_ctor = false;
+  final_object_ = EMPTY_VAR;
 
-  if (auto this_keyword = std::dynamic_pointer_cast<this_node>(primary_);
+  bool is_ctor = false;
+  if (auto base_keyword = std::dynamic_pointer_cast<base_node>(primary_); base_keyword) {
+    return final_object_;
+  } else if (auto this_keyword = std::dynamic_pointer_cast<this_node>(primary_);
       this_keyword) {
     final_object_ = this_type_checking(this_keyword, error_handler);
-    if (final_object_ == EMPTY_VAR ||
-        (std::dynamic_pointer_cast<constructor_call>(final_object_)))
-      return final_object_;
+    if (final_object_ == EMPTY_VAR) return final_object_;
   } else if (auto literal =
                  std::dynamic_pointer_cast<literal_base_node>(primary_);
              literal) {
@@ -280,7 +289,6 @@ std::shared_ptr<expression_ext> expression_node::get_object(
       if (!expression_values.empty() && expression_values[0].first) {
         error_handler.register_error(error_handling::make_error_t(
             *var, "error: invalid constructor call\n"));
-        final_object_ = EMPTY_VAR;
         return final_object_;
       }
 
@@ -298,7 +306,6 @@ std::shared_ptr<expression_ext> expression_node::get_object(
       if (!ctor) {
         error_handler.register_error(error_handling::make_error_t(
             *var, "error: cannot find constructor\n"));
-        final_object_ = EMPTY_VAR;
         return final_object_;
       }
 
@@ -313,7 +320,6 @@ std::shared_ptr<expression_ext> expression_node::get_object(
     return nullptr;
   }
 
-  if (!final_object_) return nullptr;
   for (auto& [member, args] : expression_values) {
     if (is_ctor) {
       is_ctor = false;
@@ -329,7 +335,7 @@ std::shared_ptr<expression_ext> expression_node::get_object(
     }
 
     if (member && !args) {
-      auto member_var = clazz->find_var_member(member);
+      auto member_var = clazz->find_var_member(member, error_handler);
       if (member_var)
         final_object_ = std::make_shared<member_call>(
             final_object_, std::make_shared<variable_call>(
@@ -358,7 +364,7 @@ std::shared_ptr<expression_ext> expression_node::get_object(
       }
     } else {
       error_handler.register_error(
-          error_handling::make_error_t(*primary_, "\ninvalid syntax"));
+          error_handling::make_error_t(*primary_, "invalid syntax"));
     }
   }
   return final_object_;
