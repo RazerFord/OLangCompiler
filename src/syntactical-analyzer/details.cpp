@@ -83,7 +83,8 @@ std::shared_ptr<constructor_node> class_node::find_ctr(
       bool is_same = true;
       if (params.size() == args->get_arguments().size()) {
         for (size_t i = 0; i < args->get_arguments().size(); ++i) {
-          if (params[i]->get_type()->type() != args->get_arguments()[i]->get_type()->type()) {
+          if (params[i]->get_type()->type() !=
+              args->get_arguments()[i]->get_type()->type()) {
             is_same = false;
             break;
           }
@@ -167,6 +168,19 @@ std::shared_ptr<variable_call> literal_expression_handle(
   }
 
   return {};
+}
+
+template <typename T>
+std::shared_ptr<literal_node<T>> is_literal(std::shared_ptr<ast_node> primary) {
+  auto int_literal = std::dynamic_pointer_cast<literal_node<int32_t>>(primary);
+  auto double_literal =
+      std::dynamic_pointer_cast<literal_node<int32_t>>(primary);
+  auto bool_literal = std::dynamic_pointer_cast<literal_node<int32_t>>(primary);
+
+  if (int_literal)
+    return int_literal;
+  else if (double_literal)
+    return double_literal;
 }
 
 std::shared_ptr<expression_ext> expression_node::get_object() {

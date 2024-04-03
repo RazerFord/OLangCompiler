@@ -641,6 +641,8 @@ class expression_node : public statement_node {
                       std::shared_ptr<arguments_node>>
                 value);
 
+  // void get_literal_object();
+
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
       const noexcept {
