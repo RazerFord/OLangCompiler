@@ -140,7 +140,8 @@ std::shared_ptr<method_node> class_node::find_method(
       if (method->get_identifier()->get_name() == method_name->get_name() &&
           params.size() == args->get_arguments().size()) {
         for (size_t i = 0; i < args->get_arguments().size(); ++i) {
-          if (params[i]->get_type()->type() != args->get_arguments()[i]->get_type()->type()) {
+          if (params[i]->get_type()->type() !=
+              args->get_arguments()[i]->get_type()->type()) {
             is_same = false;
             break;
           }
@@ -151,7 +152,6 @@ std::shared_ptr<method_node> class_node::find_method(
   }
   return nullptr;
 }
-
 
 template <typename T>
 std::shared_ptr<variable_call> literal_node<T>::literal_expression_handle() {
@@ -172,63 +172,75 @@ std::shared_ptr<variable_call> literal_node<T>::literal_expression_handle() {
     return std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
   }
 
-  std::cout << "cannot find ctor for literal\n";
   return EMPTY_VAR;
 }
 
-
-std::vector<std::shared_ptr<ast_node>> get_args_objects(auto arguments) {
+std::vector<std::shared_ptr<ast_node>> get_args_objects(
+    auto arguments, error_handling::error_handling& error_handler) {
   std::vector<std::shared_ptr<ast_node>> args_objects;
   for (auto& arg : arguments) {
-    args_objects.push_back(arg->get_object());
+    args_objects.push_back(arg->get_object(error_handler));
   }
   return args_objects;
 }
 
-std::shared_ptr<expression_ext> expression_node::this_type_checking(std::shared_ptr<this_node> this_keyword) {
-  auto clazz = std::dynamic_pointer_cast<class_node>(scope_->find(visitor::kw_this));
+std::shared_ptr<expression_ext> expression_node::this_type_checking(
+    std::shared_ptr<this_node> this_keyword,
+    error_handling::error_handling& error_handler) {
+  auto clazz =
+      std::dynamic_pointer_cast<class_node>(scope_->find(visitor::kw_this));
   if (!expression_values.empty() && expression_values[0].second) {
     if (expression_values.size() > 1) {
-      std::cout << "invalid contr call\n";
+      error_handler.register_error(error_handling::make_error_t(
+          *this_keyword, "error: invalid constructor call\n"));
       return EMPTY_VAR;
     }
 
     auto ctor = clazz->find_ctr(expression_values[0].second);
-    auto args = get_args_objects(expression_values[0].second->get_arguments());
+    auto args = get_args_objects(expression_values[0].second->get_arguments(),
+                                 error_handler);
     return std::make_shared<constructor_call>(clazz, ctor, args);
   }
 
   return std::make_shared<variable_call>(this_keyword, clazz->get_type());
 }
 
-
-std::shared_ptr<expression_ext> expression_node::get_object() {
+std::shared_ptr<expression_ext> expression_node::get_object(
+    error_handling::error_handling& error_handler) {
   if (auto null = dynamic_cast<null_node*>(primary_.get()); null) {
     if (!expression_values.empty()) {
-      std::cout << "error: member reference base type 'null' is not class\n";
+      error_handler.register_error(error_handling::make_error_t(
+          *null, "error: member reference base type 'null' is not class\n"));
       return EMPTY_VAR;
     }
-    final_object_ = std::make_shared<variable_call>(nullptr, std::make_shared<type_node>(type_id::Null));
+    final_object_ = std::make_shared<variable_call>(
+        nullptr, std::make_shared<type_node>(type_id::Null));
   }
 
   if (final_object_) return final_object_;
 
   bool is_ctor = false;
 
-  if (auto this_keyword =  std::dynamic_pointer_cast<this_node>(primary_);
+  if (auto this_keyword = std::dynamic_pointer_cast<this_node>(primary_);
       this_keyword) {
-
-    final_object_ = this_type_checking(this_keyword);
-    if (final_object_ == EMPTY_VAR || (std::dynamic_pointer_cast<constructor_call>(final_object_)))
+    final_object_ = this_type_checking(this_keyword, error_handler);
+    if (final_object_ == EMPTY_VAR ||
+        (std::dynamic_pointer_cast<constructor_call>(final_object_)))
       return final_object_;
   } else if (auto literal =
                  std::dynamic_pointer_cast<literal_base_node>(primary_);
              literal) {
-    final_object_ = literal->literal_expression_handle();
-  } else if (auto var =
-                 scope_->find( std::dynamic_pointer_cast<class_name_node>(primary_)
-                                  ->get_identifier()
-                                  ->get_name());
+    auto literal_object = literal->literal_expression_handle();
+    if (literal_object == EMPTY_VAR) {
+      error_handler.register_error(error_handling::make_error_t(
+          *this_keyword, "error: cannot find constructor for literal\n"));
+      return final_object_;
+    }
+    final_object_ = literal_object;
+  } else if (auto var = scope_->find(
+                 std::dynamic_pointer_cast<class_name_node>(primary_)
+                     ->get_identifier()
+                     ->get_name());
              var) {
     auto type = std::make_shared<type_node>();
     if (auto var_node = std::dynamic_pointer_cast<variable_node>(var);
@@ -242,7 +254,8 @@ std::shared_ptr<expression_ext> expression_node::get_object() {
       final_object_ = std::make_shared<variable_call>(var, type);
     } else if (auto clazz = std::dynamic_pointer_cast<class_node>(var); clazz) {
       if (!expression_values.empty() && expression_values[0].first) {
-        std::cout << "cannot call cotr\n";
+        error_handler.register_error(error_handling::make_error_t(
+            *var, "error: invalid constructor call\n"));
         final_object_ = EMPTY_VAR;
         return final_object_;
       }
@@ -254,11 +267,13 @@ std::shared_ptr<expression_ext> expression_node::get_object() {
         ctor = clazz->find_ctr();
       } else {
         ctor = clazz->find_ctr(expression_values[0].second);
-        args = get_args_objects(expression_values[0].second->get_arguments());
+        args = get_args_objects(expression_values[0].second->get_arguments(),
+                                error_handler);
       }
 
       if (!ctor) {
-        std::cout << "cannot find ctor\n";
+        error_handler.register_error(error_handling::make_error_t(
+            *var, "error: cannot find constructor\n"));
         final_object_ = EMPTY_VAR;
         return final_object_;
       }
@@ -269,7 +284,8 @@ std::shared_ptr<expression_ext> expression_node::get_object() {
     }
 
   } else {
-    std::cout << "use undeclared identifier\n";
+    error_handler.register_error(error_handling::make_error_t(
+        *primary_, "error: cannot find constructor\n"));
     return nullptr;
   }
 
@@ -283,7 +299,8 @@ std::shared_ptr<expression_ext> expression_node::get_object() {
 
     auto clazz = type_node::find(final_object_->get_type()->type());
     if (!clazz) {
-      std::cout << "cannot find class\n";
+      error_handler.register_error(error_handling::make_error_t(
+          *primary_, "error: cannot find class\n"));
       break;
     }
 
@@ -295,8 +312,9 @@ std::shared_ptr<expression_ext> expression_node::get_object() {
                                member_var, member_var->get_type()));
       else {
         final_object_ = std::make_shared<member_call>(final_object_, EMPTY_VAR);
-        std::cout << "cannot find \"" << member->get_name()
-                  << "\" variable in class\n";
+        error_handler.register_error(error_handling::make_error_t(
+            *primary_, "error: cannot find \"" + member->get_name() +
+                           "\" variable in class"));
         break;
       }
     } else if (member && args) {
@@ -304,15 +322,19 @@ std::shared_ptr<expression_ext> expression_node::get_object() {
       if (member_method) {
         final_object_ = std::make_shared<member_call>(
             final_object_,
-            std::make_shared<method_call>(clazz, member_method, get_args_objects(args->get_arguments())));
+            std::make_shared<method_call>(
+                clazz, member_method,
+                get_args_objects(args->get_arguments(), error_handler)));
       } else {
         final_object_ = std::make_shared<member_call>(final_object_, EMPTY_VAR);
-        std::cout << "cannot find \"" << member->get_name()
-                  << "\" method in class\n";
+        error_handler.register_error(error_handling::make_error_t(
+            *primary_, "error: cannot find \"" + member->get_name() +
+                           "\" method in class"));
         break;
       }
     } else {
-      std::cout << "invalid syntax\n";
+      error_handler.register_error(error_handling::make_error_t(
+          *primary_, "\ninvalid syntax"));
     }
   }
   return final_object_;

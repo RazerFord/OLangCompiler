@@ -20,10 +20,6 @@ inline std::string variable_redefinition(const std::string& name);
 std::string variable_redefinition(const std::string& name) {
   return "variable named \"" + name + "\" is already defined";
 }
-inline error_handling::error_t make_error_t(const details::ast_node& node,
-                                            const std::string& msg) {
-  return error_handling::error_t{node.get_meta_info(), msg};
-}
 
 class visitor {
  public:
@@ -70,7 +66,7 @@ class scope_visitor : public visitor {
 
   void register_error(const details::ast_node& node, const std::string& msg) {
     success_ = false;
-    error_.register_error(make_error_t(node, msg));
+    error_.register_error(error_handling::make_error_t(node, msg));
   }
 
  public:
@@ -307,7 +303,7 @@ class type_visitor : public visitor {
 
   void register_error(const details::ast_node& node, const std::string& msg) {
     success_ = false;
-    error_.register_error(make_error_t(node, msg));
+    error_.register_error(error_handling::make_error_t(node, msg));
   }
 
  public:
@@ -487,24 +483,24 @@ class type_visitor : public visitor {
       }
     }
 
-    void visit(details::expression_node& expr) override { expr.get_object(); }
+    void visit(details::expression_node& expr) override {}
 
     void visit(details::assignment_node& a) override {
       std::string ltype = a.get_lexpression()->get_type()->simple_type();
       std::string rtype = a.get_rexpression()->get_type()->simple_type();
       if (auto it = tv_.type_casting_.find(rtype);
           it != tv_.type_casting_.end() && !it->second.contains(ltype)) {
-        tv_.error_.register_error(make_error_t(
+        tv_.register_error(
             *a.get_lexpression(),
-            "error: casting error \"" + rtype + "\" to \"" + ltype + "\""));
+            "error: casting error \"" + rtype + "\" to \"" + ltype + "\"");
       }
     }
 
     void visit(details::if_statement_node& i) override {
       if (i.get_expression()->get_type()->simple_type() != type::BooleanT) {
-        tv_.error_.register_error(make_error_t(
+        tv_.register_error(
             *i.get_expression(),
-            "error: in the \"if\" statement, Boolean type was expected"));
+            "error: in the \"if\" statement, Boolean type was expected");
       }
       i.get_true_body()->visit(this);
       if (auto& f = i.get_false_body()) {
@@ -514,9 +510,9 @@ class type_visitor : public visitor {
 
     void visit(details::while_loop_node& w) override {
       if (w.get_expression()->get_type()->simple_type() != type::BooleanT) {
-        tv_.error_.register_error(make_error_t(
+        tv_.register_error(
             *w.get_expression(),
-            "error: in the \"while\" statement, Boolean type was expected"));
+            "error: in the \"while\" statement, Boolean type was expected");
       }
       w.get_body_node()->visit(this);
     }
@@ -524,10 +520,10 @@ class type_visitor : public visitor {
     void visit(details::return_statement_node& r) override {
       if (auto t = r.get_expression()->get_type()->simple_type();
           t != ret_type_) {
-        tv_.error_.register_error(make_error_t(
-            *r.get_expression(), "error: the type of expression \"" + t +
-                                     "\" does not match the return \"" +
-                                     ret_type_ + "\""));
+        tv_.register_error(*r.get_expression(),
+                           "error: the type of expression \"" + t +
+                               "\" does not match the return \"" + ret_type_ +
+                               "\"");
       }
     }
   };
