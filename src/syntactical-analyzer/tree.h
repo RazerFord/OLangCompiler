@@ -487,6 +487,7 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
 inline result<std::shared_ptr<return_statement_node>>
 ast_parser::parse_return() {
   auto return_node = std::make_shared<return_statement_node>();
+  return_node->set_meta(details::meta("return", stream_.get_token_id(), stream_.token()->get_span()));
   if (stream_.next_token_id() != token_id::NewLine)
     return_node->set_expression(parse_expression().value);
   else {
@@ -673,7 +674,7 @@ inline ast make_ast(token_vector& tokens) {
   for (auto& token : tokens) {
     auto id = token->get_token_id();
     if ((id != token_id::Space && id != token_id::NewLine) ||
-        (id == token_id::NewLine &&
+        (id == token_id::NewLine && !valid_tokens.empty() &&
          valid_tokens.back()->get_token_id() == token_id::Return))
       valid_tokens.emplace_back(std::move(token));
   }

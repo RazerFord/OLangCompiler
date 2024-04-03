@@ -266,7 +266,7 @@ std::shared_ptr<expression_ext> expression_node::get_object(
     auto literal_object = literal->literal_expression_handle();
     if (literal_object == EMPTY_VAR) {
       error_handler.register_error(error_handling::make_error_t(
-          *this_keyword, "error: cannot find constructor for literal\n"));
+          *literal, "error: cannot find constructor for literal"));
       return final_object_;
     }
     final_object_ = literal_object;

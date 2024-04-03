@@ -312,8 +312,10 @@ class type_visitor : public visitor {
       type_casting_ = {
           {type::intT, {{type::realT, true}, {type::RealT, true}}},
           {type::realT, {{type::intT, true}, {type::IntegerT, true}}},
-          {type::IntegerT, {{type::intT, true}, {type::RealT, true}, {type::AnyT, true}}},
-          {type::RealT, {{type::realT, true}, {type::IntegerT, true}, {type::AnyT, true}}},
+          {type::IntegerT,
+           {{type::intT, true}, {type::RealT, true}, {type::AnyT, true}}},
+          {type::RealT,
+           {{type::realT, true}, {type::IntegerT, true}, {type::AnyT, true}}},
       };
   std::unordered_set<std::string> types_ = {type::IntegerT, type::RealT,
                                             type::BooleanT, type::AnyT};
@@ -536,8 +538,12 @@ class type_visitor : public visitor {
     }
 
     void visit(details::return_statement_node& r) override {
-      if (auto t = r.get_expression()->get_type(tv_.error_)->simple_type();
-          t != ret_type_) {
+      if (!r.get_expression() && ret_type_ != type::voidT) {
+        tv_.register_error(r, "error: the expression \"" + ret_type_ +
+                                  "\" was expected in the return");
+      } else if (auto t =
+                     r.get_expression()->get_type(tv_.error_)->simple_type();
+                 t != ret_type_) {
         tv_.register_error(*r.get_expression(),
                            "error: the type of expression \"" + t +
                                "\" does not match the return \"" + ret_type_ +
