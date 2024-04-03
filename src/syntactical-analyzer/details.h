@@ -254,8 +254,8 @@ class type_node : public ast_node {
 
  public:
   type_node() = default;
-  type_node(type_id id): id_(id) {}
-  type_node(value_type class_name) : type_(std::move(class_name)) {
+  explicit type_node(type_id id) : id_(id) {}
+  explicit type_node(value_type class_name) : type_(std::move(class_name)) {
     id_ = type_id::Custom;
   }
   void set_type(value_type type) {
@@ -275,9 +275,13 @@ class type_node : public ast_node {
     return mangle_name(id_);
   }
 
+  std::string simple_type() const {
+    if (type_) return type_->get_identifier()->get_name();
+    return type_id_to_name(id_);
+  }
+
   void print() override {
-    if (type_)
-      type_->print();
+    if (type_) type_->print();
   }
 
   void register_class(std::shared_ptr<class_node> clazz) {
@@ -296,17 +300,38 @@ class type_node : public ast_node {
 
   static std::string mangle_name(type_id id) { return type_id_str[id]; }
 
+  static std::string type_id_to_name(type_id id) {
+    return type_id_simple_str[id];
+  }
+
   inline static std::unordered_map<std::string, std::shared_ptr<class_node>>
       types_ = {};
+
+  inline static const std::string IntegerT = "Integer";
+  inline static const std::string RealT = "Real";
+  inline static const std::string BooleanT = "Boolean";
+  inline static const std::string AnyT = "Any";
+  inline static const std::string intT = "int";
+  inline static const std::string realT = "real";
+  inline static const std::string booleanT = "bool";
+  inline static const std::string voidT = "void";
+
   inline static std::unordered_map<type_id, std::string> type_id_str = {
-      {type_id::Integer, mangle_name("Integer")},
-      {type_id::Real, mangle_name("Real")},
-      {type_id::Boolean, mangle_name("Boolean")},
-      {type_id::i, mangle_name("int")},
-      {type_id::f, mangle_name("float")},
-      {type_id::b, mangle_name("bool")},
-      {type_id::Void, mangle_name("Void")},
+      {type_id::Integer, mangle_name(IntegerT)},
+      {type_id::Real, mangle_name(RealT)},
+      {type_id::Boolean, mangle_name(BooleanT)},
+      {type_id::i, mangle_name(intT)},
+      {type_id::f, mangle_name(realT)},
+      {type_id::b, mangle_name(booleanT)},
+      {type_id::Void, mangle_name(voidT)},
       {type_id::Undefined, mangle_name("/Undefined")},
+  };
+
+  inline static std::unordered_map<type_id, std::string> type_id_simple_str = {
+      {type_id::Integer, IntegerT}, {type_id::Real, RealT},
+      {type_id::Boolean, BooleanT}, {type_id::i, intT},
+      {type_id::f, realT},          {type_id::b, booleanT},
+      {type_id::Void, voidT},       {type_id::Undefined, "/Undefined"},
   };
 };
 
@@ -679,7 +704,8 @@ class expression_node : public statement_node {
                       std::shared_ptr<arguments_node>>
                 value);
 
-  std::shared_ptr<expression_ext> this_type_checking(std::shared_ptr<this_node>);
+  std::shared_ptr<expression_ext> this_type_checking(
+      std::shared_ptr<this_node>);
 
  public:
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
@@ -791,7 +817,8 @@ class variable_node : public member_node {
 class method_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
-  std::shared_ptr<type_node> return_type_ = std::make_shared<type_node>(type_id::Void);
+  std::shared_ptr<type_node> return_type_ =
+      std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
 
   bool validate() override { return true; }
