@@ -64,7 +64,7 @@ void null_node::visit(visitor::visitor* v) { v->visit(*this); }
 void base_node::visit(visitor::visitor* v) { v->visit(*this); }
 
 std::shared_ptr<variable_node> class_node::find_var_member(
-    std::shared_ptr<identifier_node> var_name) {
+    const std::shared_ptr<identifier_node>& var_name) {
   for (auto& member : members_) {
     if (auto var = std::dynamic_pointer_cast<variable_node>(member); var) {
       if (var->get_identifier()->get_name() == var_name->get_name()) {
@@ -76,7 +76,7 @@ std::shared_ptr<variable_node> class_node::find_var_member(
 }
 
 std::shared_ptr<constructor_node> class_node::find_ctr(
-    std::shared_ptr<arguments_node> args) {
+    const std::shared_ptr<arguments_node>& args) {
   for (auto& member : members_) {
     if (auto ctr = std::dynamic_pointer_cast<constructor_node>(member); ctr) {
       auto& params = ctr->get_parameters()->get_parameters();
@@ -125,8 +125,8 @@ std::shared_ptr<constructor_node> class_node::find_ctr() {
 }
 
 std::shared_ptr<method_node> class_node::find_method(
-    std::shared_ptr<identifier_node> method_name,
-    std::shared_ptr<arguments_node> args) {
+    const std::shared_ptr<identifier_node>& method_name,
+    const std::shared_ptr<arguments_node>& args) {
   for (auto& member : members_) {
     if (auto method = std::dynamic_pointer_cast<method_node>(member); method) {
       auto& params = method->get_parameters()->get_parameters();

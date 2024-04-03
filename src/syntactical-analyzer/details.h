@@ -516,6 +516,20 @@ class class_node : public ast_node,
     scope_ = std::move(scope);
   }
 
+  std::shared_ptr<method_node> find_method(
+      const std::shared_ptr<identifier_node>& method_name,
+      const std::shared_ptr<arguments_node>& args);
+  std::shared_ptr<constructor_node> find_ctr();
+  template <typename T>
+  std::shared_ptr<constructor_node> find_ctr(
+      std::shared_ptr<literal_node<T>> literal);
+
+  std::shared_ptr<constructor_node> find_ctr(
+      const std::shared_ptr<arguments_node>& args);
+
+  std::shared_ptr<variable_node> find_var_member(
+      const std::shared_ptr<identifier_node>& var_name);
+
   void visit(visitor::visitor* v) override;
 
   void print() override {
