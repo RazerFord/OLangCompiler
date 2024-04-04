@@ -1,3 +1,4 @@
+#include <string>
 #include <vector>
 
 #include "lexical-analyzer/token-generator.h"
@@ -6,13 +7,10 @@
 #include "syntactical-analyzer/tree.h"
 
 int main(int argc, char** argv) {
-  token_generator tokgen;
-
-  auto vec = tokgen.generate_token("./../tests/15_test.olg");
+  auto vec = token_generator::generate_token("./../tests/16_test.olg");
 
   auto ast = tree::make_ast(vec);
   if (ast.success()) {
-    ast.print();
     visitor::scope_visitor scope_visitor;
     ast.visit(&scope_visitor);
     scope_visitor.print_error();
@@ -23,5 +21,4 @@ int main(int argc, char** argv) {
       type_visitor.print_error();
     }
   }
-  assert(true);
 }

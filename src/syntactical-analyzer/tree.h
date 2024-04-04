@@ -19,13 +19,13 @@ class ast {
   std::shared_ptr<program_node> root_;
 
  public:
-  ast(const std::shared_ptr<program_node>& root) : root_{root} {}
+  explicit ast(const std::shared_ptr<program_node>& root) : root_{root} {}
 
   void visit(visitor::visitor* v) { root_->visit(v); }
 
   void print() const noexcept { root_->print(); }
 
-  bool success() const noexcept { return root_ != nullptr; }
+  [[nodiscard]] bool success() const noexcept { return root_ != nullptr; }
 };
 
 namespace {
@@ -680,6 +680,6 @@ inline ast make_ast(token_vector& tokens) {
   }
   ast_parser parser(valid_tokens);
 
-  return {parser.parse_program().value};
+  return ast{parser.parse_program().value};
 }
 }  // namespace tree

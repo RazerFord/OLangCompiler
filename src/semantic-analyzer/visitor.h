@@ -388,9 +388,6 @@ class type_visitor : public visitor {
 
   void visit(details::constructor_node& ctr) override {
     ctr.get_parameters()->visit(this);
-    // checking that the first expression in the constructor is "this"
-    this_checker tc(ctr.mangle_ctr(), constructor_calls_);
-    ctr.get_body()->visit(&tc);
     body_checker bc(type::voidT, *this);
     ctr.get_body()->visit(&bc);
   }
@@ -435,53 +432,6 @@ class type_visitor : public visitor {
   void print_error() const { error_.print_errors(); }
 
  private:
-  class this_checker : public visitor {
-   private:
-    const std::string scope_name_;
-    const std::unordered_map<std::string, std::string>& constructor_calls_;
-    bool is_this_ctor = false;
-    bool is_base_ctor = false;
-
-   public:
-    explicit this_checker(
-        std::string scope_name,
-        std::unordered_map<std::string, std::string>& constructor_calls)
-        : scope_name_{std::move(scope_name)},
-          constructor_calls_{constructor_calls} {}
-
-    void visit(details::body_node& b) override {
-      const auto& nodes = b.get_nodes();
-      if (!nodes.empty()) {
-        nodes[0]->visit(this);
-      }
-    }
-
-    void visit(details::expression_node& expr) override {
-      expr.get_primary()->visit(this);
-      if (is_this_ctor) {
-        // TODO:
-        // calculate mangling and
-        // uncomment
-        // std::string mangle_name = ...;
-        // constructor_calls_(scope_name_, mangle_name);
-        // std::cerr << "to add mangling" << std::endl;
-      }
-      if (is_base_ctor) {
-        // TODO:
-        // check the existence of a parent constructor
-        // uncomment
-        // std::string mangle_name = ...;
-        // constructor_calls_(scope_name_, mangle_name);
-        // std::cerr << "to add mangling" << std::endl;
-      }
-      is_this_ctor = false;
-      is_base_ctor = false;
-    }
-
-    void visit(details::this_node& t) override { is_this_ctor = true; }
-    void visit(details::base_node& b) override { is_base_ctor = true; }
-  };
-
   class body_checker : public visitor {
    private:
     const std::string ret_type_;
