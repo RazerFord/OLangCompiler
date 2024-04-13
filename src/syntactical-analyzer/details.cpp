@@ -191,7 +191,8 @@ std::shared_ptr<variable_call> literal_node<T>::literal_expression_handle() {
   auto literal = std::dynamic_pointer_cast<literal_node<T>>(shared_from_this());
   if (auto ctor = clazz->find_ctr(literal); ctor) {
     auto ctor_call = std::make_shared<constructor_call>(
-        clazz, ctor, std::vector<std::shared_ptr<ast_node>>{literal});
+        clazz, ctor, std::vector<std::shared_ptr<ast_node>>{literal},
+        clazz->get_type());
     return std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
   }
 
@@ -242,7 +243,7 @@ std::shared_ptr<expression_ext> expression_node::get_object(
   if (auto null = dynamic_cast<null_node*>(primary_.get()); null) {
     if (!expression_values.empty()) {
       error_handler.register_error(error_handling::make_error_t(
-          *null, "error: member reference base type 'null' is not class\n"));
+          *null, "error: member reference base type 'null' is not class"));
       return EMPTY_VAR;
     }
     final_object_ = std::make_shared<variable_call>(
@@ -254,10 +255,67 @@ std::shared_ptr<expression_ext> expression_node::get_object(
   final_object_ = EMPTY_VAR;
 
   bool is_ctor = false;
-  if (auto base_keyword = std::dynamic_pointer_cast<base_node>(primary_); base_keyword) {
+  if (auto base_keyword = std::dynamic_pointer_cast<base_node>(primary_);
+      base_keyword) {
+    const std::string* base_class_name;
+    if (base_class_name = scope_->get_name(scope::scope_type::Class);
+        !base_class_name) {
+      error_handler.register_error(error_handling::make_error_t(
+          *base_keyword, "error: cannot find class name"));
+      return final_object_;
+    }
+    std::shared_ptr<class_node> clazz;
+    if (clazz = std::dynamic_pointer_cast<class_node>(
+            scope_->find(*base_class_name));
+        !clazz) {
+      error_handler.register_error(error_handling::make_error_t(
+          *base_keyword, "error: cannot find class"));
+      return final_object_;
+    }
+
+    if (!clazz->get_extends()) {
+      error_handler.register_error(error_handling::make_error_t(
+          *clazz, "error: class not extends from anyone"));
+      return final_object_;
+    }
+
+    std::shared_ptr<class_node> extends_clazz;
+    if (extends_clazz = std::dynamic_pointer_cast<class_node>(
+            scope_->find(clazz->get_extends()->get_identifier()->get_name()));
+        !extends_clazz) {
+      error_handler.register_error(error_handling::make_error_t(
+          *base_keyword, "error: cannot find class of extends"));
+      return final_object_;
+    }
+
+    if (expression_values.empty() || expression_values.size() > 1 || expression_values[0].first) {
+      error_handler.register_error(error_handling::make_error_t(
+          *base_keyword, "error: invalid base constructor call"));
+      return final_object_;
+    }
+
+    if (scope_->get_type() != scope::scope_type::Constructor) {
+      error_handler.register_error(error_handling::make_error_t(
+          *base_keyword, "error: cannot call the base constructor from a method"));
+      return final_object_;
+    }
+
+    auto ctor =
+        extends_clazz->find_ctr(expression_values[0].second, error_handler);
+    auto args = get_args_objects(expression_values[0].second->get_arguments(),
+                                 error_handler);
+
+    if (!ctor) {
+      error_handler.register_error(error_handling::make_error_t(
+          *base_keyword, "error: cannot find constructor"));
+      return final_object_;
+    }
+
+    final_object_ = std::make_shared<constructor_call>(extends_clazz, ctor, args,
+                                                       std::make_shared<type_node>(type_id::BaseCall));
     return final_object_;
   } else if (auto this_keyword = std::dynamic_pointer_cast<this_node>(primary_);
-      this_keyword) {
+             this_keyword) {
     final_object_ = this_type_checking(this_keyword, error_handler);
     if (final_object_ == EMPTY_VAR) return final_object_;
   } else if (auto literal =
@@ -308,8 +366,9 @@ std::shared_ptr<expression_ext> expression_node::get_object(
             *var, "error: cannot find constructor\n"));
         return final_object_;
       }
-      
-      auto ctor_call = std::make_shared<constructor_call>(clazz, ctor, args);
+
+      auto ctor_call = std::make_shared<constructor_call>(clazz, ctor, args,
+                                                          clazz->get_type());
       final_object_ =
           std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
     }

@@ -239,6 +239,7 @@ enum class type_id {
   f,
   b,
   Null,
+  BaseCall,
 };
 
 class type_node : public ast_node {
@@ -1322,33 +1323,15 @@ class null_node : public primary_node {
 };
 
 class base_node : public primary_node {
-  std::shared_ptr<arguments_node> arguments_;
-
   bool validate() override { return true; }
 
   void generate() override {}
 
-  void fill() {
-    meta_info_.span_ = zero_span;
-    fill(arguments_);
-  }
-
-  void fill(std::shared_ptr<ast_node> node) {
-    if (node) {
-      merge_in_left(meta_info_.span_, node->get_meta_info().span_);
-    }
-  }
 
  public:
-  void set_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
-    arguments_ = std::move(arguments);
-    fill();
+  base_node(const token::keyword& i) {
+    meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
-
-  void get_arguments(std::shared_ptr<arguments_node> arguments) noexcept {
-    arguments_ = std::move(arguments);
-  }
-
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "base"; }
@@ -1385,6 +1368,7 @@ class constructor_call : public expression_ext {
   std::weak_ptr<class_node> class_;
   std::shared_ptr<constructor_node> constr_;
   std::vector<std::shared_ptr<ast_node>> arguments_;
+  std::shared_ptr<type_node> type_;
 
   bool validate() override { return true; }
 
@@ -1395,13 +1379,15 @@ class constructor_call : public expression_ext {
   constructor_call(const constructor_call& other)
       : class_(other.class_),
         constr_(other.constr_),
-        arguments_(other.arguments_) {}
+        arguments_(other.arguments_),
+        type_(other.type_) {}
   constructor_call(std::shared_ptr<class_node> clazz,
                    std::shared_ptr<constructor_node> constr,
-                   std::vector<std::shared_ptr<ast_node>> args)
-      : class_(clazz), constr_(constr), arguments_(args) {}
+                   std::vector<std::shared_ptr<ast_node>> args,
+                   std::shared_ptr<type_node> type)
+      : class_(clazz), constr_(constr), arguments_(args), type_(type) {}
 
-  std::shared_ptr<type_node> get_type() override { return class_.lock()->get_type(); }
+  std::shared_ptr<type_node> get_type() override { return type_; }
 
   // todo override
   void visit(visitor::visitor* v) override;

@@ -401,9 +401,8 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_keyword() {
       return {std::make_shared<null_node>(*null_token)};
     }
     case token_id::Base: {
-      auto base = std::make_shared<base_node>();
-      base->set_arguments(parse_arguments().value);
-      return {base};
+      auto base_token = dynamic_cast<token::keyword*>(tok.get());
+      return {std::make_shared<base_node>(*base_token)};
     }
     default:
       logger::error("raw token", tok_to_str(stream_.get_token_id()));
