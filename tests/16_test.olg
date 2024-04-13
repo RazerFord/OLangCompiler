@@ -72,14 +72,15 @@ end
 class TP1 is
     var i: Integer
     this(i: Integer) is
+        i.Plus(10000).Plus(10)
     end
 end
 
 class TP2 extends TP1 is
     this() is
+        base(10)
     end
 
     method ttt() is
-        base(10)
     end
 end

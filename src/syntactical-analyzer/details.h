@@ -711,7 +711,14 @@ class expression_node : public statement_node {
                 value);
 
   std::shared_ptr<expression_ext> this_type_checking(
-      std::shared_ptr<this_node>,
+      const std::shared_ptr<this_node>&,
+      error_handling::error_handling& error_handler);
+
+  std::shared_ptr<expression_ext> base_checking(
+      std::shared_ptr<base_node>,
+      error_handling::error_handling& error_handler);
+  std::shared_ptr<expression_ext> constr_call_checking(
+      std::shared_ptr<ast_node> constr_call, std::shared_ptr<class_node> clazz,
       error_handling::error_handling& error_handler);
 
  public:
@@ -1327,7 +1334,6 @@ class base_node : public primary_node {
 
   void generate() override {}
 
-
  public:
   base_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
@@ -1358,7 +1364,6 @@ class variable_call : public expression_ext {
   void set_type(std::shared_ptr<type_node> type) { type_ = std::move(type); }
 
   std::shared_ptr<type_node> get_type() override { return type_; }
-  // todo override
   void visit(visitor::visitor* v) override;
 
   void print() override{};
@@ -1415,7 +1420,6 @@ class method_call : public expression_ext {
     return method_->get_return_type();
   }
 
-  // todo override
   void visit(visitor::visitor* v) override;
 
   void print() override{};
@@ -1446,7 +1450,6 @@ class member_call : public expression_ext {
   std::shared_ptr<type_node> get_type() override {
     return member_ref_->get_type();
   }
-  // todo override
   void visit(visitor::visitor* v) override;
 
   void print() override{};
