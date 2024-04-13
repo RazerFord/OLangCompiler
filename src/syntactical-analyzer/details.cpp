@@ -308,7 +308,7 @@ std::shared_ptr<expression_ext> expression_node::get_object(
             *var, "error: cannot find constructor\n"));
         return final_object_;
       }
-
+      
       auto ctor_call = std::make_shared<constructor_call>(clazz, ctor, args);
       final_object_ =
           std::make_shared<variable_call>(ctor_call, ctor_call->get_type());

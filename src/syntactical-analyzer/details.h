@@ -1382,7 +1382,7 @@ class variable_call : public expression_ext {
 };
 
 class constructor_call : public expression_ext {
-  std::shared_ptr<class_node> class_;
+  std::weak_ptr<class_node> class_;
   std::shared_ptr<constructor_node> constr_;
   std::vector<std::shared_ptr<ast_node>> arguments_;
 
@@ -1401,7 +1401,7 @@ class constructor_call : public expression_ext {
                    std::vector<std::shared_ptr<ast_node>> args)
       : class_(clazz), constr_(constr), arguments_(args) {}
 
-  std::shared_ptr<type_node> get_type() override { return class_->get_type(); }
+  std::shared_ptr<type_node> get_type() override { return class_.lock()->get_type(); }
 
   // todo override
   void visit(visitor::visitor* v) override;
@@ -1410,7 +1410,7 @@ class constructor_call : public expression_ext {
 };
 
 class method_call : public expression_ext {
-  std::shared_ptr<class_node> clazz_;
+  std::weak_ptr<class_node> clazz_;
   std::shared_ptr<method_node> method_;
   std::vector<std::shared_ptr<ast_node>> arguments_;
 
