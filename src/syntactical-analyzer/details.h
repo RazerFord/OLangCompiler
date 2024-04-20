@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "./../lexical-analyzer/token.h"
+#include "lexical-analyzer/token.h"
 #include "lexical-analyzer/token-code.h"
 
 namespace scope {

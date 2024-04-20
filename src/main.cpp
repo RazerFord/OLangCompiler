@@ -5,6 +5,7 @@
 #include "lexical-analyzer/token.h"
 #include "semantic-analyzer/visitor.h"
 #include "syntactical-analyzer/tree.h"
+#include "codegen/ir_visitor.h"
 
 int main(int argc, char** argv) {
   for(int i = 1; i <= 16; ++i) {
@@ -21,6 +22,10 @@ int main(int argc, char** argv) {
         visitor::type_visitor type_visitor;
         ast.visit(&type_visitor);
         type_visitor.print_error();
+
+        ir_visitor::ir_visitor ir;
+
+        ast.visit(&ir);
       }
     }
     details::type_node::types_.clear();

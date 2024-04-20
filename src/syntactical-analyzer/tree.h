@@ -3,10 +3,10 @@
 #include <memory>
 #include <vector>
 
-#include "./../lexical-analyzer/token-code.h"
-#include "./../lexical-analyzer/token.h"
-#include "./../logging/logger.h"
-#include "./../semantic-analyzer/visitor.h"
+#include "lexical-analyzer/token-code.h"
+#include "lexical-analyzer/token.h"
+#include "logging/logger.h"
+#include "visitor/visitor.h"
 #include "details.h"
 #include "syntactical-analyzer/token_stream.h"
 

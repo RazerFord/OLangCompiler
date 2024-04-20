@@ -2,7 +2,7 @@
 #include <memory>
 #include <vector>
 
-#include "./../lexical-analyzer/token.h"
+#include "lexical-analyzer/token.h"
 #include "lexical-analyzer/token-code.h"
 
 class token_stream {

@@ -3,7 +3,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "./../syntactical-analyzer/details.h"
+#include "syntactical-analyzer/details.h"
 
 namespace scope {
 enum class scope_type {
