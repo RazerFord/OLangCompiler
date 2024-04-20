@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
 
 #include <cstddef>
@@ -880,6 +881,7 @@ class method_node : public member_node {
       std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
   llvm::FunctionType* method_type_;
+  llvm::Function* method_;
 
   bool validate() override { return true; }
 
@@ -939,6 +941,12 @@ class method_node : public member_node {
   }
 
   llvm::FunctionType* get_method_type() const noexcept { return method_type_; }
+
+  void set_method(llvm::Function* method) {
+    method_ = method;
+  }
+
+  llvm::Function* get_method() const noexcept { return method_; }
 
   void visit(visitor::visitor* v) override;
 

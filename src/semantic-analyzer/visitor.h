@@ -315,6 +315,7 @@ class type_visitor : public semantic_visitor {
     }
     type_casting_["Super"]["Any"] = true;
     transitive(type_casting_);
+    p.set_type_casting(type_casting_);
     for (const auto& cls : p.get_classes()) {
       cls->visit(this);
     }
