@@ -199,7 +199,8 @@ class ir_visitor : public visitor::visitor {
             *ir_visitor_->ctx_, llvm::StringRef(cls_name));
         params.push_back(ptr_cls);
       }
-      auto ret_type = llvm::Type::getVoidTy(*ir_visitor_->ctx_);
+      const std::string* name = c.get_scope()->get_name(scope::scope_type::Class);
+      auto ret_type = llvm::StructType::getTypeByName(*ir_visitor_->ctx_, llvm::StringRef(*name));
 
       llvm::FunctionType* ptr_func_type =
           llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);

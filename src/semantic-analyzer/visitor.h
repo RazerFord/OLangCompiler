@@ -143,6 +143,7 @@ class scope_visitor : public semantic_visitor {
     auto sym = std::make_shared<scope::scope_symbol>();
     scope_ =
         scope_->push(sym, ctr.mangle_ctr(), scope::scope_type::Constructor);
+    ctr.set_scope(scope_);
     for (const auto& p : ctr.get_parameters()->get_parameters()) {
       std::string key = p->get_identifier()->get_name();
       if ((*sym)[key]) {
