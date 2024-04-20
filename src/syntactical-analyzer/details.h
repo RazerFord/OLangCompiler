@@ -583,9 +583,7 @@ class class_node : public ast_node {
     scope_ = std::move(scope);
   }
 
-  void set_class_type(llvm::Type* class_type) {
-    class_type_ = class_type;
-  }
+  void set_class_type(llvm::Type* class_type) { class_type_ = class_type; }
 
   std::shared_ptr<method_node> find_method(
       const std::shared_ptr<identifier_node>& method_name,
@@ -634,6 +632,8 @@ class class_node : public ast_node {
 class program_node : public ast_node {
   std::vector<std::shared_ptr<class_node>> classes_;
   std::shared_ptr<scope::scope> scope_;
+  std::unordered_map<std::string, std::unordered_map<std::string, bool>>
+      type_casting_;
 
   bool validate() override { return true; }
 
@@ -648,7 +648,7 @@ class program_node : public ast_node {
     }
   }
 
-  void fill(std::shared_ptr<ast_node> node) {
+  void fill(const std::shared_ptr<ast_node>& node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -663,6 +663,17 @@ class program_node : public ast_node {
   void add_class(std::shared_ptr<class_node> class_) {
     fill(class_);
     classes_.push_back(std::move(class_));
+  }
+
+  void set_type_casting(
+      std::unordered_map<std::string, std::unordered_map<std::string, bool>>
+          type_casting) {
+    type_casting_ = std::move(type_casting);
+  }
+
+  const std::unordered_map<std::string, std::unordered_map<std::string, bool>>&
+  get_type_casting() const noexcept {
+    return type_casting_;
   }
 
   void visit(visitor::visitor* v) override;
@@ -686,21 +697,19 @@ class statement_node : public ast_node {};
 
 class expression_ext : public ast_node {
   llvm::Value* value_;
+
  public:
   virtual ~expression_ext() {}
   virtual std::shared_ptr<type_node> get_type() = 0;
 
-  virtual void set_value(llvm::Value* value) {
-    value_ = value;
-  }
+  virtual void set_value(llvm::Value* value) { value_ = value; }
 
-  virtual llvm::Value* get_value() const noexcept {
-    return value_;
-  }
+  virtual llvm::Value* get_value() const noexcept { return value_; }
 };
 
 class expression_node : public statement_node {
   llvm::Value* value_;
+
  private:
   using value_type = std::vector<std::pair<std::shared_ptr<identifier_node>,
                                            std::shared_ptr<arguments_node>>>;
@@ -762,9 +771,7 @@ class expression_node : public statement_node {
   void set_scope(std::shared_ptr<scope::scope> scope) noexcept {
     scope_ = std::move(scope);
   }
-  void set_value(llvm::Value* value) {
-    value_ = value;
-  }
+  void set_value(llvm::Value* value) { value_ = value; }
   void add_value(std::pair<std::shared_ptr<identifier_node>,
                            std::shared_ptr<arguments_node>>
                      value) noexcept {
@@ -795,9 +802,7 @@ class expression_node : public statement_node {
   std::shared_ptr<expression_ext> get_object(
       error_handling::error_handling& error_handler);
 
-  llvm::Value* get_value() const noexcept {
-    return value_;
-  }
+  llvm::Value* get_value() const noexcept { return value_; }
 };
 
 class variable_node : public member_node {
@@ -851,9 +856,7 @@ class variable_node : public member_node {
     if (expression_) expression_->set_scope(scope_);
   }
 
-  void set_value(llvm::Value* value) {
-    value_ = value;
-  }
+  void set_value(llvm::Value* value) { value_ = value; }
 
   void visit(visitor::visitor* v) override;
 

@@ -26,12 +26,23 @@ class ir_visitor : public visitor::visitor {
 
  public:
   void visit(details::program_node& p) override {
+    register_types(p);
+    register_members(p);
+    register_vtables(p);
+    module_->dump();
+  }
+
+ private:
+  void register_types(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
       name = PrefixVTable + c->get_class_name()->get_identifier()->get_name();
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
     }
+  }
+
+  void register_members(details::program_node& p) {
     for (auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
       llvm::StructType* ptr_cls =
@@ -60,8 +71,12 @@ class ir_visitor : public visitor::visitor {
       }
       ptr_cls->setBody(llvm::ArrayRef(body));
     }
+  }
+
+  void register_vtables(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
-      std::string name = PrefixVTable + c->get_class_name()->get_identifier()->get_name();
+      std::string name =
+          PrefixVTable + c->get_class_name()->get_identifier()->get_name();
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
       llvm::StructType* ptr_cls =
           llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
@@ -70,10 +85,8 @@ class ir_visitor : public visitor::visitor {
           llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name))
               ->getPointerTo();
     }
-    module_->dump();
   }
 
- private:
   class member_variable_visitor : public visitor::visitor {
    private:
     std::vector<llvm::Type*>* const body_ = nullptr;
@@ -100,9 +113,8 @@ class ir_visitor : public visitor::visitor {
     const ir_visitor* ir_visitor_ = nullptr;
 
    public:
-    explicit member_method_visitor(
-        std::vector<llvm::Type*>* const methods,
-        const ir_visitor* ir_visitor)
+    explicit member_method_visitor(std::vector<llvm::Type*>* const methods,
+                                   const ir_visitor* ir_visitor)
         : methods_{methods}, ir_visitor_{ir_visitor} {}
 
     void visit(details::method_node& f) override {
@@ -154,11 +166,9 @@ class ir_visitor : public visitor::visitor {
     }
   };
 
-  class body_visitor: public visitor::visitor {
+  class body_visitor : public visitor::visitor {
    public:
-    void visit(details::expression_node& expression) override {
-
-    }
+    void visit(details::expression_node& expression) override {}
   };
 };
 }  // namespace ir_visitor
