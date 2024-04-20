@@ -37,12 +37,19 @@ class ir_visitor : public visitor::visitor {
       llvm::PointerType* ptrVTable =
           module_->getTypeByName(llvm::StringRef(name))->getPointerTo();
 
+      // adding all types to a class
       std::vector<llvm::Type*> body{ptrVTable};
       member_variable_visitor mvv(&body, this);
       for (const auto& m : c->get_members()) {
         m->visit(&mvv);
       }
       ptrCls->setBody(llvm::ArrayRef(body));
+
+      // adding all methods to a class
+      member_method_visitor mmv(this);
+      for (const auto& m : c->get_members()) {
+        m->visit(&mvv);
+      }
     }
     std::string outstr;
     llvm::raw_string_ostream oss(outstr);
@@ -56,7 +63,6 @@ class ir_visitor : public visitor::visitor {
    private:
     std::vector<llvm::Type*>* const body_ = nullptr;
     const ir_visitor* ir_visitor_ = nullptr;
-    int count = 0;
 
    public:
     explicit member_variable_visitor(std::vector<llvm::Type*>* const body,
@@ -75,22 +81,14 @@ class ir_visitor : public visitor::visitor {
 
   class member_method_visitor : public visitor::visitor {
    private:
-    std::vector<llvm::Type*>* const body_ = nullptr;
     const ir_visitor* ir_visitor_ = nullptr;
-    int count = 0;
 
    public:
-    explicit member_method_visitor(std::vector<llvm::Type*>* const body,
-                                     const ir_visitor* ir_visitor)
-        : body_{body}, ir_visitor_{ir_visitor} {}
+    explicit member_method_visitor(const ir_visitor* ir_visitor)
+        : ir_visitor_{ir_visitor} {}
 
-    void visit(details::variable_node& v) override {
-      std::string cls_name{
-          v.get_type()->get_class_name()->get_identifier()->get_name()};
-      llvm::Type* ptrCls =
-          ir_visitor_->module_->getTypeByName(llvm::StringRef(cls_name))
-              ->getPointerTo();
-      body_->push_back(ptrCls);
+    void visit(details::method_node& f) override {
+
     }
   };
 };
