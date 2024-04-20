@@ -29,6 +29,7 @@ class ir_visitor : public visitor::visitor {
     register_types(p);
     register_members(p);
     register_vtables(p);
+
     module_->dump();
   }
 
@@ -39,7 +40,7 @@ class ir_visitor : public visitor::visitor {
   }
 
   inline static std::vector<std::shared_ptr<details::member_node>> linelize(
-      details::program_node& p, std::shared_ptr<details::class_node> c) {
+      details::program_node& p, const std::shared_ptr<details::class_node>& c) {
     auto& tc = p.get_type_casting();
     std::string main_type = c->get_class_name()->get_identifier()->get_name();
     auto& ts1 = tc.at(main_type);
