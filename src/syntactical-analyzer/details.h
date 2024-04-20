@@ -585,6 +585,8 @@ class class_node : public ast_node {
 
   void set_class_type(llvm::Type* class_type) { class_type_ = class_type; }
 
+  llvm::Type* get_class_type() const noexcept { return class_type_; }
+
   std::shared_ptr<method_node> find_method(
       const std::shared_ptr<identifier_node>& method_name,
       const std::shared_ptr<arguments_node>& args,
@@ -648,7 +650,7 @@ class program_node : public ast_node {
     }
   }
 
-  void fill(const std::shared_ptr<ast_node>& node) {
+  void fill(std::shared_ptr<ast_node> node) {
     if (node) {
       merge_in_left(meta_info_.span_, node->get_meta_info().span_);
     }
@@ -771,7 +773,10 @@ class expression_node : public statement_node {
   void set_scope(std::shared_ptr<scope::scope> scope) noexcept {
     scope_ = std::move(scope);
   }
+
   void set_value(llvm::Value* value) { value_ = value; }
+
+  llvm::Value* get_value() const noexcept { return value_; }
   void add_value(std::pair<std::shared_ptr<identifier_node>,
                            std::shared_ptr<arguments_node>>
                      value) noexcept {
@@ -801,8 +806,6 @@ class expression_node : public statement_node {
 
   std::shared_ptr<expression_ext> get_object(
       error_handling::error_handling& error_handler);
-
-  llvm::Value* get_value() const noexcept { return value_; }
 };
 
 class variable_node : public member_node {
@@ -857,6 +860,8 @@ class variable_node : public member_node {
   }
 
   void set_value(llvm::Value* value) { value_ = value; }
+
+  llvm::Value* get() const noexcept { return value_; }
 
   void visit(visitor::visitor* v) override;
 
@@ -932,6 +937,8 @@ class method_node : public member_node {
   void set_method_type(llvm::FunctionType* method_type) {
     method_type_ = method_type;
   }
+
+  llvm::FunctionType* get_method_type() const noexcept { return method_type_; }
 
   void visit(visitor::visitor* v) override;
 
@@ -1009,6 +1016,8 @@ class constructor_node : public member_node {
   void set_constr_type(llvm::FunctionType* constr_type) {
     constr_type_ = constr_type;
   }
+
+  llvm::FunctionType* get_constr_type() const noexcept { return constr_type_; }
 
   void visit(visitor::visitor* v) override;
 
