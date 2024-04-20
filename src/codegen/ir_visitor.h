@@ -10,6 +10,7 @@
 #include "visitor/visitor.h"
 
 inline constexpr std::string ModuleName = "Main";
+inline constexpr std::string CtorName = "<init>";
 inline constexpr std::string PrefixNameMemberVar = "_var";
 inline constexpr std::string PrefixVTable = "__VTable";
 
@@ -119,6 +120,23 @@ class ir_visitor : public visitor::visitor {
       llvm::Function::Create(
           ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
           f.get_identifier()->get_name(), *ir_visitor_->module_);
+    }
+
+    void visit(details::constructor_node& c) override {
+      std::vector<llvm::Type*> params;
+      for (const auto& p : c.get_parameters()->get_parameters()) {
+        std::string cls_name = p->get_type()->simple_type();
+        llvm::Type* ptr_cls = llvm::StructType::getTypeByName(
+            *ir_visitor_->ctx_, llvm::StringRef(cls_name));
+        params.push_back(ptr_cls);
+      }
+      auto ret_type = llvm::Type::getVoidTy(*ir_visitor_->ctx_);
+
+      llvm::FunctionType* ptr_func_type =
+          llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
+      llvm::Function::Create(ptr_func_type,
+                             llvm::Function::LinkageTypes::ExternalLinkage,
+                             CtorName, *ir_visitor_->module_);
     }
   };
 };
