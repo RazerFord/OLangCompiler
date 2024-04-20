@@ -48,7 +48,7 @@ class ir_visitor : public visitor::visitor {
       // adding all methods to a class
       member_method_visitor mmv(this);
       for (const auto& m : c->get_members()) {
-        m->visit(&mvv);
+        m->visit(&mmv);
       }
     }
     std::string outstr;
