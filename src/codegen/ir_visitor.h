@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -32,23 +33,30 @@ class ir_visitor : public visitor::visitor {
     }
     for (const auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
-      llvm::StructType* ptrCls = module_->getTypeByName(llvm::StringRef(name));
+      llvm::StructType* ptr_cls =
+          llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
       name = PrefixVTable + c->get_class_name()->get_identifier()->get_name();
       llvm::PointerType* ptrVTable =
-          module_->getTypeByName(llvm::StringRef(name))->getPointerTo();
+          llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name))
+              ->getPointerTo();
 
       // adding all types to a class
-      std::vector<llvm::Type*> body{ptrVTable};
-      member_variable_visitor mvv(&body, this);
-      for (const auto& m : c->get_members()) {
-        m->visit(&mvv);
+      {
+        std::vector<llvm::Type*> body{ptrVTable};
+        member_variable_visitor mvv(&body, this);
+        for (const auto& m : c->get_members()) {
+          m->visit(&mvv);
+        }
+        ptr_cls->setBody(llvm::ArrayRef(body));
       }
-      ptrCls->setBody(llvm::ArrayRef(body));
 
       // adding all methods to a class
-      member_method_visitor mmv(this);
-      for (const auto& m : c->get_members()) {
-        m->visit(&mmv);
+      {
+        std::vector<llvm::FunctionType*> body{};
+        member_method_visitor mmv(&body, this);
+        for (const auto& m : c->get_members()) {
+          m->visit(&mmv);
+        }
       }
     }
     std::string outstr;
@@ -72,23 +80,45 @@ class ir_visitor : public visitor::visitor {
     void visit(details::variable_node& v) override {
       std::string cls_name{
           v.get_type()->get_class_name()->get_identifier()->get_name()};
-      llvm::Type* ptrCls =
-          ir_visitor_->module_->getTypeByName(llvm::StringRef(cls_name))
-              ->getPointerTo();
+      llvm::Type* ptrCls = llvm::StructType::getTypeByName(
+                               *ir_visitor_->ctx_, llvm::StringRef(cls_name))
+                               ->getPointerTo();
       body_->push_back(ptrCls);
     }
   };
 
   class member_method_visitor : public visitor::visitor {
    private:
+    std::vector<llvm::FunctionType*>* const methods_ = nullptr;
     const ir_visitor* ir_visitor_ = nullptr;
 
    public:
-    explicit member_method_visitor(const ir_visitor* ir_visitor)
-        : ir_visitor_{ir_visitor} {}
+    explicit member_method_visitor(
+        std::vector<llvm::FunctionType*>* const methods,
+        const ir_visitor* ir_visitor)
+        : methods_{methods}, ir_visitor_{ir_visitor} {}
 
     void visit(details::method_node& f) override {
+      std::vector<llvm::Type*> params;
+      for (const auto& p : f.get_parameters()->get_parameters()) {
+        std::string cls_name = p->get_type()->simple_type();
+        llvm::Type* ptr_cls = llvm::StructType::getTypeByName(
+            *ir_visitor_->ctx_, llvm::StringRef(cls_name));
+        params.push_back(ptr_cls);
+      }
+      std::string ret_type_name = f.get_return_type()->simple_type();
+      llvm::Type* ret_type = llvm::StructType::getTypeByName(
+          *ir_visitor_->ctx_, llvm::StringRef(ret_type_name));
 
+      if (!ret_type) {
+        ret_type = llvm::Type::getVoidTy(*ir_visitor_->ctx_);
+      }
+
+      llvm::FunctionType* ptr_func_type =
+          llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
+      llvm::Function::Create(
+          ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
+          f.get_identifier()->get_name(), *ir_visitor_->module_);
     }
   };
 };
