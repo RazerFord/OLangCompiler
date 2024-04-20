@@ -1371,7 +1371,7 @@ class variable_call : public expression_ext {
 
 class constructor_call : public expression_ext {
   std::weak_ptr<class_node> class_;
-  std::shared_ptr<constructor_node> constr_;
+  std::weak_ptr<constructor_node> constr_;
   std::vector<std::shared_ptr<ast_node>> arguments_;
   std::shared_ptr<type_node> type_;
 
@@ -1402,7 +1402,7 @@ class constructor_call : public expression_ext {
 
 class method_call : public expression_ext {
   std::weak_ptr<class_node> clazz_;
-  std::shared_ptr<method_node> method_;
+  std::weak_ptr<method_node> method_;
   std::vector<std::shared_ptr<ast_node>> arguments_;
 
   bool validate() override { return true; }
@@ -1417,7 +1417,7 @@ class method_call : public expression_ext {
       : clazz_(clazz), method_(method), arguments_(args) {}
 
   std::shared_ptr<type_node> get_type() override {
-    return method_->get_return_type();
+    return method_.lock()->get_return_type();
   }
 
   void visit(visitor::visitor* v) override;
