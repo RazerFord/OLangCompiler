@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
 
 #include <cstddef>
@@ -773,6 +774,11 @@ class expression_node : public statement_node {
   llvm::Value* get_value() const noexcept{
     return value_;
   }
+
+  std::shared_ptr<expression_ext> get_final_object() const noexcept {
+    return final_object_;
+  }
+
   void add_value(std::pair<std::shared_ptr<identifier_node>,
                            std::shared_ptr<arguments_node>>
                      value) noexcept {
@@ -803,9 +809,6 @@ class expression_node : public statement_node {
   std::shared_ptr<expression_ext> get_object(
       error_handling::error_handling& error_handler);
 
-  llvm::Value* get_value() const noexcept {
-    return value_;
-  }
 };
 
 class variable_node : public member_node {
@@ -883,7 +886,7 @@ class method_node : public member_node {
   std::shared_ptr<type_node> return_type_ =
       std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
-  llvm::FunctionType* method_type_;
+  llvm::Function* method_value_;
 
   bool validate() override { return true; }
 
@@ -938,12 +941,12 @@ class method_node : public member_node {
     fill();
   }
 
-  void set_method_type(llvm::FunctionType* method_type) {
-    method_type_ = method_type;
+  void set_method_value(llvm::Function* method) {
+    method_value_ = method;
   }
 
-  llvm::FunctionType* get_method_type() const noexcept {
-    return method_type_;
+  llvm::Function* get_method_value() const noexcept {
+    return method_value_;
   }
 
   void visit(visitor::visitor* v) override;
@@ -975,7 +978,7 @@ class constructor_node : public member_node {
   std::shared_ptr<parameters_node> parameters_;
   std::shared_ptr<body_node> body_;
   std::shared_ptr<scope::scope> scope_;
-  llvm::FunctionType* constr_type_;
+  llvm::Function* constr_value_;
 
   bool validate() override { return true; }
 
@@ -1019,12 +1022,12 @@ class constructor_node : public member_node {
     scope_ = std::move(scope);
   }
 
-  void set_constr_type(llvm::FunctionType* constr_type) {
-    constr_type_ = constr_type;
+  void set_constr_type(llvm::Function* constr_value) {
+    constr_value_ = constr_value;
   }
 
-  llvm::FunctionType* get_constr_type() const noexcept {
-    return constr_type_;
+  llvm::Function* get_constr_value() const noexcept {
+    return constr_value_;
   }
 
   void visit(visitor::visitor* v) override;
@@ -1457,6 +1460,13 @@ class constructor_call : public expression_ext {
   void visit(visitor::visitor* v) override;
 
   void print() override{};
+
+  std::shared_ptr<constructor_node> get_constructor() const noexcept {
+    return constr_.lock();
+  }
+  std::vector<std::shared_ptr<ast_node>> get_arguments() const noexcept {
+    return arguments_;
+  }
 };
 
 class method_call : public expression_ext {

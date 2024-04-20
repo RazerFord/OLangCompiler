@@ -23,6 +23,7 @@ class ir_visitor : public visitor::visitor {
       std::make_unique<llvm::IRBuilder<>>(*ctx_);
   std::unique_ptr<llvm::Module> module_ =
       std::make_unique<llvm::Module>(ModuleName, *ctx_);
+  std::unordered_map<std::string, llvm::Value*> var_env;
 
  public:
   void visit(details::program_node& p) override {
@@ -123,12 +124,12 @@ class ir_visitor : public visitor::visitor {
 
       llvm::FunctionType* ptr_func_type =
           llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
-      f.set_method_type(ptr_func_type);
 
-      llvm::Function::Create(
+      auto func_value_ptr = llvm::Function::Create(
           ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
           f.get_identifier()->get_name(), *ir_visitor_->module_);
 
+      f.set_method_value(func_value_ptr);
       methods_->push_back(ptr_func_type);
     }
 
@@ -144,20 +145,52 @@ class ir_visitor : public visitor::visitor {
 
       llvm::FunctionType* ptr_func_type =
           llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
-      c.set_constr_type(ptr_func_type);
 
-      llvm::Function::Create(ptr_func_type,
+      auto func_value_ptr = llvm::Function::Create(ptr_func_type,
                              llvm::Function::LinkageTypes::ExternalLinkage,
                              CtorName, *ir_visitor_->module_);
 
+      c.set_constr_type(func_value_ptr);
       methods_->push_back(ptr_func_type);
     }
   };
 
-  class body_visitor: public visitor::visitor {
-   public:
-    void visit(details::expression_node& expression) override {
+  class func_def_visitor: public visitor::visitor {
+    const ir_visitor* ir_visitor_ = nullptr;
+  };
 
+
+  class body_visitor: public visitor::visitor {
+    ir_visitor* ir_visitor_ = nullptr;
+   public:
+    body_visitor(ir_visitor* ir_visitor): ir_visitor_{ir_visitor} {}
+
+    void visit(details::expression_node& expression) override {
+      expression.get_final_object()->visit(this);
+      expression.set_value(expression.get_final_object()->get_value());
+    }
+
+    void visit(details::constructor_call& constr_call) override {
+      auto func = constr_call.get_constructor()->get_constr_value();
+      llvm::BasicBlock* entry_basic_block = llvm::BasicBlock::Create(*ir_visitor_->ctx_, "entry", func);
+      ir_visitor_->builder_->SetInsertPoint(entry_basic_block);
+
+      ir_visitor_->var_env.clear();
+      auto constr = constr_call.get_constructor();
+      for (auto& param: func->args()) {
+        int paramNo = param.getArgNo();
+        std::string param_name = constr->get_parameters()->get_parameters()[paramNo]->get_identifier()->get_name();
+        llvm::Type *paramType = func->getFunctionType()->getParamType(paramNo);
+        ir_visitor_->var_env[param_name] =
+            ir_visitor_->builder_->CreateAlloca(paramType, nullptr, llvm::Twine(param_name));
+        ir_visitor_->builder_->CreateStore(&param, ir_visitor_->var_env[param_name]);
+      }
+    }
+
+
+   private:
+    llvm::Value* create_object(details::constructor_call& constr_call) {
+      return nullptr;
     }
   };
 };
