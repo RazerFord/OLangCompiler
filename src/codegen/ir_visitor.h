@@ -31,10 +31,11 @@ class ir_visitor : public visitor::visitor {
       name = PrefixVTable + c->get_class_name()->get_identifier()->get_name();
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
     }
-    for (const auto& c : p.get_classes()) {
+    for (auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
       llvm::StructType* ptr_cls =
           llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
+      c->set_class_type(ptr_cls);
       name = PrefixVTable + c->get_class_name()->get_identifier()->get_name();
       llvm::PointerType* ptrVTable =
           llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name))
@@ -119,6 +120,15 @@ class ir_visitor : public visitor::visitor {
       llvm::Function::Create(
           ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
           f.get_identifier()->get_name(), *ir_visitor_->module_);
+
+      f.set_method_type(ptr_func_type);
+    }
+  };
+
+  class body_visitor: public visitor::visitor {
+   public:
+    void visit(details::expression_node& expression) override {
+
     }
   };
 };

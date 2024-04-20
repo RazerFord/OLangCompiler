@@ -1,5 +1,8 @@
 #pragma once
 
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Type.h>
+
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -7,8 +10,8 @@
 #include <utility>
 #include <vector>
 
-#include "lexical-analyzer/token.h"
 #include "lexical-analyzer/token-code.h"
+#include "lexical-analyzer/token.h"
 
 namespace scope {
 class scope;
@@ -514,6 +517,7 @@ class class_node : public ast_node {
   std::shared_ptr<type_node> extends_;
   std::vector<std::shared_ptr<member_node>> members_;
   std::shared_ptr<scope::scope> scope_;
+  llvm::Type* class_type_;
 
   bool validate() override { return true; }
 
@@ -577,6 +581,10 @@ class class_node : public ast_node {
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
+  }
+
+  void set_class_type(llvm::Type* class_type) {
+    class_type_ = class_type;
   }
 
   std::shared_ptr<method_node> find_method(
@@ -677,12 +685,22 @@ class program_node : public ast_node {
 class statement_node : public ast_node {};
 
 class expression_ext : public ast_node {
+  llvm::Value* value_;
  public:
   virtual ~expression_ext() {}
   virtual std::shared_ptr<type_node> get_type() = 0;
+
+  virtual void set_value(llvm::Value* value) {
+    value_ = value;
+  }
+
+  virtual llvm::Value* get_value() const noexcept {
+    return value_;
+  }
 };
 
 class expression_node : public statement_node {
+  llvm::Value* value_;
  private:
   using value_type = std::vector<std::pair<std::shared_ptr<identifier_node>,
                                            std::shared_ptr<arguments_node>>>;
@@ -744,7 +762,9 @@ class expression_node : public statement_node {
   void set_scope(std::shared_ptr<scope::scope> scope) noexcept {
     scope_ = std::move(scope);
   }
-
+  void set_value(llvm::Value* value) {
+    value_ = value;
+  }
   void add_value(std::pair<std::shared_ptr<identifier_node>,
                            std::shared_ptr<arguments_node>>
                      value) noexcept {
@@ -774,12 +794,17 @@ class expression_node : public statement_node {
 
   std::shared_ptr<expression_ext> get_object(
       error_handling::error_handling& error_handler);
+
+  llvm::Value* get_value() const noexcept {
+    return value_;
+  }
 };
 
 class variable_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<expression_node> expression_;
   std::shared_ptr<scope::scope> scope_;
+  llvm::Value* value_;
 
   void fill() {
     meta_info_.span_ = zero_span;
@@ -826,6 +851,10 @@ class variable_node : public member_node {
     if (expression_) expression_->set_scope(scope_);
   }
 
+  void set_value(llvm::Value* value) {
+    value_ = value;
+  }
+
   void visit(visitor::visitor* v) override;
 
   void print() override {
@@ -842,6 +871,7 @@ class method_node : public member_node {
   std::shared_ptr<type_node> return_type_ =
       std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
+  llvm::FunctionType* method_type_;
 
   bool validate() override { return true; }
 
@@ -896,6 +926,10 @@ class method_node : public member_node {
     fill();
   }
 
+  void set_method_type(llvm::FunctionType* method_type) {
+    method_type_ = method_type;
+  }
+
   void visit(visitor::visitor* v) override;
 
   void print() override {
@@ -925,6 +959,7 @@ class constructor_node : public member_node {
   std::shared_ptr<parameters_node> parameters_;
   std::shared_ptr<body_node> body_;
   std::shared_ptr<scope::scope> scope_;
+  llvm::FunctionType* constr_type_;
 
   bool validate() override { return true; }
 
@@ -966,6 +1001,10 @@ class constructor_node : public member_node {
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
+  }
+
+  void set_constr_type(llvm::FunctionType* constr_type) {
+    constr_type_ = constr_type;
   }
 
   void visit(visitor::visitor* v) override;
