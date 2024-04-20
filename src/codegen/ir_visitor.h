@@ -59,11 +59,17 @@ class ir_visitor : public visitor::visitor {
       }
       ptr_cls->setBody(llvm::ArrayRef(body));
     }
-    std::string outstr;
-    llvm::raw_string_ostream oss(outstr);
-
-    module_->print(oss, nullptr, true, true);
-    std::cout << outstr << std::endl;
+    for (const auto& c : p.get_classes()) {
+      std::string name = PrefixVTable + c->get_class_name()->get_identifier()->get_name();
+      llvm::StructType::create(*ctx_, llvm::StringRef(name));
+      llvm::StructType* ptr_cls =
+          llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
+      name = PrefixVTable + c->get_class_name()->get_identifier()->get_name();
+      llvm::PointerType* ptrVTable =
+          llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name))
+              ->getPointerTo();
+    }
+    module_->dump();
   }
 
  private:
