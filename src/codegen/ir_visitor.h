@@ -32,6 +32,7 @@ class ir_visitor : public visitor::visitor {
     register_types(p);
     register_members(p);
     register_vtables(p);
+    generate_def_funcs(p);
 
     module_->dump();
   }
@@ -135,6 +136,16 @@ class ir_visitor : public visitor::visitor {
       auto global_table = module_->getNamedGlobal(vtable);
       global_table->setInitializer(
           llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
+    }
+  }
+
+  void generate_def_funcs(details::program_node& p) {
+    func_def_visitor fdv(this);
+
+    for (const auto& c : p.get_classes()) {
+      for (const auto& m : c->get_members()) {
+        m->visit(&fdv);
+      }
     }
   }
 
@@ -294,7 +305,8 @@ class ir_visitor : public visitor::visitor {
       }
 
       // generate expr  and set return value
-      body_visitor bd_visitor(ir_visitor_);;
+      body_visitor bd_visitor(ir_visitor_);
+      ;
       constr.get_body()->visit(&bd_visitor);
       llvm::verifyFunction(*func_value);
     }
