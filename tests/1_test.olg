@@ -12,37 +12,10 @@ class Integer is
   this(i: int) is
   end
 
-  this(i: Integer) is
+  this(i: Hello) is
   end
 end
 
-class Real is
-  this() is
-  end
-
-  this(i: real) is
-  end
-
-  this(i: Real) is
-  end
-end
-
-class Boolean is
-  this() is
-  end
-
-  this(b: bool) is
-  end
-
-  this(b: Boolean) is
-  end
-end
 
 class Hello is
-  var i : Integer(42)
-  var j : Real(0.0)
-  var k : true
-
-  this() is
-  end
 end

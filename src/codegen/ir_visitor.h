@@ -278,7 +278,6 @@ class ir_visitor : public visitor::visitor {
 //            func_value->getReturnType(), nullptr, "return.value");
 //      }
 
-
       // generate expr  and set return value
       body_visitor bd_visitor(ir_visitor_);
       constr.get_body()->visit(&bd_visitor);
@@ -295,19 +294,15 @@ class ir_visitor : public visitor::visitor {
       for (auto& param : func_value->args()) {
         size_t paramNo = param.getArgNo();
         if (paramNo == 0) {
-//          ir_visitor_->var_env["this"] = param.getParamByValType().
+          ir_visitor_->var_env["this"] = &param;
           continue;
         }
 
-        std::string param_name =
-            parameters[paramNo - 1]->get_identifier()->get_name();
-        llvm::Type* param_type = param.getParamByRefType();
-        if (param_type == nullptr) {
-          std::cout << "Type is NULL\n";
-          continue;
-        }
+        auto param_name = parameters[paramNo - 1]->get_identifier()->get_name();
+        param.setName(param_name);
+        llvm::Type* param_type = param.getType();
         ir_visitor_->var_env[param_name] = ir_visitor_->builder_->CreateAlloca(
-            param_type);
+            param_type, nullptr, llvm::Twine(param_name));
         ir_visitor_->builder_->CreateStore(&param,
                                            ir_visitor_->var_env[param_name]);
       }
@@ -363,9 +358,9 @@ class ir_visitor : public visitor::visitor {
           return;
         }
 
-        llvm::Type* paramTy = callee_fun_type->getParamType(i);
+        llvm::Type* param_type = callee_fun_type->getParamType(i);
         llvm::Value* bitCastArgVal =
-            ir_visitor_->builder_->CreateBitCast(arg_val, paramTy);
+            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
         arg_values.push_back(bitCastArgVal);
       }
 
