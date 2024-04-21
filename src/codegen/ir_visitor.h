@@ -245,24 +245,7 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::method_node& method) override {
       auto func_value = method.get_method_value();
-      llvm::BasicBlock* entry_basic_block =
-          llvm::BasicBlock::Create(*ir_visitor_->ctx_, "entry", func_value);
-      ir_visitor_->builder_->SetInsertPoint(entry_basic_block);
-
-      ir_visitor_->var_env.clear();
-      for (auto& param : func_value->args()) {
-        size_t paramNo = param.getArgNo();
-        std::string param_name = method.get_parameters()
-                                     ->get_parameters()[paramNo]
-                                     ->get_identifier()
-                                     ->get_name();
-        llvm::Type* paramType =
-            func_value->getFunctionType()->getParamType(paramNo);
-        ir_visitor_->var_env[param_name] = ir_visitor_->builder_->CreateAlloca(
-            paramType, nullptr, llvm::Twine(param_name));
-        ir_visitor_->builder_->CreateStore(&param,
-                                           ir_visitor_->var_env[param_name]);
-      }
+      generate_def_func(func_value, method.get_parameters()->get_parameters());
 
       // generate expr  and set return value
       method.get_body()->visit(this);
@@ -270,6 +253,15 @@ class ir_visitor : public visitor::visitor {
     }
     void visit(details::constructor_node& constr) override {
       auto func_value = constr.get_constr_value();
+      generate_def_func(func_value, constr.get_parameters()->get_parameters());
+      // generate expr  and set return value
+      body_visitor bd_visitor(ir_visitor_);;
+      constr.get_body()->visit(&bd_visitor);
+      llvm::verifyFunction(*func_value);
+    }
+
+   private:
+    void generate_def_func(llvm::Function* func_value, const auto& parameters) {
       llvm::BasicBlock* entry_basic_block =
           llvm::BasicBlock::Create(*ir_visitor_->ctx_, "entry", func_value);
       ir_visitor_->builder_->SetInsertPoint(entry_basic_block);
@@ -277,8 +269,7 @@ class ir_visitor : public visitor::visitor {
       ir_visitor_->var_env.clear();
       for (auto& param : func_value->args()) {
         size_t paramNo = param.getArgNo();
-        std::string param_name = constr.get_parameters()
-                                     ->get_parameters()[paramNo]
+        std::string param_name = parameters[paramNo]
                                      ->get_identifier()
                                      ->get_name();
         llvm::Type* paramType =
@@ -288,11 +279,6 @@ class ir_visitor : public visitor::visitor {
         ir_visitor_->builder_->CreateStore(&param,
                                            ir_visitor_->var_env[param_name]);
       }
-
-      // generate expr  and set return value
-      body_visitor bd_visitor(ir_visitor_);;
-      constr.get_body()->visit(&bd_visitor);
-      llvm::verifyFunction(*func_value);
     }
   };
 
