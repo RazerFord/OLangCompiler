@@ -320,7 +320,7 @@ class type_node : public ast_node {
   inline static const std::string realT = "real";
   inline static const std::string booleanT = "bool";
   inline static const std::string voidT = "void";
-  inline static const std::string baseT= "base"
+  inline static const std::string baseT= "base";
 
   inline static std::unordered_map<type_id, std::string> type_id_str = {
       {type_id::Integer, mangle_name(IntegerT)},
