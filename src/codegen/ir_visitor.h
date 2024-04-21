@@ -32,6 +32,7 @@ class ir_visitor : public visitor::visitor {
     register_types(p);
     register_members(p);
     register_vtables(p);
+    generate_def_funcs(p);
 
     module_->dump();
   }
@@ -107,7 +108,7 @@ class ir_visitor : public visitor::visitor {
 
       // adding all methods to a class
       {
-        member_method_visitor mmv(&body, this);
+        member_method_visitor mmv(ptr_cls, &body, this);
         for (const auto& m : c->get_members()) {
           m->visit(&mmv);
         }
@@ -138,6 +139,16 @@ class ir_visitor : public visitor::visitor {
     }
   }
 
+  void generate_def_funcs(details::program_node& p) {
+    func_def_visitor fdv(this);
+
+    for (const auto& c : p.get_classes()) {
+      for (const auto& m : c->get_members()) {
+        m->visit(&fdv);
+      }
+    }
+  }
+
   class member_variable_visitor : public visitor::visitor {
    private:
     std::vector<llvm::Type*>* const body_ = nullptr;
@@ -159,16 +170,19 @@ class ir_visitor : public visitor::visitor {
 
   class member_method_visitor : public visitor::visitor {
    private:
+    const llvm::StructType* const ptr_cls_ = nullptr;
     std::vector<llvm::Type*>* const methods_ = nullptr;
     const ir_visitor* ir_visitor_ = nullptr;
 
    public:
-    explicit member_method_visitor(std::vector<llvm::Type*>* const methods,
+    explicit member_method_visitor(const llvm::StructType* const ptr_cls,
+                                   std::vector<llvm::Type*>* const methods,
                                    const ir_visitor* ir_visitor)
-        : methods_{methods}, ir_visitor_{ir_visitor} {}
+        : ptr_cls_{ptr_cls}, methods_{methods}, ir_visitor_{ir_visitor} {}
 
     void visit(details::method_node& f) override {
       std::vector<llvm::Type*> params;
+      params.push_back(ptr_cls_->getPointerTo());
       for (const auto& p : f.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
         llvm::Type* ptr_cls = llvm::StructType::getTypeByName(
@@ -196,6 +210,7 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::constructor_node& c) override {
       std::vector<llvm::Type*> params;
+      params.push_back(ptr_cls_->getPointerTo());
       for (const auto& p : c.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
         llvm::Type* ptr_cls = llvm::StructType::getTypeByName(
@@ -248,7 +263,9 @@ class ir_visitor : public visitor::visitor {
       generate_def_func(func_value, method.get_parameters()->get_parameters());
 
       // generate expr  and set return value
-      method.get_body()->visit(this);
+      body_visitor bd_visitor(ir_visitor_);
+      method.get_body()->visit(&bd_visitor);
+      llvm::verifyFunction(*func_value);
       llvm::verifyFunction(*func_value);
     }
     void visit(details::constructor_node& constr) override {
@@ -279,6 +296,7 @@ class ir_visitor : public visitor::visitor {
         ir_visitor_->builder_->CreateStore(&param,
                                            ir_visitor_->var_env[param_name]);
       }
+
     }
   };
 
@@ -303,13 +321,11 @@ class ir_visitor : public visitor::visitor {
         ir_visitor_->builder_->CreateRet(ret_type);
     }
 
-    void visit(details::variable_call& variable) override {
-
-    }
+    void visit(details::variable_call& variable) override {}
 
     void visit(details::constructor_call& constr_call) override {
       if (constr_call.get_type()->simple_type() == "base") {
-        //handle base call
+        // handle base call
         return;
       }
       auto obj = create_object(constr_call);
