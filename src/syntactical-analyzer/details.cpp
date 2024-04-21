@@ -177,7 +177,7 @@ std::shared_ptr<method_node> class_node::find_method(
 }
 
 template <typename T>
-std::shared_ptr<variable_call> literal_node<T>::literal_expression_handle() {
+std::shared_ptr<expression_ext> literal_node<T>::literal_expression_handle() {
   std::shared_ptr<class_node> clazz;
   if constexpr (std::is_same_v<T, int32_t>) {
     clazz = type_node::find(type_node::mangle_name(type_id::Integer));
@@ -193,7 +193,8 @@ std::shared_ptr<variable_call> literal_node<T>::literal_expression_handle() {
     auto ctor_call = std::make_shared<constructor_call>(
         clazz, ctor, std::vector<std::shared_ptr<ast_node>>{literal},
         clazz->get_type());
-    return std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
+//    return std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
+    return ctor_call;
   }
 
   return EMPTY_VAR;
@@ -377,12 +378,12 @@ std::shared_ptr<expression_ext> expression_node::get_object(
     if (auto var_node = std::dynamic_pointer_cast<variable_node>(var);
         var_node) {
       type = var_node->get_type();
-      final_object_ = std::make_shared<variable_call>(var, type);
+      final_object_ = std::make_shared<variable_call>(var_node, type);
 
     } else if (auto par_node = std::dynamic_pointer_cast<parameter_node>(var);
                par_node) {
       type = par_node->get_type();
-      final_object_ = std::make_shared<variable_call>(var, type);
+      final_object_ = std::make_shared<variable_call>(par_node, type);
     } else if (auto clazz = std::dynamic_pointer_cast<class_node>(var); clazz) {
       is_ctor = true;
       final_object_ = constr_call_checking(var, clazz, error_handler);
