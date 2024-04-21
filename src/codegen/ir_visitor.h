@@ -283,7 +283,7 @@ class ir_visitor : public visitor::visitor {
     }
 
    private:
-    void generate_def_func(llvm::Function* func_value, const auto& parameters) {
+    void generate_def_func(llvm::Function* func_value, std::vector<std::shared_ptr<details::parameter_node>>& parameters) {
       llvm::BasicBlock* entry_basic_block =
           llvm::BasicBlock::Create(*ir_visitor_->ctx_, "entry", func_value);
       ir_visitor_->builder_->SetInsertPoint(entry_basic_block);
@@ -301,8 +301,10 @@ class ir_visitor : public visitor::visitor {
         llvm::Type* param_type = param.getType();
         ir_visitor_->var_env[param_name] = ir_visitor_->builder_->CreateAlloca(
             param_type, nullptr, llvm::Twine(param_name));
+        parameters[paramNo - 1]->set_param_value(ir_visitor_->var_env[param_name]);
         ir_visitor_->builder_->CreateStore(&param,
                                            ir_visitor_->var_env[param_name]);
+
       }
     }
   };
@@ -316,18 +318,18 @@ class ir_visitor : public visitor::visitor {
     void visit(details::variable_node& variable) override {
 
       variable.get_expression()->visit(this);
-      auto bound_val = variable.get_expression()->get_final_object()->get_value();
+//      auto bound_val = variable.get_expression()->get_final_object()->get_value();
+//
+//      auto var_name = variable.get_identifier()->get_name();
+//      llvm::Function *parent_function = ir_visitor_->builder_->GetInsertBlock()->getParent();
+//      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
+//                                   parent_function->getEntryBlock().begin());
+//      llvm::AllocaInst *var = tmp_builder.CreateAlloca(bound_val->getType(), nullptr,
+//                                                      llvm::Twine(var_name));
+//      ir_visitor_->var_env[var_name] = var;
+//      ir_visitor_->builder_->CreateStore(bound_val, var);
 
-      auto var_name = variable.get_identifier()->get_name();
-      llvm::Function *parent_function = ir_visitor_->builder_->GetInsertBlock()->getParent();
-      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
-                                   parent_function->getEntryBlock().begin());
-      llvm::AllocaInst *var = tmp_builder.CreateAlloca(bound_val->getType(), nullptr,
-                                                      llvm::Twine(var_name));
-      ir_visitor_->var_env[var_name] = var;
-      ir_visitor_->builder_->CreateStore(bound_val, var);
-
-      variable.set_value(var);
+//      variable.set_value(var);
     }
 
     void visit(details::expression_node& expression) override {
@@ -349,7 +351,27 @@ class ir_visitor : public visitor::visitor {
         ir_visitor_->builder_->CreateRet(ret_type);
     }
 
-    void visit(details::variable_call& variable) override {}
+    void visit(details::member_call& member) override {
+      member.get_object()->visit(this);
+      member.get_member()->visit(this);
+      //make o
+    }
+
+    void visit(details::variable_call& variable) override {
+      std::cout << "variable call\n";
+      if (auto this_keyword = std::dynamic_pointer_cast<details::this_node>(variable.get_variable()); this_keyword) {
+        variable.set_value(ir_visitor_->var_env["this"]);
+      } else if (auto expr = std::dynamic_pointer_cast<details::expression_ext>(variable.get_variable()); expr) {
+        expr->visit(this);
+        std::cout << "expr visit in variable node\n";
+
+      } else if (auto par_node = std::dynamic_pointer_cast<details::parameter_node>(variable.get_variable()); par_node) {
+        variable.set_value(par_node->get_param_value());
+      } else if (auto var_node = std::dynamic_pointer_cast<details::variable_node>(variable.get_variable()); var_node) {
+        variable.set_value(var_node->get_value());
+      }
+
+    }
 
     void visit(details::constructor_call& constr_call) override {
       std::cout << "constr call visit\n";
@@ -365,7 +387,7 @@ class ir_visitor : public visitor::visitor {
         return;
       }
 
-      auto callee_fun_type = callee_fun->getFunctionType();
+//      auto callee_fun_type = callee_fun->getFunctionType();
       std::vector<llvm::Value*> arg_values{obj};
       auto args = constr_call.get_arguments();
       for (size_t i = 0; i < args.size(); i++) {
@@ -378,14 +400,14 @@ class ir_visitor : public visitor::visitor {
           return;
         }
 
-        llvm::Type* param_type = callee_fun_type->getParamType(i);
-        if (param_type == nullptr) {
-          std::cout << "here\n";
-          continue;
-        }
+//        llvm::Type* param_type = callee_fun_type->getParamType(i);
+//        if (param_type == nullptr) {
+//          std::cout << "here\n";
+//          continue;
+//        }
 //        llvm::Value* bit_cast_arg_val =
 //            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
-//        arg_values.push_back(bit_cast_arg_val);
+        arg_values.push_back(arg_val);
       }
 
       ir_visitor_->builder_->CreateCall(callee_fun, arg_values);

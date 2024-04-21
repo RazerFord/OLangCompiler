@@ -346,6 +346,7 @@ class parameter_node : public ast_node {
   std::shared_ptr<class_name_node> class_name_;
   std::shared_ptr<scope::scope> scope_;
   std::shared_ptr<type_node> type_;
+  llvm::Value* param_value_;
 
   bool validate() override { return true; }
 
@@ -392,6 +393,13 @@ class parameter_node : public ast_node {
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
   }
+  void set_param_value(llvm::Value* param_value) {
+    param_value_ = param_value;
+  }
+
+  llvm::Value* get_param_value() const noexcept {
+    return param_value_;
+  }
 
   void visit(visitor::visitor* v) override;
 
@@ -429,8 +437,8 @@ class parameters_node : public ast_node {
   }
 
  public:
-  [[nodiscard]] const std::vector<std::shared_ptr<parameter_node>>&
-  get_parameters() const {
+  [[nodiscard]] std::vector<std::shared_ptr<parameter_node>>&
+  get_parameters() {
     return parameters_;
   }
 
@@ -867,7 +875,7 @@ class variable_node : public member_node {
 
   void set_value(llvm::Value* value) { value_ = value; }
 
-  llvm::Value* get() const noexcept { return value_; }
+  llvm::Value* get_value() const noexcept { return value_; }
 
   void visit(visitor::visitor* v) override;
 
@@ -1324,7 +1332,7 @@ class arguments_node : public ast_node {
 
 class literal_base_node : public primary_node {
  public:
-  virtual std::shared_ptr<variable_call> literal_expression_handle() = 0;
+  virtual std::shared_ptr<expression_ext> literal_expression_handle() = 0;
 };
 
 template <typename T>
@@ -1351,7 +1359,7 @@ class literal_node : public literal_base_node {
 
   const T& value() const { return value_; }
 
-  std::shared_ptr<variable_call> literal_expression_handle() override;
+  std::shared_ptr<expression_ext> literal_expression_handle() override;
 
   void visit(visitor::visitor* v) override;
 
@@ -1424,6 +1432,9 @@ class variable_call : public expression_ext {
 
   void set_type(std::shared_ptr<type_node> type) { type_ = std::move(type); }
 
+  std::shared_ptr<ast_node> get_variable() const noexcept {
+    return variable_;
+  }
   std::shared_ptr<type_node> get_type() override { return type_; }
   void visit(visitor::visitor* v) override;
 
@@ -1520,6 +1531,14 @@ class member_call : public expression_ext {
 
   void set_member(std::shared_ptr<expression_ext> member) {
     member_ref_ = std::move(member);
+  }
+
+  std::shared_ptr<expression_ext> get_object() const noexcept {
+    return object_;
+  }
+
+  std::shared_ptr<expression_ext> get_member() const noexcept {
+    return member_ref_;
   }
 
   std::shared_ptr<type_node> get_type() override {
