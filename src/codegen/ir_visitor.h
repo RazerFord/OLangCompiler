@@ -105,15 +105,15 @@ class ir_visitor : public visitor::visitor {
           m->visit(&mvv);
         }
       }
+      ptr_cls->setBody(llvm::ArrayRef(body));
 
       // adding all methods to a class
       {
-        member_method_visitor mmv(ptr_cls, &body, this);
+        member_method_visitor mmv(ptr_cls, this);
         for (const auto& m : c->get_members()) {
           m->visit(&mmv);
         }
       }
-      ptr_cls->setBody(llvm::ArrayRef(body));
     }
   }
 
@@ -171,14 +171,12 @@ class ir_visitor : public visitor::visitor {
   class member_method_visitor : public visitor::visitor {
    private:
     const llvm::StructType* const ptr_cls_ = nullptr;
-    std::vector<llvm::Type*>* const methods_ = nullptr;
     const ir_visitor* ir_visitor_ = nullptr;
 
    public:
     explicit member_method_visitor(const llvm::StructType* const ptr_cls,
-                                   std::vector<llvm::Type*>* const methods,
                                    const ir_visitor* ir_visitor)
-        : ptr_cls_{ptr_cls}, methods_{methods}, ir_visitor_{ir_visitor} {}
+        : ptr_cls_{ptr_cls}, ir_visitor_{ir_visitor} {}
 
     void visit(details::method_node& f) override {
       std::vector<llvm::Type*> params;
@@ -205,7 +203,6 @@ class ir_visitor : public visitor::visitor {
           f.get_identifier()->get_name(), *ir_visitor_->module_);
 
       f.set_method_value(func);
-      methods_->push_back(ptr_func_type);
     }
 
     void visit(details::constructor_node& c) override {
@@ -230,7 +227,6 @@ class ir_visitor : public visitor::visitor {
           CtorName, *ir_visitor_->module_);
 
       c.set_constr_type(func_value_ptr);
-      methods_->push_back(ptr_func_type);
     }
   };
 
@@ -238,13 +234,12 @@ class ir_visitor : public visitor::visitor {
    private:
     std::vector<llvm::Constant*>* const methods_ = nullptr;
     std::vector<llvm::Type*>* const types_ = nullptr;
-    const ir_visitor* ir_visitor_ = nullptr;
 
    public:
     explicit vtable_filler_visitor(std::vector<llvm::Constant*>* const methods,
                                    std::vector<llvm::Type*>* const types,
                                    const ir_visitor* ir_visitor)
-        : methods_{methods}, types_{types}, ir_visitor_{ir_visitor} {}
+        : methods_{methods}, types_{types} {}
 
     void visit(details::method_node& f) override {
       methods_->push_back(f.get_method_value());
