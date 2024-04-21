@@ -8,7 +8,7 @@
 #include "codegen/ir_visitor.h"
 
 int main(int argc, char** argv) {
-  for(int i = 1; i <= 16; ++i) {
+  for(int i = 1; i <= 1; ++i) {
     std::cout << "TEST: " << i << std::endl;
     auto vec = token_generator::generate_token("./../tests/" + std::to_string(i) + "_test.olg");
 

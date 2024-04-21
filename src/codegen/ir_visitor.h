@@ -271,8 +271,16 @@ class ir_visitor : public visitor::visitor {
     void visit(details::constructor_node& constr) override {
       auto func_value = constr.get_constr_value();
       generate_def_func(func_value, constr.get_parameters()->get_parameters());
+
+//      llvm::Value* return_value;
+//      if (!func_value->getReturnType()->isVoidTy()) {
+//        return_value = ir_visitor_->builder_->CreateAlloca(
+//            func_value->getReturnType(), nullptr, "return.value");
+//      }
+
+
       // generate expr  and set return value
-      body_visitor bd_visitor(ir_visitor_);;
+      body_visitor bd_visitor(ir_visitor_);
       constr.get_body()->visit(&bd_visitor);
       llvm::verifyFunction(*func_value);
     }
@@ -286,17 +294,23 @@ class ir_visitor : public visitor::visitor {
       ir_visitor_->var_env.clear();
       for (auto& param : func_value->args()) {
         size_t paramNo = param.getArgNo();
-        std::string param_name = parameters[paramNo]
-                                     ->get_identifier()
-                                     ->get_name();
-        llvm::Type* paramType =
-            func_value->getFunctionType()->getParamType(paramNo);
+        if (paramNo == 0) {
+//          ir_visitor_->var_env["this"] = param.getParamByValType().
+          continue;
+        }
+
+        std::string param_name =
+            parameters[paramNo - 1]->get_identifier()->get_name();
+        llvm::Type* param_type = param.getParamByRefType();
+        if (param_type == nullptr) {
+          std::cout << "Type is NULL\n";
+          continue;
+        }
         ir_visitor_->var_env[param_name] = ir_visitor_->builder_->CreateAlloca(
-            paramType, nullptr, llvm::Twine(param_name));
+            param_type);
         ir_visitor_->builder_->CreateStore(&param,
                                            ir_visitor_->var_env[param_name]);
       }
-
     }
   };
 
