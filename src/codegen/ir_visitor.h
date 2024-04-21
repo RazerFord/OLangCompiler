@@ -383,6 +383,7 @@ class ir_visitor : public visitor::visitor {
       expression.get_final_object()->visit(this);
       expression.set_value(expression.get_final_object()->get_value());
     }
+
     void visit(details::body_node& body) override {
       for (auto& expr : body.get_nodes()) {
         expr->visit(this);
@@ -530,8 +531,8 @@ class ir_visitor : public visitor::visitor {
       std::vector<llvm::Value*> values;
       variable_def_visitor av(&values, ir_visitor_);
       for (auto& v : cls_to_vars_->at(type_name)) {
-        // TODO implement field create
-        v->visit(&av);
+        v->get_expression()->visit(this);
+        values.push_back(v->get_expression()->get_value());
       }
 
       for (std::size_t i = 0; i < values.size(); i++) {
