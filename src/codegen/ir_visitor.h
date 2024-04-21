@@ -152,11 +152,11 @@ class ir_visitor : public visitor::visitor {
   class member_variable_visitor : public visitor::visitor {
    private:
     std::vector<llvm::Type*>* const body_ = nullptr;
-    const ir_visitor* ir_visitor_ = nullptr;
+    ir_visitor* ir_visitor_ = nullptr;
 
    public:
     explicit member_variable_visitor(std::vector<llvm::Type*>* const body,
-                                     const ir_visitor* ir_visitor)
+                                     ir_visitor* ir_visitor)
         : body_{body}, ir_visitor_{ir_visitor} {}
 
     void visit(details::variable_node& v) override {
@@ -164,6 +164,9 @@ class ir_visitor : public visitor::visitor {
           v.get_type()->get_class_name()->get_identifier()->get_name()};
       llvm::Type* ptrCls = llvm::StructType::getTypeByName(
           *ir_visitor_->ctx_, llvm::StringRef(cls_name));
+
+      body_visitor bd(ir_visitor_);
+      v.get_expression()->visit(&bd);
       body_->push_back(ptrCls);
     }
   };
@@ -310,11 +313,32 @@ class ir_visitor : public visitor::visitor {
    public:
     body_visitor(ir_visitor* ir_visitor) : ir_visitor_{ir_visitor} {}
 
+    void visit(details::variable_node& variable) override {
+
+      variable.get_expression()->visit(this);
+      auto bound_val = variable.get_expression()->get_final_object()->get_value();
+
+      auto var_name = variable.get_identifier()->get_name();
+      llvm::Function *parent_function = ir_visitor_->builder_->GetInsertBlock()->getParent();
+      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
+                                   parent_function->getEntryBlock().begin());
+      llvm::AllocaInst *var = tmp_builder.CreateAlloca(bound_val->getType(), nullptr,
+                                                      llvm::Twine(var_name));
+      ir_visitor_->var_env[var_name] = var;
+      ir_visitor_->builder_->CreateStore(bound_val, var);
+
+      variable.set_value(var);
+    }
+
     void visit(details::expression_node& expression) override {
       expression.get_final_object()->visit(this);
       expression.set_value(expression.get_final_object()->get_value());
     }
-    void visit(details::body_node& body) override {}
+    void visit(details::body_node& body) override {
+      for (auto& expr: body.get_nodes()) {
+        expr->visit(this);
+      }
+    }
 
     void visit(details::return_statement_node& return_expr) override {
       auto ret_type =
@@ -328,6 +352,7 @@ class ir_visitor : public visitor::visitor {
     void visit(details::variable_call& variable) override {}
 
     void visit(details::constructor_call& constr_call) override {
+      std::cout << "constr call visit\n";
       if (constr_call.get_type()->simple_type() == "base") {
         // handle base call
         return;
@@ -341,7 +366,7 @@ class ir_visitor : public visitor::visitor {
       }
 
       auto callee_fun_type = callee_fun->getFunctionType();
-      std::vector<llvm::Value*> arg_values;
+      std::vector<llvm::Value*> arg_values{obj};
       auto args = constr_call.get_arguments();
       for (size_t i = 0; i < args.size(); i++) {
         args[i]->visit(this);
@@ -354,9 +379,13 @@ class ir_visitor : public visitor::visitor {
         }
 
         llvm::Type* param_type = callee_fun_type->getParamType(i);
-        llvm::Value* bitCastArgVal =
-            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
-        arg_values.push_back(bitCastArgVal);
+        if (param_type == nullptr) {
+          std::cout << "here\n";
+          continue;
+        }
+//        llvm::Value* bit_cast_arg_val =
+//            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
+//        arg_values.push_back(bit_cast_arg_val);
       }
 
       ir_visitor_->builder_->CreateCall(callee_fun, arg_values);
