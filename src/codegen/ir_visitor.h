@@ -290,7 +290,8 @@ class ir_visitor : public visitor::visitor {
       }
 
       // generate expr  and set return value
-      constr.get_body()->visit(this);
+      body_visitor bd_visitor(ir_visitor_);;
+      constr.get_body()->visit(&bd_visitor);
       llvm::verifyFunction(*func_value);
     }
   };
