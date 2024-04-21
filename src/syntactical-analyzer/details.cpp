@@ -329,7 +329,9 @@ std::shared_ptr<expression_ext> expression_node::constr_call_checking(
 
   auto ctor_call =
       std::make_shared<constructor_call>(clazz, ctor, args, clazz->get_type());
-  return std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
+  return ctor_call;
+//  return std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
+
 }
 
 std::shared_ptr<expression_ext> expression_node::get_object(
