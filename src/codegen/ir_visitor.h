@@ -29,6 +29,7 @@ class ir_visitor : public visitor::visitor {
 
  public:
   void visit(details::program_node& p) override {
+    register_global_funcs(p);
     register_types(p);
     register_members(p);
     register_vtables(p);
@@ -117,9 +118,16 @@ class ir_visitor : public visitor::visitor {
     }
   }
 
+  void register_global_funcs(details::program_node& p) {
+    llvm::Type* ptr_void = llvm::Type::getInt8Ty(*ctx_)->getPointerTo();
+
+    module_->getOrInsertFunction(
+        "malloc", llvm::FunctionType::get(
+                      ptr_void, llvm::IntegerType::getInt64Ty(*ctx_), false));
+  }
+
   void register_vtables(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
-      if (!c->get_extends()) continue;
       std::string vtable = vtable_name(c);
       auto ptr_table = llvm::StructType::getTypeByName(*ctx_, vtable);
       std::vector<llvm::Constant*> methods;
@@ -270,11 +278,11 @@ class ir_visitor : public visitor::visitor {
       auto func_value = constr.get_constr_value();
       generate_def_func(func_value, constr.get_parameters()->get_parameters());
 
-//      llvm::Value* return_value;
-//      if (!func_value->getReturnType()->isVoidTy()) {
-//        return_value = ir_visitor_->builder_->CreateAlloca(
-//            func_value->getReturnType(), nullptr, "return.value");
-//      }
+      //      llvm::Value* return_value;
+      //      if (!func_value->getReturnType()->isVoidTy()) {
+      //        return_value = ir_visitor_->builder_->CreateAlloca(
+      //            func_value->getReturnType(), nullptr, "return.value");
+      //      }
 
       // generate expr  and set return value
       body_visitor bd_visitor(ir_visitor_);
@@ -314,16 +322,17 @@ class ir_visitor : public visitor::visitor {
     body_visitor(ir_visitor* ir_visitor) : ir_visitor_{ir_visitor} {}
 
     void visit(details::variable_node& variable) override {
-
       variable.get_expression()->visit(this);
-      auto bound_val = variable.get_expression()->get_final_object()->get_value();
+      auto bound_val =
+          variable.get_expression()->get_final_object()->get_value();
 
       auto var_name = variable.get_identifier()->get_name();
-      llvm::Function *parent_function = ir_visitor_->builder_->GetInsertBlock()->getParent();
+      llvm::Function* parent_function =
+          ir_visitor_->builder_->GetInsertBlock()->getParent();
       llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
-                                   parent_function->getEntryBlock().begin());
-      llvm::AllocaInst *var = tmp_builder.CreateAlloca(bound_val->getType(), nullptr,
-                                                      llvm::Twine(var_name));
+                                    parent_function->getEntryBlock().begin());
+      llvm::AllocaInst* var = tmp_builder.CreateAlloca(
+          bound_val->getType(), nullptr, llvm::Twine(var_name));
       ir_visitor_->var_env[var_name] = var;
       ir_visitor_->builder_->CreateStore(bound_val, var);
 
@@ -335,7 +344,7 @@ class ir_visitor : public visitor::visitor {
       expression.set_value(expression.get_final_object()->get_value());
     }
     void visit(details::body_node& body) override {
-      for (auto& expr: body.get_nodes()) {
+      for (auto& expr : body.get_nodes()) {
         expr->visit(this);
       }
     }
@@ -383,9 +392,9 @@ class ir_visitor : public visitor::visitor {
           std::cout << "here\n";
           continue;
         }
-//        llvm::Value* bit_cast_arg_val =
-//            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
-//        arg_values.push_back(bit_cast_arg_val);
+        //        llvm::Value* bit_cast_arg_val =
+        //            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
+        //        arg_values.push_back(bit_cast_arg_val);
       }
 
       ir_visitor_->builder_->CreateCall(callee_fun, arg_values);
@@ -424,7 +433,36 @@ class ir_visitor : public visitor::visitor {
 
    private:
     llvm::Value* create_object(details::constructor_call& constr_call) {
-      return nullptr;
+      std::string type_name = constr_call.get_type()->simple_type();
+      llvm::Type* type =
+          llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
+
+      llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
+      llvm::Value* value = llvm::Constant::getNullValue(type->getPointerTo());
+      llvm::Value* ptr_obj_size = ir_visitor_->builder_->CreateConstGEP1_64(
+          int64ty, value, 1, llvm::Twine("obj_size"));
+
+      ptr_obj_size =
+          ir_visitor_->builder_->CreatePointerCast(ptr_obj_size, int64ty);
+      llvm::Value* ptr_obj = ir_visitor_->builder_->CreateCall(
+          ir_visitor_->module_->getFunction("malloc"), ptr_obj_size);
+
+      ptr_obj = ir_visitor_->builder_->CreatePointerCast(ptr_obj,
+                                                         type->getPointerTo());
+
+      std::string vtable_name = PrefixVTable + type_name;
+      llvm::Value* vtable = ir_visitor_->module_->getNamedGlobal(vtable_name);
+      llvm::Value* vtable_field =
+          ir_visitor_->builder_->CreateStructGEP(type, ptr_obj, 0);
+
+      ir_visitor_->builder_->CreateStore(vtable, vtable_field);
+
+      for (auto& p :
+           constr_call.get_constructor()->get_parameters()->get_parameters()) {
+        // TODO: help me
+      }
+
+      return ptr_obj;
     }
   };
 };
