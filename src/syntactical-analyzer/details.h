@@ -320,7 +320,7 @@ class type_node : public ast_node {
   inline static const std::string realT = "real";
   inline static const std::string booleanT = "bool";
   inline static const std::string voidT = "void";
-  inline static const std::string baseT= "base";
+  inline static const std::string baseT = "base";
 
   inline static std::unordered_map<type_id, std::string> type_id_str = {
       {type_id::Integer, mangle_name(IntegerT)},
@@ -393,13 +393,9 @@ class parameter_node : public ast_node {
   void set_scope(std::shared_ptr<scope::scope> scope) {
     scope_ = std::move(scope);
   }
-  void set_param_value(llvm::Value* param_value) {
-    param_value_ = param_value;
-  }
+  void set_param_value(llvm::Value* param_value) { param_value_ = param_value; }
 
-  llvm::Value* get_param_value() const noexcept {
-    return param_value_;
-  }
+  llvm::Value* get_param_value() const noexcept { return param_value_; }
 
   void visit(visitor::visitor* v) override;
 
@@ -437,8 +433,7 @@ class parameters_node : public ast_node {
   }
 
  public:
-  [[nodiscard]] std::vector<std::shared_ptr<parameter_node>>&
-  get_parameters() {
+  [[nodiscard]] std::vector<std::shared_ptr<parameter_node>>& get_parameters() {
     return parameters_;
   }
 
@@ -786,6 +781,8 @@ class expression_node : public statement_node {
 
   void set_value(llvm::Value* value) { value_ = value; }
 
+  llvm::Value* get_value() const noexcept { return value_; }
+
   std::shared_ptr<expression_ext> get_final_object() const noexcept {
     return final_object_;
   }
@@ -819,7 +816,6 @@ class expression_node : public statement_node {
 
   std::shared_ptr<expression_ext> get_object(
       error_handling::error_handling& error_handler);
-
 };
 
 class variable_node : public member_node {
@@ -948,13 +944,9 @@ class method_node : public member_node {
     fill();
   }
 
-  void set_method_value(llvm::Function* method) {
-    method_value_ = method;
-  }
+  void set_method_value(llvm::Function* method) { method_value_ = method; }
 
-  llvm::Function* get_method_value() const noexcept {
-    return method_value_;
-  }
+  llvm::Function* get_method_value() const noexcept { return method_value_; }
 
   void visit(visitor::visitor* v) override;
 
@@ -1033,9 +1025,7 @@ class constructor_node : public member_node {
     constr_value_ = constr_value;
   }
 
-  llvm::Function* get_constr_value() const noexcept {
-    return constr_value_;
-  }
+  llvm::Function* get_constr_value() const noexcept { return constr_value_; }
 
   void visit(visitor::visitor* v) override;
 
@@ -1432,9 +1422,7 @@ class variable_call : public expression_ext {
 
   void set_type(std::shared_ptr<type_node> type) { type_ = std::move(type); }
 
-  std::shared_ptr<ast_node> get_variable() const noexcept {
-    return variable_;
-  }
+  std::shared_ptr<ast_node> get_variable() const noexcept { return variable_; }
   std::shared_ptr<type_node> get_type() override { return type_; }
   void visit(visitor::visitor* v) override;
 
@@ -1516,7 +1504,7 @@ class method_call : public expression_ext {
     return arguments_;
   }
 
-      void visit(visitor::visitor* v) override;
+  void visit(visitor::visitor* v) override;
 
   void print() override{};
 };

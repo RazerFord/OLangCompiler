@@ -14,6 +14,7 @@
 inline constexpr std::string ModuleName = "Main";
 inline constexpr std::string CtorName = "<init>";
 inline constexpr std::string PrefixNameMemberVar = "_var";
+inline constexpr std::string Malloc = "malloc";
 inline constexpr std::string PrefixVTable = "__VTable";
 
 namespace ir_visitor {
@@ -122,8 +123,8 @@ class ir_visitor : public visitor::visitor {
     llvm::Type* ptr_void = llvm::Type::getInt8Ty(*ctx_)->getPointerTo();
 
     module_->getOrInsertFunction(
-        "malloc", llvm::FunctionType::get(
-                      ptr_void, llvm::IntegerType::getInt64Ty(*ctx_), false));
+        Malloc, llvm::FunctionType::get(
+                    ptr_void, llvm::IntegerType::getInt64Ty(*ctx_), false));
   }
 
   void register_vtables(details::program_node& p) {
@@ -148,8 +149,19 @@ class ir_visitor : public visitor::visitor {
   }
 
   void generate_def_funcs(details::program_node& p) {
-    func_def_visitor fdv(this);
+    std::unordered_map<std::string, std::vector<details::variable_node*>>
+        cls_to_vars;
+    for (const auto& c : p.get_classes()) {
+      std::vector<details::variable_node*> vars;
+      variable_collector_visitor vcv(this, &vars);
+      for (const auto& m : c->get_members()) {
+        m->visit(&vcv);
+      }
+      cls_to_vars[c->get_class_name()->get_identifier()->get_name()] =
+          std::move(vars);
+    }
 
+    func_def_visitor fdv(this, &cls_to_vars);
     for (const auto& c : p.get_classes()) {
       for (const auto& m : c->get_members()) {
         m->visit(&fdv);
@@ -172,9 +184,6 @@ class ir_visitor : public visitor::visitor {
           v.get_type()->get_class_name()->get_identifier()->get_name()};
       llvm::Type* ptrCls = llvm::StructType::getTypeByName(
           *ir_visitor_->ctx_, llvm::StringRef(cls_name));
-
-      body_visitor bd(ir_visitor_);
-      v.get_expression()->visit(&bd);
       body_->push_back(ptrCls);
     }
   };
@@ -258,22 +267,42 @@ class ir_visitor : public visitor::visitor {
     }
   };
 
-  class func_def_visitor : public visitor::visitor {
+  class variable_collector_visitor : public visitor::visitor {
     ir_visitor* ir_visitor_ = nullptr;
+    std::vector<details::variable_node*>* vars_;
 
    public:
-    func_def_visitor(ir_visitor* ir_visitor) : ir_visitor_(ir_visitor) {}
+    explicit variable_collector_visitor(
+        ir_visitor* ir_visitor, std::vector<details::variable_node*>* vars)
+        : ir_visitor_(ir_visitor), vars_(vars) {}
+
+    void visit(details::variable_node& node) override {
+      vars_->push_back(&node);
+    }
+  };
+
+  class func_def_visitor : public visitor::visitor {
+    ir_visitor* const ir_visitor_ = nullptr;
+    std::unordered_map<std::string, std::vector<details::variable_node*>>* const
+        cls_to_vars_ = nullptr;
+
+   public:
+    explicit func_def_visitor(
+        ir_visitor* ir_visitor,
+        std::unordered_map<std::string, std::vector<details::variable_node*>>*
+            cls_to_vars)
+        : ir_visitor_(ir_visitor), cls_to_vars_(cls_to_vars) {}
 
     void visit(details::method_node& method) override {
       auto func_value = method.get_method_value();
       generate_def_func(func_value, method.get_parameters()->get_parameters());
 
       // generate expr  and set return value
-      body_visitor bd_visitor(ir_visitor_);
+      body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       method.get_body()->visit(&bd_visitor);
       llvm::verifyFunction(*func_value);
-      llvm::verifyFunction(*func_value);
     }
+
     void visit(details::constructor_node& constr) override {
       auto func_value = constr.get_constr_value();
       generate_def_func(func_value, constr.get_parameters()->get_parameters());
@@ -285,7 +314,7 @@ class ir_visitor : public visitor::visitor {
       //      }
 
       // generate expr  and set return value
-      body_visitor bd_visitor(ir_visitor_);
+      body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       constr.get_body()->visit(&bd_visitor);
       llvm::verifyFunction(*func_value);
     }
@@ -320,10 +349,17 @@ class ir_visitor : public visitor::visitor {
   };
 
   class body_visitor : public visitor::visitor {
-    ir_visitor* ir_visitor_ = nullptr;
+    ir_visitor* const ir_visitor_ = nullptr;
+    std::unordered_map<std::string, std::vector<details::variable_node*>>* const
+        cls_to_vars_ = nullptr;
 
    public:
-    body_visitor(ir_visitor* ir_visitor) : ir_visitor_{ir_visitor} {}
+    explicit body_visitor(
+        ir_visitor* const ir_visitor,
+        std::unordered_map<std::string,
+                           std::vector<details::variable_node*>>* const
+            cls_to_vars)
+        : ir_visitor_{ir_visitor}, cls_to_vars_{cls_to_vars} {}
 
     void visit(details::variable_node& variable) override {
       variable.get_expression()->visit(this);
@@ -347,6 +383,7 @@ class ir_visitor : public visitor::visitor {
       expression.get_final_object()->visit(this);
       expression.set_value(expression.get_final_object()->get_value());
     }
+
     void visit(details::body_node& body) override {
       for (auto& expr : body.get_nodes()) {
         expr->visit(this);
@@ -549,7 +586,7 @@ class ir_visitor : public visitor::visitor {
       ptr_obj_size =
           ir_visitor_->builder_->CreatePointerCast(ptr_obj_size, int64ty);
       llvm::Value* ptr_obj = ir_visitor_->builder_->CreateCall(
-          ir_visitor_->module_->getFunction("malloc"), ptr_obj_size);
+          ir_visitor_->module_->getFunction(Malloc), ptr_obj_size);
 
       ptr_obj = ir_visitor_->builder_->CreatePointerCast(ptr_obj,
                                                          type->getPointerTo());
@@ -561,11 +598,20 @@ class ir_visitor : public visitor::visitor {
 
       ir_visitor_->builder_->CreateStore(vtable, vtable_field);
 
-      //      for (auto& p:
-      //           constr_call.get_constructor()->get_parameters()->get_parameters())
-      //           {
-      // TODO: help me
-      //      }
+      // Create vars in class
+      std::vector<llvm::Value*> values;
+      variable_def_visitor av(&values, ir_visitor_);
+      for (auto& v : cls_to_vars_->at(type_name)) {
+        v->get_expression()->visit(this);
+        values.push_back(v->get_expression()->get_value());
+      }
+
+      for (std::size_t i = 0; i < values.size(); i++) {
+        // +1 from the table of virtual functions
+        llvm::Value* field =
+            ir_visitor_->builder_->CreateStructGEP(type, ptr_obj, 1 + i);
+        ir_visitor_->builder_->CreateStore(values[i], field);
+      }
 
       return ptr_obj;
     }
@@ -597,6 +643,18 @@ class ir_visitor : public visitor::visitor {
       std::cout << "ERROR in literal\n";
       return nullptr;
     }
+  };
+
+  class variable_def_visitor : public visitor::visitor {
+   private:
+    std::vector<llvm::Value*>* const values_ = nullptr;
+    ir_visitor* const ir_visitor_ = nullptr;
+
+   public:
+    variable_def_visitor(std::vector<llvm::Value*>* const values,
+                         ir_visitor* const ir_visitor)
+        : values_{values}, ir_visitor_(ir_visitor) {}
+    void visit(details::variable_node& node) override {}
   };
 };
 }  // namespace ir_visitor
