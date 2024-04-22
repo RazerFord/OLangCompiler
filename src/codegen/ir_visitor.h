@@ -353,7 +353,68 @@ class ir_visitor : public visitor::visitor {
       }
     }
 
+    void visit(details::while_loop_node& while_node) override {
+      while_node.get_expression()->visit(this);
+      auto cond_value = while_node.get_expression()->get_final_object()->get_value();
+      llvm::Function* parent_function =
+          ir_visitor_->builder_->GetInsertBlock()->getParent();
+      auto loop_bb = llvm::BasicBlock::Create(*ir_visitor_->ctx_, "loop");
+      auto loopend_bb = llvm::BasicBlock::Create(*ir_visitor_->ctx_, "loopend");
+
+      ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
+      parent_function->insert(parent_function->end(), loop_bb);
+      ir_visitor_->builder_->SetInsertPoint(loop_bb);
+
+
+      while_node.get_body_node()->visit(this);
+      while_node.get_expression()->visit(this);
+      cond_value = while_node.get_expression()->get_final_object()->get_value();
+      loop_bb = ir_visitor_->builder_->GetInsertBlock();
+      ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
+
+      parent_function->insert(parent_function->end(), loopend_bb);
+      ir_visitor_->builder_->SetInsertPoint(loopend_bb);
+    }
+
+    void visit(details::if_statement_node& if_node) override {
+      if_node.get_expression()->visit(this);
+      auto cond_value =
+          if_node.get_expression()->get_final_object()->get_value();
+
+      llvm::Function* parent_function =
+          ir_visitor_->builder_->GetInsertBlock()->getParent();
+      llvm::BasicBlock* then_bb =
+          llvm::BasicBlock::Create(*ir_visitor_->ctx_, "then", parent_function);
+      llvm::BasicBlock* else_bb =
+          llvm::BasicBlock::Create(*ir_visitor_->ctx_, "else");
+      llvm::BasicBlock* merge_bb =
+          llvm::BasicBlock::Create(*ir_visitor_->ctx_, "ifcont");
+
+      ir_visitor_->builder_->CreateCondBr(cond_value, then_bb, else_bb);
+      ir_visitor_->builder_->SetInsertPoint(then_bb);
+      if_node.get_true_body()->visit(this);
+      ir_visitor_->builder_->CreateBr(merge_bb);
+
+      parent_function->insert(parent_function->end(), else_bb);
+      ir_visitor_->builder_->SetInsertPoint(else_bb);
+      if (if_node.get_false_body())
+        if_node.get_false_body()->visit(this);
+      ir_visitor_->builder_->CreateBr(merge_bb);
+
+      parent_function->insert(parent_function->end(), merge_bb);
+      ir_visitor_->builder_->SetInsertPoint(merge_bb);
+    }
+
+    void visit(details::assignment_node& assign) override {
+      assign.get_lexpression()->visit(this);
+      assign.get_rexpression()->visit(this);
+      ir_visitor_->builder_->CreateStore(
+          assign.get_rexpression()->get_final_object()->get_value(),
+          assign.get_lexpression()->get_final_object()->get_value());
+    }
+
     void visit(details::return_statement_node& return_expr) override {
+      return_expr.get_expression()->visit(this);
       auto ret_type =
           return_expr.get_expression()->get_final_object()->get_value();
       if (ret_type->getType()->isVoidTy())
@@ -364,12 +425,18 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::member_call& member) override {
       member.get_object()->visit(this);
-      member.get_member()->visit(this);
-      // make o
+      if (auto method = std::dynamic_pointer_cast<details::method_call>(
+              member.get_member());
+          method) {
+        method->set_owner_value(member.get_object()->get_value());
+        member.get_member()->visit(this);
+      } else {
+        member.get_member()->visit(this);
+        // TODO handler access to member value
+      }
     }
 
     void visit(details::variable_call& variable) override {
-      std::cout << "variable call\n";
       if (auto this_keyword = std::dynamic_pointer_cast<details::this_node>(
               variable.get_variable());
           this_keyword) {
@@ -390,11 +457,15 @@ class ir_visitor : public visitor::visitor {
                          variable.get_variable());
                  var_node) {
         variable.set_value(var_node->get_value());
+      } else if (auto literal =
+                     std::dynamic_pointer_cast<details::literal_base_node>(
+                         variable.get_variable());
+                 literal) {
+        variable.set_value(create_literal_constant(literal));
       }
     }
 
     void visit(details::constructor_call& constr_call) override {
-      std::cout << "constr call visit\n";
       if (constr_call.get_type()->simple_type() == "base") {
         // handle base call
         return;
@@ -407,7 +478,7 @@ class ir_visitor : public visitor::visitor {
         return;
       }
 
-      //      auto callee_fun_type = callee_fun->getFunctionType();
+      auto callee_fun_type = callee_fun->getFunctionType();
       std::vector<llvm::Value*> arg_values{obj};
       auto args = constr_call.get_arguments();
       for (size_t i = 0; i < args.size(); i++) {
@@ -420,14 +491,14 @@ class ir_visitor : public visitor::visitor {
           return;
         }
 
-        //        llvm::Type* param_type = callee_fun_type->getParamType(i);
-        //        if (param_type == nullptr) {
-        //          std::cout << "here\n";
-        //          continue;
-        //        }
-        //        llvm::Value* bit_cast_arg_val =
-        //            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
-        arg_values.push_back(arg_val);
+        llvm::Type* param_type = callee_fun_type->getParamType(i);
+        if (param_type == nullptr) {
+          std::cout << "here\n";
+          continue;
+        }
+        llvm::Value* bit_cast_arg_val =
+            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
+        arg_values.push_back(bit_cast_arg_val);
       }
 
       ir_visitor_->builder_->CreateCall(callee_fun, arg_values);
@@ -443,7 +514,7 @@ class ir_visitor : public visitor::visitor {
       }
 
       auto callee_fun_type = callee_fun->getFunctionType();
-      std::vector<llvm::Value*> arg_values;
+      std::vector<llvm::Value*> arg_values{method_call.get_owner_value()};
       auto args = method_call.get_arguments();
       for (size_t i = 0; i < args.size(); i++) {
         args[i]->visit(this);
@@ -490,12 +561,41 @@ class ir_visitor : public visitor::visitor {
 
       ir_visitor_->builder_->CreateStore(vtable, vtable_field);
 
-      for (auto& p :
-           constr_call.get_constructor()->get_parameters()->get_parameters()) {
-        // TODO: help me
-      }
+      //      for (auto& p:
+      //           constr_call.get_constructor()->get_parameters()->get_parameters())
+      //           {
+      // TODO: help me
+      //      }
 
       return ptr_obj;
+    }
+
+    llvm::Value* create_literal_constant(
+        std::shared_ptr<details::literal_base_node> literal_base) {
+      if (auto literal_int =
+              std::dynamic_pointer_cast<details::literal_node<int32_t>>(
+                  literal_base);
+          literal_int) {
+        return llvm::ConstantInt::get(
+            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_),
+            literal_int->value());
+      } else if (auto literal_double =
+                     std::dynamic_pointer_cast<details::literal_node<double_t>>(
+                         literal_base);
+                 literal_double) {
+        return llvm::ConstantFP::get(
+            llvm::StructType::getFloatTy(*ir_visitor_->ctx_),
+            literal_double->value());
+      } else if (auto literal_bool =
+                     std::dynamic_pointer_cast<details::literal_node<bool>>(
+                         literal_base);
+                 literal_bool) {
+        return llvm::ConstantInt::get(
+            llvm::StructType::getInt1Ty(*ir_visitor_->ctx_),
+            literal_bool->value());
+      }
+      std::cout << "ERROR in literal\n";
+      return nullptr;
     }
   };
 };

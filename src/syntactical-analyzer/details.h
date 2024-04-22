@@ -1484,6 +1484,8 @@ class method_call : public expression_ext {
   std::weak_ptr<method_node> method_;
   std::vector<std::shared_ptr<ast_node>> arguments_;
 
+  llvm::Value* owner_value_;
+
   bool validate() override { return true; }
 
   void generate() override {}
@@ -1494,6 +1496,14 @@ class method_call : public expression_ext {
               std::shared_ptr<method_node> method,
               std::vector<std::shared_ptr<ast_node>> args)
       : clazz_(clazz), method_(method), arguments_(args) {}
+
+  void set_owner_value(llvm::Value* owner_value) {
+    owner_value_ = owner_value;
+  }
+
+  llvm::Value* get_owner_value() const noexcept {
+    return owner_value_;
+  }
 
   std::shared_ptr<type_node> get_type() override {
     return method_.lock()->get_return_type();
