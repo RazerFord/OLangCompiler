@@ -28,7 +28,7 @@ class ir_visitor : public visitor::visitor {
       std::make_unique<llvm::IRBuilder<>>(*ctx_);
   std::unique_ptr<llvm::Module> module_ =
       std::make_unique<llvm::Module>(ModuleName, *ctx_);
-  std::unordered_map<std::string, llvm::AllocaInst*> var_env;
+  std::unordered_map<std::string, llvm::Value*> var_env;
 
  public:
   void visit(details::program_node& p) override {
@@ -223,10 +223,12 @@ class ir_visitor : public visitor::visitor {
 
       if (!ret_type) {
         ret_type = llvm::Type::getVoidTy(*ir_visitor_->ctx_);
+      } else {
+        ret_type = ret_type->getPointerTo();
       }
 
       llvm::FunctionType* ptr_func_type =
-          llvm::FunctionType::get(ret_type->getPointerTo(), llvm::ArrayRef(params), false);
+          llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
 
       llvm::Function* func = llvm::Function::Create(
           ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
@@ -346,12 +348,13 @@ class ir_visitor : public visitor::visitor {
         size_t paramNo = param.getArgNo();
         if (paramNo == 0) {
           std::string param_name = "this";
-          llvm::Type* param_type = param.getType();
-          ir_visitor_->var_env[param_name] =
-              ir_visitor_->builder_->CreateAlloca(param_type, nullptr,
-                                                  llvm::Twine(param_name));
-          ir_visitor_->builder_->CreateStore(&param,
-                                             ir_visitor_->var_env[param_name]);
+//          llvm::Type* param_type = param.getType();
+          ir_visitor_->var_env[param_name] = &param;
+//          ir_visitor_->builder_->CreateLoad(param_type, &param);
+
+
+//          ir_visitor_->builder_->CreateStore(&param,
+//                                             ir_visitor_->var_env[param_name]);
           continue;
         }
 
@@ -387,16 +390,16 @@ class ir_visitor : public visitor::visitor {
           variable.get_expression()->get_final_object()->get_value();
 
       auto var_name = variable.get_identifier()->get_name();
-      llvm::Function* parent_function =
-          ir_visitor_->builder_->GetInsertBlock()->getParent();
-      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
-                                    parent_function->getEntryBlock().begin());
-      llvm::AllocaInst* var = tmp_builder.CreateAlloca(
-          bound_val->getType(), nullptr, llvm::Twine(var_name));
-      ir_visitor_->var_env[var_name] = var;
-      ir_visitor_->builder_->CreateStore(bound_val, var);
+//      llvm::Function* parent_function =
+//          ir_visitor_->builder_->GetInsertBlock()->getParent();
+//      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
+//                                    parent_function->getEntryBlock().begin());
+//      llvm::AllocaInst* var = tmp_builder.CreateAlloca(
+//          bound_val->getType(), nullptr, llvm::Twine(var_name));
+      ir_visitor_->var_env[var_name] = bound_val;
+//      ir_visitor_->builder_->CreateStore(bound_val, var);
 
-      variable.set_value(var);
+      variable.set_value(bound_val);
     }
 
     void visit(details::expression_node& expression) override {
@@ -622,7 +625,7 @@ class ir_visitor : public visitor::visitor {
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
       llvm::Value* value = llvm::Constant::getNullValue(type->getPointerTo());
       llvm::Value* ptr_obj_size = ir_visitor_->builder_->CreateConstGEP1_64(
-          int64ty, value, 1, llvm::Twine("obj_size"));
+          type, value, 1, llvm::Twine("obj_size"));
 
       ptr_obj_size =
           ir_visitor_->builder_->CreatePointerCast(ptr_obj_size, int64ty);
@@ -733,7 +736,7 @@ class ir_visitor : public visitor::visitor {
       if (auto var_node = std::dynamic_pointer_cast<details::variable_node>(
               variable.get_variable());
           var_node) {
-        llvm::AllocaInst* obj_ptr = ir_visitor_->var_env["this"];
+        llvm::Value* obj_ptr = ir_visitor_->var_env["this"];
         std::string type_name = var_node->get_scope()->get_name();
 
         llvm::Type* type_ptr =
