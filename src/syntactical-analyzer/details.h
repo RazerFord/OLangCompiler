@@ -73,7 +73,6 @@ class variable_call;
 template <typename T>
 class literal_node;
 
-
 inline void merge_in_left(token::span& l, const token::span& r) {
   if (l == zero_span) {
     l = r;
@@ -122,7 +121,6 @@ class ast_node : public std::enable_shared_from_this<ast_node> {
   virtual void print() = 0;
   virtual ~ast_node() = default;
 };
-
 
 class identifier_node : public ast_node {
  private:
@@ -806,6 +804,7 @@ class expression_node : public statement_node {
 };
 
 class variable_node : public member_node {
+  int index_ = -1; // -1 for local variable
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<expression_node> expression_;
   std::shared_ptr<scope::scope> scope_;
@@ -828,6 +827,10 @@ class variable_node : public member_node {
   void generate() override {}
 
  public:
+  int get_index() const noexcept { return index_; }
+
+  void set_index(int index) noexcept { index_ = index; }
+
   [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
     return identifier_;
   }
@@ -1472,13 +1475,9 @@ class method_call : public expression_ext {
               std::vector<std::shared_ptr<ast_node>> args)
       : clazz_(clazz), method_(method), arguments_(args) {}
 
-  void set_owner_value(llvm::Value* owner_value) {
-    owner_value_ = owner_value;
-  }
+  void set_owner_value(llvm::Value* owner_value) { owner_value_ = owner_value; }
 
-  llvm::Value* get_owner_value() const noexcept {
-    return owner_value_;
-  }
+  llvm::Value* get_owner_value() const noexcept { return owner_value_; }
 
   std::shared_ptr<type_node> get_type() override {
     return method_.lock()->get_return_type();

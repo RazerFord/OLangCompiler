@@ -76,17 +76,19 @@ class scope : public std::enable_shared_from_this<scope> {
  public:
   scope() = default;
 
-  explicit scope(std::shared_ptr<scope> parent, std::string  name = "",
+  explicit scope(std::shared_ptr<scope> parent, std::string name = "",
                  scope_type type = scope_type::Class)
       : parent_{std::move(parent)}, name_{std::move(name)}, type_{type} {}
 
-  explicit scope(std::shared_ptr<scope_symbol> symbol,
-                 std::string  name = "",
+  explicit scope(std::shared_ptr<scope_symbol> symbol, std::string name = "",
                  scope_type type = scope_type::Class)
-      : parent_{}, symbol_{std::move(symbol)}, name_{std::move(name)}, type_{type} {}
+      : parent_{},
+        symbol_{std::move(symbol)},
+        name_{std::move(name)},
+        type_{type} {}
 
   scope(std::shared_ptr<scope> parent, std::shared_ptr<scope_symbol> symbol,
-        std::string  name = "", scope_type type = scope_type::Class)
+        std::string name = "", scope_type type = scope_type::Class)
       : parent_{std::move(parent)},
         symbol_{std::move(symbol)},
         name_{std::move(name)},
@@ -117,9 +119,9 @@ inline std::shared_ptr<scope> scope::push(const std::string& name,
   return std::make_shared<scope>(shared_from_this(), name, type);
 }
 
-inline std::shared_ptr<scope> scope::push(const std::shared_ptr<scope_symbol>& symbols,
-                                          const std::string& name,
-                                          scope_type type) {
+inline std::shared_ptr<scope> scope::push(
+    const std::shared_ptr<scope_symbol>& symbols, const std::string& name,
+    scope_type type) {
   return std::make_shared<scope>(shared_from_this(), symbols, name, type);
 }
 
@@ -142,11 +144,11 @@ inline std::weak_ptr<details::ast_node> scope::add(
 
 inline const std::string* scope::get_name(scope_type type) const noexcept {
   const scope* s = this;
-  while ((s = s->parent_.get()) != nullptr) {
+  do {
     if (s->type_ == type) {
       return &s->get_name();
     }
-  }
+  } while ((s = s->parent_.get()) != nullptr);
   return nullptr;
 }
 

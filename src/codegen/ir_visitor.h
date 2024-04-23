@@ -26,7 +26,7 @@ class ir_visitor : public visitor::visitor {
       std::make_unique<llvm::IRBuilder<>>(*ctx_);
   std::unique_ptr<llvm::Module> module_ =
       std::make_unique<llvm::Module>(ModuleName, *ctx_);
-  std::unordered_map<std::string, llvm::Value*> var_env;
+  std::unordered_map<std::string, llvm::AllocaInst*> var_env;
 
  public:
   void visit(details::program_node& p) override {
@@ -297,7 +297,7 @@ class ir_visitor : public visitor::visitor {
       auto func_value = method.get_method_value();
       generate_def_func(func_value, method.get_parameters()->get_parameters());
 
-      // generate expr  and set return value
+      // generate expr and set return value
       body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       method.get_body()->visit(&bd_visitor);
       llvm::verifyFunction(*func_value);
@@ -331,7 +331,13 @@ class ir_visitor : public visitor::visitor {
       for (auto& param : func_value->args()) {
         size_t paramNo = param.getArgNo();
         if (paramNo == 0) {
-          ir_visitor_->var_env["this"] = &param;
+          std::string param_name = "this";
+          llvm::Type* param_type = param.getType();
+          ir_visitor_->var_env[param_name] =
+              ir_visitor_->builder_->CreateAlloca(param_type, nullptr,
+                                                  llvm::Twine(param_name));
+          ir_visitor_->builder_->CreateStore(&param,
+                                             ir_visitor_->var_env[param_name]);
           continue;
         }
 
@@ -392,7 +398,8 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::while_loop_node& while_node) override {
       while_node.get_expression()->visit(this);
-      auto cond_value = while_node.get_expression()->get_final_object()->get_value();
+      auto cond_value =
+          while_node.get_expression()->get_final_object()->get_value();
       llvm::Function* parent_function =
           ir_visitor_->builder_->GetInsertBlock()->getParent();
       auto loop_bb = llvm::BasicBlock::Create(*ir_visitor_->ctx_, "loop");
@@ -401,7 +408,6 @@ class ir_visitor : public visitor::visitor {
       ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
       parent_function->getBasicBlockList().push_back(loop_bb);
       ir_visitor_->builder_->SetInsertPoint(loop_bb);
-
 
       while_node.get_body_node()->visit(this);
       while_node.get_expression()->visit(this);
@@ -461,6 +467,8 @@ class ir_visitor : public visitor::visitor {
     }
 
     void visit(details::member_call& member) override {
+      // !if you write `this.i`
+      // !its `this`
       member.get_object()->visit(this);
       if (auto method = std::dynamic_pointer_cast<details::method_call>(
               member.get_member());
@@ -468,8 +476,10 @@ class ir_visitor : public visitor::visitor {
         method->set_owner_value(member.get_object()->get_value());
         member.get_member()->visit(this);
       } else {
-        member.get_member()->visit(this);
-        // TODO handler access to member value
+        variable_call_visitor vcv(ir_visitor_, this);
+        // !its `i`
+        member.get_member()->visit(&vcv);
+        member.set_value(member.get_member()->get_value());
       }
     }
 
@@ -483,7 +493,6 @@ class ir_visitor : public visitor::visitor {
                  expr) {
         expr->visit(this);
         std::cout << "expr visit in variable node\n";
-
       } else if (auto par_node =
                      std::dynamic_pointer_cast<details::parameter_node>(
                          variable.get_variable());
@@ -600,7 +609,6 @@ class ir_visitor : public visitor::visitor {
 
       // Create vars in class
       std::vector<llvm::Value*> values;
-      variable_def_visitor av(&values, ir_visitor_);
       for (auto& v : cls_to_vars_->at(type_name)) {
         v->get_expression()->visit(this);
         values.push_back(v->get_expression()->get_value());
@@ -617,7 +625,7 @@ class ir_visitor : public visitor::visitor {
     }
 
     llvm::Value* create_literal_constant(
-        std::shared_ptr<details::literal_base_node> literal_base) {
+        const std::shared_ptr<details::literal_base_node>& literal_base) {
       if (auto literal_int =
               std::dynamic_pointer_cast<details::literal_node<int32_t>>(
                   literal_base);
@@ -645,16 +653,72 @@ class ir_visitor : public visitor::visitor {
     }
   };
 
-  class variable_def_visitor : public visitor::visitor {
+  class variable_call_visitor : public visitor::visitor {
    private:
-    std::vector<llvm::Value*>* const values_ = nullptr;
     ir_visitor* const ir_visitor_ = nullptr;
+    body_visitor* const body_visitor_ = nullptr;
 
    public:
-    variable_def_visitor(std::vector<llvm::Value*>* const values,
-                         ir_visitor* const ir_visitor)
-        : values_{values}, ir_visitor_(ir_visitor) {}
-    void visit(details::variable_node& node) override {}
+    explicit variable_call_visitor(ir_visitor* const ir_visitor,
+                                   body_visitor* const body_visitor)
+        : ir_visitor_(ir_visitor), body_visitor_(body_visitor) {}
+
+    void visit(details::expression_node& expression) override {
+      expression.visit(body_visitor_);
+    }
+
+    void visit(details::body_node& body) override { body.visit(body_visitor_); }
+
+    void visit(details::while_loop_node& while_node) override {
+      while_node.visit(body_visitor_);
+    }
+
+    void visit(details::if_statement_node& if_node) override {
+      if_node.visit(body_visitor_);
+    }
+
+    void visit(details::assignment_node& assign) override {
+      assign.visit(body_visitor_);
+    }
+
+    void visit(details::return_statement_node& return_expr) override {
+      return_expr.visit(body_visitor_);
+    }
+
+    void visit(details::member_call& member) override {
+      member.visit(body_visitor_);
+    }
+
+    void visit(details::constructor_call& constr_call) override {
+      constr_call.visit(body_visitor_);
+    }
+
+    void visit(details::method_call& method_call) override {
+      method_call.visit(body_visitor_);
+    }
+
+    void visit(details::variable_call& variable) override {
+      if (auto var_node = std::dynamic_pointer_cast<details::variable_node>(
+              variable.get_variable());
+          var_node) {
+        llvm::AllocaInst* obj_ptr = ir_visitor_->var_env["this"];
+        std::string type_name = var_node->get_scope()->get_name();
+
+        llvm::Type* type_ptr =
+            llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
+
+        llvm::LoadInst* load_obj_ptr = ir_visitor_->builder_->CreateLoad(
+            type_ptr->getPointerTo(), obj_ptr);
+
+        // +1 from the table of virtual functions
+        llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
+            type_ptr, load_obj_ptr, 1 + var_node->get_index());
+
+        variable.set_value(value);
+      } else {
+        throw std::runtime_error("illegal argument");
+      }
+    }
   };
 };
 }  // namespace ir_visitor

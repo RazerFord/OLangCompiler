@@ -67,9 +67,11 @@ class scope_visitor : public semantic_visitor {
   }
 
   void visit(details::class_node& cls) override {
+    int var_index = 0;
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
         var->visit(this);
+        var->set_index(var_index++);
       }
     }
     std::unordered_set<std::string> mangled_methods;
