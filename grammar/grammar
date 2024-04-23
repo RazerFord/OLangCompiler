@@ -52,6 +52,7 @@ Primary : Literal
   | this
   | base
   | null
+  | printf
   | ClassName
 
 Literal : IntegerLiteral

@@ -399,7 +399,7 @@ class ir_visitor : public visitor::visitor {
       auto loopend_bb = llvm::BasicBlock::Create(*ir_visitor_->ctx_, "loopend");
 
       ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
-      parent_function->insert(parent_function->end(), loop_bb);
+      parent_function->getBasicBlockList().push_back(loop_bb);
       ir_visitor_->builder_->SetInsertPoint(loop_bb);
 
 
@@ -409,7 +409,7 @@ class ir_visitor : public visitor::visitor {
       loop_bb = ir_visitor_->builder_->GetInsertBlock();
       ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
 
-      parent_function->insert(parent_function->end(), loopend_bb);
+      parent_function->getBasicBlockList().push_back(loopend_bb);
       ir_visitor_->builder_->SetInsertPoint(loopend_bb);
     }
 
@@ -432,13 +432,13 @@ class ir_visitor : public visitor::visitor {
       if_node.get_true_body()->visit(this);
       ir_visitor_->builder_->CreateBr(merge_bb);
 
-      parent_function->insert(parent_function->end(), else_bb);
+      parent_function->getBasicBlockList().push_back(else_bb);
       ir_visitor_->builder_->SetInsertPoint(else_bb);
       if (if_node.get_false_body())
         if_node.get_false_body()->visit(this);
       ir_visitor_->builder_->CreateBr(merge_bb);
 
-      parent_function->insert(parent_function->end(), merge_bb);
+      parent_function->getBasicBlockList().push_back(merge_bb);
       ir_visitor_->builder_->SetInsertPoint(merge_bb);
     }
 

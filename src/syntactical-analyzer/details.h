@@ -69,6 +69,10 @@ class arguments_node;
 class this_node;
 class null_node;
 class base_node;
+class variable_call;
+template <typename T>
+class literal_node;
+
 
 inline void merge_in_left(token::span& l, const token::span& r) {
   if (l == zero_span) {
@@ -119,23 +123,6 @@ class ast_node : public std::enable_shared_from_this<ast_node> {
   virtual ~ast_node() = default;
 };
 
-class class_node;
-class primary_node;
-class class_name_node;
-class parameters_node;
-class parameter_node;
-class member_node;
-class method_node;
-class statement_node;
-class expression_node;
-class arguments_node;
-class body_node;
-class this_node;
-class null_node;
-class variable_call;
-
-template <typename T>
-class literal_node;
 
 class identifier_node : public ast_node {
  private:
