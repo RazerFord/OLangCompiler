@@ -22,6 +22,8 @@ std::string variable_redefinition(const std::string& name) {
   return "variable named \"" + name + "\" is already defined";
 }
 
+inline auto printf_class_node = std::make_shared<details::class_node>();
+
 class semantic_visitor : public visitor {
  public:
   [[nodiscard]] virtual bool success() const noexcept { return false; };
@@ -45,6 +47,7 @@ class scope_visitor : public semantic_visitor {
   void visit(details::program_node& p) override {
     success_ = true;
     p.set_scope(scope_);
+    scope_->add("printf", printf_class_node);
     for (const auto& cls : p.get_classes()) {
       std::string name = cls->get_class_name()->get_identifier()->get_name();
       if (!scope_->find(name)) {

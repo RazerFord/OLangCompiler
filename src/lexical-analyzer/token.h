@@ -152,6 +152,11 @@ class boolean_literal : public basic_template_token<bool> {
   }
 };
 
+class string_literal: public basic_template_token<std::string> {
+ public:
+  using basic_template_token::basic_template_token;
+};
+
 template <class T, class U>
 std::unique_ptr<T> make(const span& span, token_id code,
                         const std::string& value) {

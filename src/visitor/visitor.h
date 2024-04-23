@@ -29,10 +29,12 @@ class visitor {
   virtual void visit(details::literal_node<int32_t>&){};
   virtual void visit(details::literal_node<bool>&){};
   virtual void visit(details::literal_node<double_t>&){};
+  virtual void visit(details::literal_node<std::string>&){};
   virtual void visit(details::variable_call&){};
   virtual void visit(details::constructor_call&){};
   virtual void visit(details::method_call&){};
   virtual void visit(details::member_call&){};
+  virtual void visit(details::printf_call&){};
 
   virtual ~visitor() = default;
 };

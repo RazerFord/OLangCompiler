@@ -3,12 +3,12 @@
 #include <memory>
 #include <vector>
 
+#include "details.h"
 #include "lexical-analyzer/token-code.h"
 #include "lexical-analyzer/token.h"
 #include "logging/logger.h"
-#include "visitor/visitor.h"
-#include "details.h"
 #include "syntactical-analyzer/token_stream.h"
+#include "visitor/visitor.h"
 
 namespace tree {
 using token_vector = std::vector<std::unique_ptr<token::token>>;
@@ -369,19 +369,24 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_literal() {
   auto&& tok = stream_.next_and_token();
   switch (stream_.get_token_id()) {
     case token_id::IntegerLiteral: {
-      token::basic_template_token<int32_t>* literal_token =
+      auto* literal_token =
           dynamic_cast<token::basic_template_token<int32_t>*>(tok.get());
       return {std::make_shared<literal_node<int32_t>>(*literal_token)};
     }
     case token_id::RealLiteral: {
-      token::basic_template_token<double_t>* literal_token =
+      auto* literal_token =
           dynamic_cast<token::basic_template_token<double_t>*>(tok.get());
       return {std::make_shared<literal_node<double_t>>(*literal_token)};
     }
     case token_id::BooleanLiteral: {
-      token::basic_template_token<bool>* literal_token =
+      auto* literal_token =
           dynamic_cast<token::basic_template_token<bool>*>(tok.get());
       return {std::make_shared<literal_node<bool>>(*literal_token)};
+    }
+    case token_id::StringLiteral: {
+      auto* literal_token =
+          dynamic_cast<token::basic_template_token<std::string>*>(tok.get());
+      return {std::make_shared<literal_node<std::string>>(*literal_token)};
     }
     default:
       logger::error("raw token");
@@ -412,6 +417,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_keyword() {
 
 inline result<std::shared_ptr<primary_node>> ast_parser::parse_primary() {
   switch (stream_.next_token_id()) {
+    case token_id::StringLiteral:
     case token_id::IntegerLiteral:
     case token_id::RealLiteral:
     case token_id::BooleanLiteral: {
@@ -486,7 +492,8 @@ inline result<std::shared_ptr<expression_node>> ast_parser::parse_expression() {
 inline result<std::shared_ptr<return_statement_node>>
 ast_parser::parse_return() {
   auto return_node = std::make_shared<return_statement_node>();
-  return_node->set_meta(details::meta("return", stream_.get_token_id(), stream_.token()->get_span()));
+  return_node->set_meta(details::meta("return", stream_.get_token_id(),
+                                      stream_.token()->get_span()));
   if (stream_.next_token_id() != token_id::NewLine)
     return_node->set_expression(parse_expression().value);
   else {
