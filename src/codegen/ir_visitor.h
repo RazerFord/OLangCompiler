@@ -152,9 +152,11 @@ class ir_visitor : public visitor::visitor {
       }
       ptr_table->setBody(llvm::ArrayRef(types));
       module_->getOrInsertGlobal(vtable, ptr_table);
-//      auto global_table = module_->getNamedGlobal(vtable);
-//      global_table->setInitializer(
-//          llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
+      auto global_table = module_->getNamedGlobal(vtable);
+      // TODO fixed init table for VTable
+      methods.clear();
+      global_table->setInitializer(
+          llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
     }
   }
 
