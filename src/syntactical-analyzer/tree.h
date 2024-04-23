@@ -497,6 +497,7 @@ ast_parser::parse_return() {
   if (stream_.next_token_id() != token_id::NewLine)
     return_node->set_expression(parse_expression().value);
   else {
+    return_node->set_expression(std::make_shared<expression_node>(std::make_shared<void_node>()));
     ++stream_;
   }
   return {return_node};

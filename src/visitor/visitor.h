@@ -26,6 +26,7 @@ class visitor {
   virtual void visit(details::this_node&){};
   virtual void visit(details::null_node&){};
   virtual void visit(details::base_node&){};
+  virtual void visit(details::void_node&){};
   virtual void visit(details::literal_node<int32_t>&){};
   virtual void visit(details::literal_node<bool>&){};
   virtual void visit(details::literal_node<double_t>&){};

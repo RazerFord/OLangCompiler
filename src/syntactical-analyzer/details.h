@@ -724,6 +724,9 @@ class expression_node : public statement_node {
       error_handling::error_handling& error_handler);
 
  public:
+
+  expression_node() {}
+  expression_node(std::shared_ptr<primary_node> primary): primary_(primary) {}
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
       const noexcept {
     return primary_;
@@ -1352,6 +1355,17 @@ class null_node : public primary_node {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
 
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+  void visit(visitor::visitor* v) override;
+
+  void print() override { std::cout << "null"; }
+};
+
+class void_node: public primary_node {
+ public:
   bool validate() override { return true; }
 
   void generate() override {}

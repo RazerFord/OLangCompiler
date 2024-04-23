@@ -8,6 +8,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Verifier.h"
 #include "visitor/visitor.h"
 
@@ -37,7 +38,9 @@ class ir_visitor : public visitor::visitor {
     register_vtables(p);
     generate_def_funcs(p);
 
-    module_->dump();
+    std::error_code ec;
+    llvm::raw_fd_ostream out_file("out.ll", ec);
+    module_->print(out_file, nullptr);
   }
 
  private:
@@ -149,9 +152,9 @@ class ir_visitor : public visitor::visitor {
       }
       ptr_table->setBody(llvm::ArrayRef(types));
       module_->getOrInsertGlobal(vtable, ptr_table);
-      auto global_table = module_->getNamedGlobal(vtable);
-      global_table->setInitializer(
-          llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
+//      auto global_table = module_->getNamedGlobal(vtable);
+//      global_table->setInitializer(
+//          llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
     }
   }
 
@@ -223,7 +226,7 @@ class ir_visitor : public visitor::visitor {
       }
 
       llvm::FunctionType* ptr_func_type =
-          llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
+          llvm::FunctionType::get(ret_type->getPointerTo(), llvm::ArrayRef(params), false);
 
       llvm::Function* func = llvm::Function::Create(
           ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
@@ -247,7 +250,7 @@ class ir_visitor : public visitor::visitor {
                                                       llvm::StringRef(*name));
 
       llvm::FunctionType* ptr_func_type =
-          llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
+          llvm::FunctionType::get(ret_type->getPointerTo(), llvm::ArrayRef(params), false);
 
       auto func_value_ptr = llvm::Function::Create(
           ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
@@ -270,6 +273,9 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::method_node& f) override {
       methods_->push_back(f.get_method_value());
+      if (f.get_method_value()->getReturnType()->isVoidTy()) {
+        return;
+      }
       types_->push_back(f.get_method_value()->getReturnType());
     }
   };
@@ -323,6 +329,7 @@ class ir_visitor : public visitor::visitor {
       // generate expr  and set return value
       body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       constr.get_body()->visit(&bd_visitor);
+      ir_visitor_->builder_->CreateRet(ir_visitor_->var_env["this"]);
       llvm::verifyFunction(*func_value);
     }
 
@@ -490,7 +497,9 @@ class ir_visitor : public visitor::visitor {
     }
 
     void visit(details::variable_call& variable) override {
-      if (auto this_keyword = std::dynamic_pointer_cast<details::this_node>(
+      if (variable.get_variable() == nullptr) {
+        variable.set_value(llvm::UndefValue::get(llvm::Type::getVoidTy(*ir_visitor_->ctx_)));
+      } else if (auto this_keyword = std::dynamic_pointer_cast<details::this_node>(
               variable.get_variable());
           this_keyword) {
         variable.set_value(ir_visitor_->var_env["this"]);

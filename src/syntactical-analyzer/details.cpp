@@ -65,6 +65,8 @@ void null_node::visit(visitor::visitor* v) { v->visit(*this); }
 
 void base_node::visit(visitor::visitor* v) { v->visit(*this); }
 
+void void_node::visit(visitor::visitor* v) { v->visit(*this); }
+
 auto EMPTY_VAR =
     std::make_shared<variable_call>(nullptr, std::make_shared<type_node>());
 
@@ -382,7 +384,10 @@ std::shared_ptr<expression_ext> expression_node::get_object(
   final_object_ = EMPTY_VAR;
 
   bool is_ctor = false;
-  if (auto printf_node = std::dynamic_pointer_cast<class_name_node>(primary_);
+  if (auto void_ = std::dynamic_pointer_cast<void_node>(primary_); void_) {
+    final_object_ = std::make_shared<variable_call>(nullptr, std::make_shared<type_node>(type_id::Void));
+    return final_object_;
+  } else if (auto printf_node = std::dynamic_pointer_cast<class_name_node>(primary_);
       printf_node && printf_node->get_identifier()->get_name() == "printf") {
     final_object_ = printf_checking(error_handler);
     return final_object_;
