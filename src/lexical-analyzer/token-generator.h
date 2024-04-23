@@ -46,6 +46,8 @@ class token_generator {
     Word,
     Numeric,
     RealNumeric,
+    StringStart,
+    StringEnd,
   };
 
   struct generator_context {
@@ -104,6 +106,11 @@ class token_generator {
               span, token_id::Identifier, context.buff);
         }
       } break;
+      case State::StringEnd: {
+        token = token::make<token::string_literal, std::string>(
+            span, token_id::StringLiteral, context.buff);
+        break;
+      }
       case State::Numeric: {
         token = token::make<token::integer_literal, std::int32_t>(
             span, token_id::IntegerLiteral, context.buff);
@@ -137,7 +144,9 @@ class token_generator {
       switch (context.state) {
         case State::Start: {
           context.buff += ch;
-          if (std::isalpha(ch)) {
+          if (ch == '"') {
+            context.state = State::StringStart;
+          } else if (std::isalpha(ch)) {
             context.state = State::Word;
           } else if (std::isdigit(ch) || ch == '-') {
             context.state = State::Numeric;
@@ -161,6 +170,16 @@ class token_generator {
           }
           break;
         };
+        case State::StringStart: {
+          context.buff += ch;
+          if (ch == '"')
+            context.state = State::StringEnd;
+          break;
+        }
+        case State::StringEnd: {
+          complete_token(context, source_code);
+          break;
+        }
         case State::Word: {
           if (std::isalpha(ch) || std::isdigit(ch)) {
             context.buff += ch;

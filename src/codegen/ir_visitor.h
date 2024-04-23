@@ -15,6 +15,7 @@ inline constexpr std::string ModuleName = "Main";
 inline constexpr std::string CtorName = "<init>";
 inline constexpr std::string PrefixNameMemberVar = "_var";
 inline constexpr std::string Malloc = "malloc";
+inline constexpr std::string Printf = "printf";
 inline constexpr std::string PrefixVTable = "__VTable";
 
 namespace ir_visitor {
@@ -120,6 +121,12 @@ class ir_visitor : public visitor::visitor {
   }
 
   void register_global_funcs(details::program_node& p) {
+    module_->getOrInsertFunction(
+        Printf,
+        llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(*ctx_),
+                                llvm::Type::getInt8Ty(*ctx_)->getPointerTo(),
+                                true /* this is var arg func type*/));
+
     llvm::Type* ptr_void = llvm::Type::getInt8Ty(*ctx_)->getPointerTo();
 
     module_->getOrInsertFunction(
@@ -392,7 +399,8 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::while_loop_node& while_node) override {
       while_node.get_expression()->visit(this);
-      auto cond_value = while_node.get_expression()->get_final_object()->get_value();
+      auto cond_value =
+          while_node.get_expression()->get_final_object()->get_value();
       llvm::Function* parent_function =
           ir_visitor_->builder_->GetInsertBlock()->getParent();
       auto loop_bb = llvm::BasicBlock::Create(*ir_visitor_->ctx_, "loop");
@@ -401,7 +409,6 @@ class ir_visitor : public visitor::visitor {
       ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
       parent_function->getBasicBlockList().push_back(loop_bb);
       ir_visitor_->builder_->SetInsertPoint(loop_bb);
-
 
       while_node.get_body_node()->visit(this);
       while_node.get_expression()->visit(this);
@@ -434,8 +441,7 @@ class ir_visitor : public visitor::visitor {
 
       parent_function->getBasicBlockList().push_back(else_bb);
       ir_visitor_->builder_->SetInsertPoint(else_bb);
-      if (if_node.get_false_body())
-        if_node.get_false_body()->visit(this);
+      if (if_node.get_false_body()) if_node.get_false_body()->visit(this);
       ir_visitor_->builder_->CreateBr(merge_bb);
 
       parent_function->getBasicBlockList().push_back(merge_bb);
@@ -500,6 +506,23 @@ class ir_visitor : public visitor::visitor {
                  literal) {
         variable.set_value(create_literal_constant(literal));
       }
+    }
+
+    void visit(details::printf_call& printf_call) override {
+      llvm::Function* printf = ir_visitor_->module_->getFunction("printf");
+      std::vector<llvm::Value*> printf_args;
+      printf_args.push_back(ir_visitor_->builder_->CreateGlobalStringPtr(
+          printf_call.get_formatted_str()));
+      for (auto& arg : printf_call.get_arguments()) {
+        arg->visit(this);
+        auto arg_val = arg->get_value();
+        if (arg_val == nullptr) {
+          std::cout << "error: printf arg is nullptr\n";
+          return;
+        }
+        printf_args.push_back(arg_val);
+      }
+      ir_visitor_->builder_->CreateCall(printf, printf_args);
     }
 
     void visit(details::constructor_call& constr_call) override {
