@@ -296,6 +296,7 @@ class type_node : public ast_node {
       {type_id::f, mangle_name(realT)},
       {type_id::b, mangle_name(booleanT)},
       {type_id::Void, mangle_name(voidT)},
+      {type_id::BaseCall, mangle_name(baseT)},
       {type_id::Undefined, mangle_name("/Undefined")},
   };
 
@@ -303,6 +304,7 @@ class type_node : public ast_node {
       {type_id::Integer, IntegerT}, {type_id::Real, RealT},
       {type_id::Boolean, BooleanT}, {type_id::i, intT},
       {type_id::f, realT},          {type_id::b, booleanT},
+      {type_id::BaseCall, baseT},
       {type_id::Void, voidT},       {type_id::Undefined, "/Undefined"},
   };
 };

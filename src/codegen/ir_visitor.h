@@ -152,9 +152,10 @@ class ir_visitor : public visitor::visitor {
       }
       ptr_table->setBody(llvm::ArrayRef(types));
       module_->getOrInsertGlobal(vtable, ptr_table);
-//      auto global_table = module_->getNamedGlobal(vtable);
-//      global_table->setInitializer(
-//          llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
+      methods.clear();
+      auto global_table = module_->getNamedGlobal(vtable);
+      global_table->setInitializer(
+          llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
     }
   }
 
@@ -491,6 +492,7 @@ class ir_visitor : public visitor::visitor {
           method) {
         method->set_owner_value(member.get_object()->get_value());
         member.get_member()->visit(this);
+        member.set_value(member.get_member()->get_value());
       } else {
         variable_call_visitor vcv(ir_visitor_, this);
         // !its `i`
@@ -572,7 +574,7 @@ class ir_visitor : public visitor::visitor {
           return;
         }
 
-        llvm::Type* param_type = callee_fun_type->getParamType(i);
+        llvm::Type* param_type = callee_fun_type->getParamType(i + 1);
         if (param_type == nullptr) {
           std::cout << "here\n";
           continue;
@@ -607,7 +609,7 @@ class ir_visitor : public visitor::visitor {
           return;
         }
 
-        llvm::Type* paramTy = callee_fun_type->getParamType(i);
+        llvm::Type* paramTy = callee_fun_type->getParamType(i + 1);
         llvm::Value* bitCastArgVal =
             ir_visitor_->builder_->CreateBitCast(arg_val, paramTy);
         arg_values.push_back(bitCastArgVal);
