@@ -545,7 +545,10 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope() {
       case token_id::End: {
         return {body};
       }
-
+      case token_id::StringLiteral:
+      case token_id::IntegerLiteral:
+      case token_id::BooleanLiteral:
+      case token_id::RealLiteral:
       case token_id::Null:
       case token_id::Base:
       case token_id::This:

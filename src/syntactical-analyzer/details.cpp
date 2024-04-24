@@ -342,12 +342,12 @@ std::shared_ptr<expression_ext> expression_node::constr_call_checking(
 }
 
 std::shared_ptr<expression_ext> expression_node::printf_checking(error_handling::error_handling& error_handler) {
-  auto printf_args =  expression_values[0].second->get_arguments();
-  if (expression_values.empty() || expression_values.size() > 1 || expression_values[0].first || printf_args.size() == 0) {
+  if (expression_values.empty() || expression_values.size() > 1 || expression_values[0].first ||  expression_values[0].second->get_arguments().size() == 0) {
     error_handler.register_error(error_handling::make_error_t(
         *this, "error: invalid printf call"));
     return EMPTY_VAR;
   }
+  auto printf_args =  expression_values[0].second->get_arguments();
 
   std::shared_ptr<variable_call> var;
   if (var = std::dynamic_pointer_cast<variable_call>(printf_args[0]->get_object(error_handler)); !var) {

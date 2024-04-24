@@ -187,6 +187,8 @@ class ir_visitor : public visitor::visitor {
 
     func_def_visitor fdv(this, &cls_to_vars);
     for (const auto& c : p.get_classes()) {
+      if (c->get_class_name()->get_identifier()->get_name() == "int")
+        continue;
       for (const auto& m : c->get_members()) {
         m->visit(&fdv);
       }
@@ -565,6 +567,10 @@ class ir_visitor : public visitor::visitor {
         return;
       }
       auto obj = create_object(constr_call);
+      if (obj->getType() == llvm::StructType::getInt32PtrTy(*ir_visitor_->ctx_)) {
+        constr_call.set_value(obj);
+        return;
+      }
 
       auto callee_fun = constr_call.get_constructor()->get_constr_value();
       if (!callee_fun) {
@@ -632,8 +638,11 @@ class ir_visitor : public visitor::visitor {
    private:
     llvm::Value* create_object(details::constructor_call& constr_call) {
       std::string type_name = constr_call.get_type()->simple_type();
-      llvm::Type* type =
-          llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
+      llvm::Type* type = ir_visitor_->get_type_by_name(type_name);
+//          llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
+      if (type_name == "int") {
+        return ir_visitor_->builder_->CreateAlloca(type);
+      }
 
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
       llvm::Value* value = llvm::Constant::getNullValue(type->getPointerTo());
