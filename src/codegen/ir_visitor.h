@@ -570,7 +570,8 @@ class ir_visitor : public visitor::visitor {
       }
       auto obj = create_object(constr_call);
 
-      if (ir_visitor_->builtin_types_.contains(constr_call.get_type()->simple_type())) {
+      if (ir_visitor_->builtin_types_.contains(
+              constr_call.get_type()->simple_type())) {
         constr_call.set_value(obj);
         return;
       }
@@ -644,7 +645,17 @@ class ir_visitor : public visitor::visitor {
       llvm::Type* type = ir_visitor_->get_type_by_name(type_name);
 
       if (ir_visitor_->builtin_types_.contains(type_name)) {
-        return ir_visitor_->builder_->CreateAlloca(type);
+        //        llvm::Value* ptr = ir_visitor_->builder_->CreateAlloca(type);
+        //
+        //        llvm::Value* val = llvm::ConstantInt::get(
+        //            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), 0);
+        //
+        //        ir_visitor_->builder_->CreateStore(val, ptr);
+        //
+        //        return ir_visitor_->builder_->CreateLoad(
+        //            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), ptr);
+        return llvm::ConstantInt::get(
+            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), 0);
       }
 
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
@@ -768,8 +779,9 @@ class ir_visitor : public visitor::visitor {
         llvm::Type* type_ptr =
             llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
 
-//        llvm::LoadInst* load_obj_ptr = ir_visitor_->builder_->CreateLoad(
-//            type_ptr->getPointerTo(), obj_ptr);
+        //        llvm::LoadInst* load_obj_ptr =
+        //        ir_visitor_->builder_->CreateLoad(
+        //            type_ptr->getPointerTo(), obj_ptr);
 
         // +1 from the table of virtual functions
         llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
