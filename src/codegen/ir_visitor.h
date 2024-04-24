@@ -242,7 +242,7 @@ class ir_visitor : public visitor::visitor {
 
       if (!ret_type) {
         ret_type = llvm::Type::getVoidTy(*ir_visitor_->ctx_);
-      } else {
+      } else if (!ir_visitor_->builtin_types_.contains(ret_type_name)) {
         ret_type = ret_type->getPointerTo();
       }
 
@@ -496,12 +496,18 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::return_statement_node& return_expr) override {
       return_expr.get_expression()->visit(this);
-      auto ret_type =
+      std::string ret_name =
+          return_expr.get_expression()->get_type()->simple_type();
+      auto ret_val =
           return_expr.get_expression()->get_final_object()->get_value();
-      if (ret_type->getType()->isVoidTy())
+      if (ret_val->getType()->isVoidTy())
         ir_visitor_->builder_->CreateRetVoid();
-      else
-        ir_visitor_->builder_->CreateRet(ret_type);
+      else if (ir_visitor_->builtin_types_.contains(ret_name)) {
+        ret_val = ir_visitor_->builder_->CreateLoad(
+            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), ret_val);
+        ir_visitor_->builder_->CreateRet(ret_val);
+      } else
+        ir_visitor_->builder_->CreateRet(ret_val);
     }
 
     void visit(details::member_call& member) override {
