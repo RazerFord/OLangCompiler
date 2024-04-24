@@ -3,12 +3,12 @@
 #include <set>
 #include <sstream>
 
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Verifier.h"
 #include "visitor/visitor.h"
 
@@ -29,6 +29,11 @@ class ir_visitor : public visitor::visitor {
   std::unique_ptr<llvm::Module> module_ =
       std::make_unique<llvm::Module>(ModuleName, *ctx_);
   std::unordered_map<std::string, llvm::Value*> var_env;
+
+  std::unordered_map<std::string, llvm::Type*> builtin_types_{
+      {"int", llvm::Type::getInt32Ty(*ctx_)},
+      {"bool", llvm::Type::getInt1Ty(*ctx_)},
+  };
 
  public:
   void visit(details::program_node& p) override {
@@ -86,6 +91,8 @@ class ir_visitor : public visitor::visitor {
   void register_types(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
+      if (builtin_types_.contains(name)) continue;
+
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
       name = vtable_name(c);
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
@@ -95,6 +102,8 @@ class ir_visitor : public visitor::visitor {
   void register_members(details::program_node& p) {
     for (auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
+      if (builtin_types_.contains(name)) continue;
+
       llvm::StructType* ptr_cls =
           llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
       c->set_class_type(ptr_cls);
@@ -139,6 +148,9 @@ class ir_visitor : public visitor::visitor {
 
   void register_vtables(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
+      std::string name = c->get_class_name()->get_identifier()->get_name();
+      if (builtin_types_.contains(name)) continue;
+
       std::string vtable = vtable_name(c);
       auto ptr_table = llvm::StructType::getTypeByName(*ctx_, vtable);
       std::vector<llvm::Constant*> methods;
@@ -184,7 +196,7 @@ class ir_visitor : public visitor::visitor {
   class member_variable_visitor : public visitor::visitor {
    private:
     std::vector<llvm::Type*>* const body_ = nullptr;
-    ir_visitor* ir_visitor_ = nullptr;
+    ir_visitor* const ir_visitor_ = nullptr;
 
    public:
     explicit member_variable_visitor(std::vector<llvm::Type*>* const body,
@@ -194,8 +206,8 @@ class ir_visitor : public visitor::visitor {
     void visit(details::variable_node& v) override {
       std::string cls_name{
           v.get_type()->get_class_name()->get_identifier()->get_name()};
-      llvm::Type* ptrCls = llvm::StructType::getTypeByName(
-          *ir_visitor_->ctx_, llvm::StringRef(cls_name));
+
+      llvm::Type* ptrCls = ir_visitor_->get_type_by_name(cls_name);
       body_->push_back(ptrCls);
     }
   };
@@ -203,11 +215,11 @@ class ir_visitor : public visitor::visitor {
   class member_method_visitor : public visitor::visitor {
    private:
     const llvm::StructType* const ptr_cls_ = nullptr;
-    const ir_visitor* ir_visitor_ = nullptr;
+    ir_visitor* const ir_visitor_ = nullptr;
 
    public:
     explicit member_method_visitor(const llvm::StructType* const ptr_cls,
-                                   const ir_visitor* ir_visitor)
+                                   ir_visitor* ir_visitor)
         : ptr_cls_{ptr_cls}, ir_visitor_{ir_visitor} {}
 
     void visit(details::method_node& f) override {
@@ -215,13 +227,11 @@ class ir_visitor : public visitor::visitor {
       params.push_back(ptr_cls_->getPointerTo());
       for (const auto& p : f.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
-        llvm::Type* ptr_cls = llvm::StructType::getTypeByName(
-            *ir_visitor_->ctx_, llvm::StringRef(cls_name));
+        llvm::Type* ptr_cls = ir_visitor_->get_type_by_name(cls_name);
         params.push_back(ptr_cls);
       }
       std::string ret_type_name = f.get_return_type()->simple_type();
-      llvm::Type* ret_type = llvm::StructType::getTypeByName(
-          *ir_visitor_->ctx_, llvm::StringRef(ret_type_name));
+      llvm::Type* ret_type = ir_visitor_->get_type_by_name(ret_type_name);
 
       if (!ret_type) {
         ret_type = llvm::Type::getVoidTy(*ir_visitor_->ctx_);
@@ -244,8 +254,7 @@ class ir_visitor : public visitor::visitor {
       params.push_back(ptr_cls_->getPointerTo());
       for (const auto& p : c.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
-        llvm::Type* ptr_cls = llvm::StructType::getTypeByName(
-            *ir_visitor_->ctx_, llvm::StringRef(cls_name));
+        llvm::Type* ptr_cls = ir_visitor_->get_type_by_name(cls_name);
         params.push_back(ptr_cls);
       }
       const std::string* name =
@@ -253,8 +262,8 @@ class ir_visitor : public visitor::visitor {
       auto ret_type = llvm::StructType::getTypeByName(*ir_visitor_->ctx_,
                                                       llvm::StringRef(*name));
 
-      llvm::FunctionType* ptr_func_type =
-          llvm::FunctionType::get(ret_type->getPointerTo(), llvm::ArrayRef(params), false);
+      llvm::FunctionType* ptr_func_type = llvm::FunctionType::get(
+          ret_type->getPointerTo(), llvm::ArrayRef(params), false);
 
       auto func_value_ptr = llvm::Function::Create(
           ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
@@ -350,13 +359,12 @@ class ir_visitor : public visitor::visitor {
         size_t paramNo = param.getArgNo();
         if (paramNo == 0) {
           std::string param_name = "this";
-//          llvm::Type* param_type = param.getType();
+          //          llvm::Type* param_type = param.getType();
           ir_visitor_->var_env[param_name] = &param;
-//          ir_visitor_->builder_->CreateLoad(param_type, &param);
+          //          ir_visitor_->builder_->CreateLoad(param_type, &param);
 
-
-//          ir_visitor_->builder_->CreateStore(&param,
-//                                             ir_visitor_->var_env[param_name]);
+          //          ir_visitor_->builder_->CreateStore(&param,
+          //                                             ir_visitor_->var_env[param_name]);
           continue;
         }
 
@@ -392,14 +400,14 @@ class ir_visitor : public visitor::visitor {
           variable.get_expression()->get_final_object()->get_value();
 
       auto var_name = variable.get_identifier()->get_name();
-//      llvm::Function* parent_function =
-//          ir_visitor_->builder_->GetInsertBlock()->getParent();
-//      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
-//                                    parent_function->getEntryBlock().begin());
-//      llvm::AllocaInst* var = tmp_builder.CreateAlloca(
-//          bound_val->getType(), nullptr, llvm::Twine(var_name));
+      //      llvm::Function* parent_function =
+      //          ir_visitor_->builder_->GetInsertBlock()->getParent();
+      //      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
+      //                                    parent_function->getEntryBlock().begin());
+      //      llvm::AllocaInst* var = tmp_builder.CreateAlloca(
+      //          bound_val->getType(), nullptr, llvm::Twine(var_name));
       ir_visitor_->var_env[var_name] = bound_val;
-//      ir_visitor_->builder_->CreateStore(bound_val, var);
+      //      ir_visitor_->builder_->CreateStore(bound_val, var);
 
       variable.set_value(bound_val);
     }
@@ -504,10 +512,12 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::variable_call& variable) override {
       if (variable.get_variable() == nullptr) {
-        variable.set_value(llvm::UndefValue::get(llvm::Type::getVoidTy(*ir_visitor_->ctx_)));
-      } else if (auto this_keyword = std::dynamic_pointer_cast<details::this_node>(
-              variable.get_variable());
-          this_keyword) {
+        variable.set_value(
+            llvm::UndefValue::get(llvm::Type::getVoidTy(*ir_visitor_->ctx_)));
+      } else if (auto this_keyword =
+                     std::dynamic_pointer_cast<details::this_node>(
+                         variable.get_variable());
+                 this_keyword) {
         variable.set_value(ir_visitor_->var_env["this"]);
       } else if (auto expr = std::dynamic_pointer_cast<details::expression_ext>(
                      variable.get_variable());
@@ -758,5 +768,12 @@ class ir_visitor : public visitor::visitor {
       }
     }
   };
+
+  llvm::Type* get_type_by_name(const std::string& name) const {
+    if (builtin_types_.contains(name)) {
+      return builtin_types_.at(name);
+    }
+    return llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
+  }
 };
 }  // namespace ir_visitor

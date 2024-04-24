@@ -36,16 +36,13 @@ class scope_visitor : public semantic_visitor {
  private:
   std::shared_ptr<scope::scope> scope_{new scope::scope};
   error_handling::error_handling error_;
-  bool success_;
 
   void register_error(const details::ast_node& node, const std::string& msg) {
-    success_ = false;
     error_.register_error(error_handling::make_error_t(node, msg));
   }
 
  public:
   void visit(details::program_node& p) override {
-    success_ = true;
     p.set_scope(scope_);
     scope_->add("printf", printf_class_node);
     for (const auto& cls : p.get_classes()) {
@@ -257,9 +254,9 @@ class scope_visitor : public semantic_visitor {
     scope_ = scope_->pop();
   }
 
-  [[nodiscard]] bool success() const noexcept override { return success_; }
+  [[nodiscard]] bool success() const noexcept override { return !error_.error(); }
 
-  [[nodiscard]] bool fail() const noexcept override { return !success_; }
+  [[nodiscard]] bool fail() const noexcept override { return error_.error(); }
 
   void print_error() const { error_.print_errors(); }
 };
@@ -299,16 +296,13 @@ class type_visitor : public semantic_visitor {
                                             type::BooleanT, type::AnyT};
   std::unordered_map<std::string, std::string> constructor_calls_;
   error_handling::error_handling error_;
-  bool success_;
 
   void register_error(const details::ast_node& node, const std::string& msg) {
-    success_ = false;
     error_.register_error(error_handling::make_error_t(node, msg));
   }
 
  public:
   void visit(details::program_node& p) override {
-    success_ = true;
     for (const auto& cls : p.get_classes()) {
       std::string derived = cls->get_class_name()->get_identifier()->get_name();
       if (cls->get_extends()) {
@@ -404,9 +398,9 @@ class type_visitor : public semantic_visitor {
 
   void visit(details::body_node& b) override {}
 
-  [[nodiscard]] bool success() const noexcept override { return success_; }
+  [[nodiscard]] bool success() const noexcept override { return !error_.error(); }
 
-  [[nodiscard]] bool fail() const noexcept override { return !success_; }
+  [[nodiscard]] bool fail() const noexcept override { return error_.error(); }
 
   void print_error() const { error_.print_errors(); }
 
