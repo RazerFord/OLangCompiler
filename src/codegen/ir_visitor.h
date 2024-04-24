@@ -383,12 +383,18 @@ class ir_visitor : public visitor::visitor {
         auto param_name = parameters[paramNo - 1]->get_identifier()->get_name();
         param.setName(param_name);
         llvm::Type* param_type = param.getType();
-        ir_visitor_->var_env[param_name] = ir_visitor_->builder_->CreateAlloca(
-            param_type, nullptr, llvm::Twine(param_name));
+        if (param_type->isPointerTy()) {
+          ir_visitor_->var_env[param_name] = &param;
+        } else {
+          ir_visitor_->var_env[param_name] =
+              ir_visitor_->builder_->CreateAlloca(param_type, nullptr,
+                                                  llvm::Twine(param_name));
+          ir_visitor_->builder_->CreateStore(&param,
+                                             ir_visitor_->var_env[param_name]);
+        }
+
         parameters[paramNo - 1]->set_param_value(
             ir_visitor_->var_env[param_name]);
-        ir_visitor_->builder_->CreateStore(&param,
-                                           ir_visitor_->var_env[param_name]);
       }
     }
   };
@@ -490,13 +496,18 @@ class ir_visitor : public visitor::visitor {
       assign.get_lexpression()->visit(this);
       assign.get_rexpression()->visit(this);
 
-      std::string type_name = assign.get_rexpression()->get_final_object()->get_type()->simple_type();
+      std::string type_name = assign.get_rexpression()
+                                  ->get_final_object()
+                                  ->get_type()
+                                  ->simple_type();
 
-      if (ir_visitor_->builtin_types_.contains(type_name)) {
-        llvm::Value* val = assign.get_rexpression()->get_final_object()->get_value();
-        val = ir_visitor_->builder_->CreateLoad(val->getType()->getPointerElementType(), val);
+//      if (ir_visitor_->builtin_types_.contains(type_name)) {
+        llvm::Value* val =
+            assign.get_rexpression()->get_final_object()->get_value();
+        val = ir_visitor_->builder_->CreateLoad(
+            val->getType()->getPointerElementType(), val);
         assign.get_rexpression()->get_final_object()->set_value(val);
-      }
+//      }
 
       ir_visitor_->builder_->CreateStore(
           assign.get_rexpression()->get_final_object()->get_value(),
@@ -529,9 +540,12 @@ class ir_visitor : public visitor::visitor {
         method->set_owner_value(member.get_object()->get_value());
         member.get_member()->visit(this);
         member.set_value(member.get_member()->get_value());
-      } else {
+      } else if (auto variable =
+                     std::dynamic_pointer_cast<details::variable_call>(
+                         member.get_member())) {
         variable_call_visitor vcv(ir_visitor_, this);
         // !its `i`
+        variable->set_owner_value(member.get_object()->get_value());
         member.get_member()->visit(&vcv);
         member.set_value(member.get_member()->get_value());
       }
@@ -582,7 +596,8 @@ class ir_visitor : public visitor::visitor {
           return;
         }
         if (arg_val->getType()->isPointerTy()) {
-          arg_val = ir_visitor_->builder_->CreateLoad(arg_val->getType()->getPointerElementType(), arg_val);
+          arg_val = ir_visitor_->builder_->CreateLoad(
+              arg_val->getType()->getPointerElementType(), arg_val);
         }
         printf_args.push_back(arg_val);
       }
@@ -716,7 +731,7 @@ class ir_visitor : public visitor::visitor {
         llvm::Value* field =
             ir_visitor_->builder_->CreateStructGEP(type, ptr_obj, 1 + i);
 
-        ir_visitor_->builder_->CreateStore(values[i]  , field);
+        ir_visitor_->builder_->CreateStore(values[i], field);
       }
 
       return ptr_obj;
@@ -799,11 +814,11 @@ class ir_visitor : public visitor::visitor {
       if (auto var_node = std::dynamic_pointer_cast<details::variable_node>(
               variable.get_variable());
           var_node) {
-        llvm::Value* obj_ptr = ir_visitor_->var_env["this"];
-        std::string type_name = var_node->get_scope()->get_name();
+        llvm::Value* obj_ptr = variable.get_owner();
 
-        llvm::Type* type_ptr =
-            llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
+        llvm::Type* type_ptr = obj_ptr->getType()->getPointerElementType();
+        //            llvm::StructType::getTypeByName(*ir_visitor_->ctx_,
+        //            type_name);
 
         //        llvm::LoadInst* load_obj_ptr =
         //        ir_visitor_->builder_->CreateLoad(

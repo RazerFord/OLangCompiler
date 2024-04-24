@@ -301,11 +301,15 @@ class type_node : public ast_node {
   };
 
   inline static std::unordered_map<type_id, std::string> type_id_simple_str = {
-      {type_id::Integer, IntegerT}, {type_id::Real, RealT},
-      {type_id::Boolean, BooleanT}, {type_id::i, intT},
-      {type_id::f, realT},          {type_id::b, booleanT},
+      {type_id::Integer, IntegerT},
+      {type_id::Real, RealT},
+      {type_id::Boolean, BooleanT},
+      {type_id::i, intT},
+      {type_id::f, realT},
+      {type_id::b, booleanT},
       {type_id::BaseCall, baseT},
-      {type_id::Void, voidT},       {type_id::Undefined, "/Undefined"},
+      {type_id::Void, voidT},
+      {type_id::Undefined, "/Undefined"},
   };
 };
 
@@ -726,9 +730,8 @@ class expression_node : public statement_node {
       error_handling::error_handling& error_handler);
 
  public:
-
   expression_node() {}
-  expression_node(std::shared_ptr<primary_node> primary): primary_(primary) {}
+  expression_node(std::shared_ptr<primary_node> primary) : primary_(primary) {}
   [[nodiscard]] const std::shared_ptr<primary_node>& get_primary()
       const noexcept {
     return primary_;
@@ -792,7 +795,7 @@ class expression_node : public statement_node {
 };
 
 class variable_node : public member_node {
-  int index_ = -1; // -1 for local variable
+  int index_ = -1;  // -1 for local variable
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<expression_node> expression_;
   std::shared_ptr<scope::scope> scope_;
@@ -1366,7 +1369,7 @@ class null_node : public primary_node {
   void print() override { std::cout << "null"; }
 };
 
-class void_node: public primary_node {
+class void_node : public primary_node {
  public:
   bool validate() override { return true; }
 
@@ -1403,30 +1406,34 @@ class printf_call : public expression_ext {
  public:
   printf_call(std::string formatted_str,
               const std::vector<std::shared_ptr<expression_ext>>& args)
-      : formatted_str_(std::move(formatted_str)), arguments_(args), type_(std::make_shared<type_node>(type_id::Printf)) {}
+      : formatted_str_(std::move(formatted_str)),
+        arguments_(args),
+        type_(std::make_shared<type_node>(type_id::Printf)) {}
 
-  printf_call(std::string formatted_str, std::vector<std::shared_ptr<expression_ext>>&& args)
-      : formatted_str_(std::move(formatted_str)), arguments_(args), type_(std::make_shared<type_node>(type_id::Printf)) {}
+  printf_call(std::string formatted_str,
+              std::vector<std::shared_ptr<expression_ext>>&& args)
+      : formatted_str_(std::move(formatted_str)),
+        arguments_(args),
+        type_(std::make_shared<type_node>(type_id::Printf)) {}
 
   std::shared_ptr<type_node> get_type() const noexcept override {
     return type_;
   }
 
-  std::string get_formatted_str() const noexcept {
-    return formatted_str_;
-  }
+  std::string get_formatted_str() const noexcept { return formatted_str_; }
 
   std::vector<std::shared_ptr<expression_ext>> get_arguments() const noexcept {
     return arguments_;
   }
 
   void visit(visitor::visitor* v) override;
-  void print() override {};
+  void print() override{};
 };
 
 class variable_call : public expression_ext {
   std::shared_ptr<ast_node> variable_;
   std::shared_ptr<type_node> type_;
+  llvm::Value* owner_;
 
   bool validate() override { return true; }
 
@@ -1444,8 +1451,13 @@ class variable_call : public expression_ext {
 
   void set_type(std::shared_ptr<type_node> type) { type_ = std::move(type); }
 
+  void set_owner_value(llvm::Value* owner) { owner_ = owner; }
+
   std::shared_ptr<ast_node> get_variable() const noexcept { return variable_; }
-  std::shared_ptr<type_node> get_type() const noexcept override { return type_; }
+  std::shared_ptr<type_node> get_type() const noexcept override {
+    return type_;
+  }
+  llvm::Value* get_owner() const noexcept { return owner_; }
   void visit(visitor::visitor* v) override;
 
   void print() override{};
@@ -1474,7 +1486,9 @@ class constructor_call : public expression_ext {
                    std::shared_ptr<type_node> type)
       : class_(clazz), constr_(constr), arguments_(args), type_(type) {}
 
-  std::shared_ptr<type_node> get_type() const noexcept override { return type_; }
+  std::shared_ptr<type_node> get_type() const noexcept override {
+    return type_;
+  }
 
   // todo override
   void visit(visitor::visitor* v) override;
