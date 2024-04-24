@@ -187,6 +187,10 @@ class ir_visitor : public visitor::visitor {
 
     func_def_visitor fdv(this, &cls_to_vars);
     for (const auto& c : p.get_classes()) {
+      std::string name = c->get_type()->simple_type();
+      if (builtin_types_.contains(name)) {
+        continue;
+      }
       for (const auto& m : c->get_members()) {
         m->visit(&fdv);
       }
@@ -566,6 +570,11 @@ class ir_visitor : public visitor::visitor {
       }
       auto obj = create_object(constr_call);
 
+      if (ir_visitor_->builtin_types_.contains(constr_call.get_type()->simple_type())) {
+        constr_call.set_value(obj);
+        return;
+      }
+
       auto callee_fun = constr_call.get_constructor()->get_constr_value();
       if (!callee_fun) {
         std::cout << "Function doesn't exist\n";
@@ -632,8 +641,11 @@ class ir_visitor : public visitor::visitor {
    private:
     llvm::Value* create_object(details::constructor_call& constr_call) {
       std::string type_name = constr_call.get_type()->simple_type();
-      llvm::Type* type =
-          llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
+      llvm::Type* type = ir_visitor_->get_type_by_name(type_name);
+
+      if (ir_visitor_->builtin_types_.contains(type_name)) {
+        return ir_visitor_->builder_->CreateAlloca(type);
+      }
 
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
       llvm::Value* value = llvm::Constant::getNullValue(type->getPointerTo());
