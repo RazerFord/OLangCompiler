@@ -336,7 +336,7 @@ class ir_visitor : public visitor::visitor {
       // generate expr and set return value
       body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       method.get_body()->visit(&bd_visitor);
-      if (func_value->getReturnType()->isVoidTy())
+      if (func_value->getReturnType()->isVoidTy() && !method.get_return_type())
         ir_visitor_->builder_->CreateRetVoid();
       llvm::verifyFunction(*func_value);
     }
@@ -489,6 +489,15 @@ class ir_visitor : public visitor::visitor {
     void visit(details::assignment_node& assign) override {
       assign.get_lexpression()->visit(this);
       assign.get_rexpression()->visit(this);
+
+      std::string type_name = assign.get_rexpression()->get_final_object()->get_type()->simple_type();
+
+      if (ir_visitor_->builtin_types_.contains(type_name)) {
+        llvm::Value* val = assign.get_rexpression()->get_final_object()->get_value();
+        val = ir_visitor_->builder_->CreateLoad(val->getType()->getPointerElementType(), val);
+        assign.get_rexpression()->get_final_object()->set_value(val);
+      }
+
       ir_visitor_->builder_->CreateStore(
           assign.get_rexpression()->get_final_object()->get_value(),
           assign.get_lexpression()->get_final_object()->get_value());
@@ -571,6 +580,9 @@ class ir_visitor : public visitor::visitor {
         if (arg_val == nullptr) {
           std::cout << "error: printf arg is nullptr\n";
           return;
+        }
+        if (arg_val->getType()->isPointerTy()) {
+          arg_val = ir_visitor_->builder_->CreateLoad(arg_val->getType()->getPointerElementType(), arg_val);
         }
         printf_args.push_back(arg_val);
       }
