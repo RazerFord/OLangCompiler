@@ -187,8 +187,10 @@ class ir_visitor : public visitor::visitor {
 
     func_def_visitor fdv(this, &cls_to_vars);
     for (const auto& c : p.get_classes()) {
-      if (c->get_class_name()->get_identifier()->get_name() == "int")
+      std::string name = c->get_type()->simple_type();
+      if (builtin_types_.contains(name)) {
         continue;
+      }
       for (const auto& m : c->get_members()) {
         m->visit(&fdv);
       }
@@ -567,7 +569,8 @@ class ir_visitor : public visitor::visitor {
         return;
       }
       auto obj = create_object(constr_call);
-      if (obj->getType() == llvm::StructType::getInt32PtrTy(*ir_visitor_->ctx_)) {
+
+      if (ir_visitor_->builtin_types_.contains(constr_call.get_type()->simple_type())) {
         constr_call.set_value(obj);
         return;
       }
@@ -639,8 +642,8 @@ class ir_visitor : public visitor::visitor {
     llvm::Value* create_object(details::constructor_call& constr_call) {
       std::string type_name = constr_call.get_type()->simple_type();
       llvm::Type* type = ir_visitor_->get_type_by_name(type_name);
-//          llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
-      if (type_name == "int") {
+
+      if (ir_visitor_->builtin_types_.contains(type_name)) {
         return ir_visitor_->builder_->CreateAlloca(type);
       }
 
@@ -675,7 +678,8 @@ class ir_visitor : public visitor::visitor {
         // +1 from the table of virtual functions
         llvm::Value* field =
             ir_visitor_->builder_->CreateStructGEP(type, ptr_obj, 1 + i);
-        ir_visitor_->builder_->CreateStore(values[i], field);
+
+        ir_visitor_->builder_->CreateStore(values[i]  , field);
       }
 
       return ptr_obj;
@@ -764,12 +768,12 @@ class ir_visitor : public visitor::visitor {
         llvm::Type* type_ptr =
             llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
 
-        llvm::LoadInst* load_obj_ptr = ir_visitor_->builder_->CreateLoad(
-            type_ptr->getPointerTo(), obj_ptr);
+//        llvm::LoadInst* load_obj_ptr = ir_visitor_->builder_->CreateLoad(
+//            type_ptr->getPointerTo(), obj_ptr);
 
         // +1 from the table of virtual functions
         llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
-            type_ptr, load_obj_ptr, 1 + var_node->get_index());
+            type_ptr, obj_ptr, 1 + var_node->get_index());
 
         variable.set_value(value);
       } else {
