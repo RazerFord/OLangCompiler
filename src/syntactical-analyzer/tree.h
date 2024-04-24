@@ -26,6 +26,8 @@ class ast {
   void print() const noexcept { root_->print(); }
 
   [[nodiscard]] bool success() const noexcept { return root_ != nullptr; }
+
+  [[nodiscard]] bool fail() const noexcept { return root_ == nullptr; }
 };
 
 namespace {
