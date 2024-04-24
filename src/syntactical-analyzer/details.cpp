@@ -193,17 +193,16 @@ std::shared_ptr<expression_ext> literal_node<T>::literal_expression_handle() {
 
   if (!clazz) return EMPTY_VAR;
   auto literal = std::dynamic_pointer_cast<literal_node<T>>(shared_from_this());
-  return std::make_shared<variable_call>(literal, clazz->get_type());
-//  if (auto ctor = clazz->find_ctr(literal); ctor) {
-//    auto ctor_call = std::make_shared<constructor_call>(
-//        clazz, ctor,
-//        std::vector<std::shared_ptr<expression_ext>>{
-//            std::make_shared<variable_call>(literal, clazz->get_type())},
-//        clazz->get_type());
-//    //    return std::make_shared<variable_call>(ctor_call,
-//    //    ctor_call->get_type());
-//    return ctor_call;
-//  }
+  if (auto ctor = clazz->find_ctr(literal); ctor) {
+    auto ctor_call = std::make_shared<constructor_call>(
+        clazz, ctor,
+        std::vector<std::shared_ptr<expression_ext>>{
+            std::make_shared<variable_call>(literal, clazz->get_type())},
+        clazz->get_type());
+    //    return std::make_shared<variable_call>(ctor_call,
+    //    ctor_call->get_type());
+    return ctor_call;
+  }
 
   return EMPTY_VAR;
 }
