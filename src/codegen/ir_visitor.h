@@ -767,12 +767,12 @@ class ir_visitor : public visitor::visitor {
         llvm::Type* type_ptr =
             llvm::StructType::getTypeByName(*ir_visitor_->ctx_, type_name);
 
-        llvm::LoadInst* load_obj_ptr = ir_visitor_->builder_->CreateLoad(
-            type_ptr->getPointerTo(), obj_ptr);
+//        llvm::LoadInst* load_obj_ptr = ir_visitor_->builder_->CreateLoad(
+//            type_ptr->getPointerTo(), obj_ptr);
 
         // +1 from the table of virtual functions
         llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
-            type_ptr, load_obj_ptr, 1 + var_node->get_index());
+            type_ptr, obj_ptr, 1 + var_node->get_index());
 
         variable.set_value(value);
       } else {
