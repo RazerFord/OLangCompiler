@@ -183,6 +183,7 @@ std::shared_ptr<method_node> class_node::find_method(
 template <typename T>
 std::shared_ptr<expression_ext> literal_node<T>::literal_expression_handle() {
   std::shared_ptr<class_node> clazz;
+
   if constexpr (std::is_same_v<T, int32_t>) {
     clazz = type_node::find(type_node::mangle_name(type_id::Integer));
   } else if constexpr (std::is_same_v<T, double_t>) {

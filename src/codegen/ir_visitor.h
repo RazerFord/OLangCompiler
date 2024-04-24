@@ -232,7 +232,10 @@ class ir_visitor : public visitor::visitor {
       for (const auto& p : f.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
         llvm::Type* ptr_cls = ir_visitor_->get_type_by_name(cls_name);
-        params.push_back(ptr_cls);
+        if (ir_visitor_->builtin_types_.contains(cls_name))
+          params.push_back(ptr_cls);
+        else
+          params.push_back(ptr_cls->getPointerTo());
       }
       std::string ret_type_name = f.get_return_type()->simple_type();
       llvm::Type* ret_type = ir_visitor_->get_type_by_name(ret_type_name);
@@ -259,7 +262,10 @@ class ir_visitor : public visitor::visitor {
       for (const auto& p : c.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
         llvm::Type* ptr_cls = ir_visitor_->get_type_by_name(cls_name);
-        params.push_back(ptr_cls);
+        if (ir_visitor_->builtin_types_.contains(cls_name))
+          params.push_back(ptr_cls);
+        else
+          params.push_back(ptr_cls->getPointerTo());
       }
       const std::string* name =
           c.get_scope()->get_name(scope::scope_type::Class);
@@ -330,6 +336,8 @@ class ir_visitor : public visitor::visitor {
       // generate expr and set return value
       body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       method.get_body()->visit(&bd_visitor);
+      if (func_value->getReturnType()->isVoidTy())
+        ir_visitor_->builder_->CreateRetVoid();
       llvm::verifyFunction(*func_value);
     }
 
