@@ -19,6 +19,17 @@ inline constexpr std::string Malloc = "malloc";
 inline constexpr std::string Printf = "printf";
 inline constexpr std::string PrefixVTable = "__VTable";
 
+struct std_functions_t {
+  std::string name;
+  std::string return_type;
+  std::vector<std::string> params_types;
+};
+
+inline std::vector<std_functions_t> std_functions = {
+    {"PlusII", "Integer", {"Integer", "Integer"}},
+//    {"PlusIR", "Real", {"Integer", "Real"}},
+};
+
 namespace ir_visitor {
 class ir_visitor : public visitor::visitor {
  private:
@@ -37,9 +48,12 @@ class ir_visitor : public visitor::visitor {
 
  public:
   void visit(details::program_node& p) override {
+    module_->setDataLayout("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
+
     register_global_funcs(p);
     register_types(p);
     register_members(p);
+    register_std_funcs();
     register_vtables(p);
     generate_def_funcs(p);
 
@@ -129,6 +143,33 @@ class ir_visitor : public visitor::visitor {
           m->visit(&mmv);
         }
       }
+    }
+  }
+
+  void register_std_funcs() {
+    for (auto& std_func: std_functions) {
+      std::vector<llvm::Type*> params;
+      for (const auto& param_type : std_func.params_types) {
+        llvm::Type* ptr_cls = get_type_by_name(param_type);
+        if (builtin_types(param_type))
+          params.push_back(ptr_cls);
+        else
+          params.push_back(ptr_cls->getPointerTo());
+      }
+      llvm::Type* ret_type = get_type_by_name(std_func.return_type);
+
+      if (!ret_type) {
+        ret_type = llvm::Type::getVoidTy(*ctx_);
+      } else if (!builtin_types(std_func.return_type)) {
+        ret_type = ret_type->getPointerTo();
+      }
+
+      llvm::FunctionType* ptr_func_type =
+          llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
+
+      llvm::Function::Create(
+          ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
+          std_func.name, *module_);
     }
   }
 
@@ -605,6 +646,23 @@ class ir_visitor : public visitor::visitor {
                  literal) {
         variable.set_value(create_literal_constant(literal));
       }
+    }
+
+    void visit(details::std_call& std_call) override {
+      llvm::Function* std_func = ir_visitor_->module_->getFunction(std_call.get_method_name());
+      std::vector<llvm::Value*> std_func_args;
+
+      for (auto& arg : std_call.get_arguments()) {
+        arg->visit(this);
+        auto arg_val = arg->get_value();
+        if (arg_val == nullptr) {
+          std::cout << "error: std_call arg is nullptr\n";
+          return;
+        }
+        std_func_args.push_back(arg_val);
+      }
+      auto res_val = ir_visitor_->builder_->CreateCall(std_func, std_func_args);
+      std_call.set_value(res_val);
     }
 
     void visit(details::printf_call& printf_call) override {

@@ -472,7 +472,7 @@ class type_visitor : public semantic_visitor {
                                   "\" was expected in the return");
       } else if (auto t =
                      r.get_expression()->get_type(tv_.error_)->simple_type();
-                 t != ret_type_) {
+                 t != ret_type_ && t != details::type_node::stdT) {
         tv_.register_error(*r.get_expression(),
                            "error: the type of expression \"" + t +
                                "\" does not match the return \"" + ret_type_ +

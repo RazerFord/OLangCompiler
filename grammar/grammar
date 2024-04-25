@@ -49,6 +49,7 @@ Expression : Primary [ { '.' Identifier [ Arguments ] } | Arguments ]
 Arguments : '(' Expression { ',' Expression } ')'
 
 Primary : Literal
+  | std
   | this
   | base
   | null

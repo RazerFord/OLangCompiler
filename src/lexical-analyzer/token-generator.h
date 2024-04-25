@@ -28,6 +28,7 @@ class token_generator {
        {"this", token_id::This},
        {"null", token_id::Null},
        {"base", token_id::Base},
+       {"std", token_id::Std},
        {".", token_id::Dot},
        {":", token_id::Colon},
        {",", token_id::Comma},

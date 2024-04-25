@@ -210,6 +210,7 @@ enum class type_id {
   Null,
   BaseCall,
   Printf,
+  Std,
 };
 
 class type_node : public ast_node {
@@ -287,6 +288,7 @@ class type_node : public ast_node {
   inline static const std::string booleanT = "bool";
   inline static const std::string voidT = "void";
   inline static const std::string baseT = "base";
+  inline static const std::string stdT = "std";
 
   inline static std::unordered_map<type_id, std::string> type_id_str = {
       {type_id::Integer, mangle_name(IntegerT)},
@@ -297,19 +299,16 @@ class type_node : public ast_node {
       {type_id::b, mangle_name(booleanT)},
       {type_id::Void, mangle_name(voidT)},
       {type_id::BaseCall, mangle_name(baseT)},
+      {type_id::Std, mangle_name(stdT)},
       {type_id::Undefined, mangle_name("/Undefined")},
   };
 
   inline static std::unordered_map<type_id, std::string> type_id_simple_str = {
-      {type_id::Integer, IntegerT},
-      {type_id::Real, RealT},
-      {type_id::Boolean, BooleanT},
-      {type_id::i, intT},
-      {type_id::f, realT},
-      {type_id::b, booleanT},
-      {type_id::BaseCall, baseT},
-      {type_id::Void, voidT},
-      {type_id::Undefined, "/Undefined"},
+      {type_id::Integer, IntegerT}, {type_id::Real, RealT},
+      {type_id::Boolean, BooleanT}, {type_id::i, intT},
+      {type_id::f, realT},          {type_id::b, booleanT},
+      {type_id::BaseCall, baseT},   {type_id::Void, voidT},
+      {type_id::Std, stdT},         {type_id::Undefined, "/Undefined"},
   };
 };
 
@@ -727,6 +726,9 @@ class expression_node : public statement_node {
       std::shared_ptr<ast_node> constr_call, std::shared_ptr<class_node> clazz,
       error_handling::error_handling& error_handler);
   std::shared_ptr<expression_ext> printf_checking(
+      error_handling::error_handling& error_handler);
+
+  std::shared_ptr<expression_ext> std_checking(
       error_handling::error_handling& error_handler);
 
  public:
@@ -1392,6 +1394,51 @@ class base_node : public primary_node {
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "base"; }
+};
+
+class std_node : public primary_node {
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  std_node(const token::keyword& i) {
+    meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
+  }
+
+  void visit(visitor::visitor* v) override;
+
+  void print() override { std::cout << "std"; }
+};
+
+class std_call : public expression_ext {
+  std::string method_name_;
+  std::vector<std::shared_ptr<expression_ext>> arguments_;
+  std::shared_ptr<type_node> type_;
+
+  bool validate() override { return true; }
+
+  void generate() override {}
+
+ public:
+  std_call(std::string method_name,
+           const std::vector<std::shared_ptr<expression_ext>>& args)
+      : method_name_(std::move(method_name)),
+        arguments_(args),
+        type_(std::make_shared<type_node>(type_id::Std)) {}
+
+  std::shared_ptr<type_node> get_type() const noexcept override {
+    return type_;
+  }
+
+  std::string get_method_name() const noexcept { return method_name_; }
+
+  std::vector<std::shared_ptr<expression_ext>> get_arguments() const noexcept {
+    return arguments_;
+  }
+
+  void visit(visitor::visitor* v) override;
+  void print() override{};
 };
 
 class printf_call : public expression_ext {

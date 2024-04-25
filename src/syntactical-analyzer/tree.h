@@ -411,6 +411,10 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_keyword() {
       auto base_token = dynamic_cast<token::keyword*>(tok.get());
       return {std::make_shared<base_node>(*base_token)};
     }
+    case token_id::Std: {
+      auto std_token = dynamic_cast<token::keyword*>(tok.get());
+      return {std::make_shared<std_node>(*std_token)};
+    }
     default:
       logger::error("raw token", tok_to_str(stream_.get_token_id()));
   }
@@ -426,6 +430,7 @@ inline result<std::shared_ptr<primary_node>> ast_parser::parse_primary() {
       logger::info("literal:", tok_to_str(stream_.next_token_id()));
       return parse_literal();
     }
+    case token_id::Std:
     case token_id::Base:
     case token_id::This:
     case token_id::Null: {
@@ -552,6 +557,7 @@ inline result<std::shared_ptr<body_node>> ast_parser::parse_scope() {
       case token_id::Null:
       case token_id::Base:
       case token_id::This:
+      case token_id::Std:
       case token_id::Identifier: {
         --stream_;
         auto lexpression = parse_expression();

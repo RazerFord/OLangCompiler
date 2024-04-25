@@ -48,6 +48,7 @@ void constructor_call::visit(visitor::visitor* v) { v->visit(*this); }
 void method_call::visit(visitor::visitor* v) { v->visit(*this); }
 void member_call::visit(visitor::visitor* v) { v->visit(*this); }
 void printf_call::visit(visitor::visitor* v) { v->visit(*this); }
+void std_call::visit(visitor::visitor* v) { v->visit(*this); }
 
 template <typename T>
 void literal_node<T>::visit(visitor::visitor* v) {
@@ -66,6 +67,8 @@ void null_node::visit(visitor::visitor* v) { v->visit(*this); }
 void base_node::visit(visitor::visitor* v) { v->visit(*this); }
 
 void void_node::visit(visitor::visitor* v) { v->visit(*this); }
+
+void std_node::visit(visitor::visitor* v) { v->visit(*this); }
 
 auto EMPTY_VAR =
     std::make_shared<variable_call>(nullptr, std::make_shared<type_node>());
@@ -209,7 +212,8 @@ std::shared_ptr<expression_ext> literal_node<T>::literal_expression_handle() {
 }
 
 std::vector<std::shared_ptr<expression_ext>> get_args_objects(
-    std::vector<std::shared_ptr<expression_node>> arguments, error_handling::error_handling& error_handler) {
+    std::vector<std::shared_ptr<expression_node>> arguments,
+    error_handling::error_handling& error_handler) {
   std::vector<std::shared_ptr<expression_ext>> args_objects;
   for (auto& arg : arguments) {
     args_objects.push_back(arg->get_object(error_handler));
@@ -342,30 +346,58 @@ std::shared_ptr<expression_ext> expression_node::constr_call_checking(
   //  return std::make_shared<variable_call>(ctor_call, ctor_call->get_type());
 }
 
-std::shared_ptr<expression_ext> expression_node::printf_checking(error_handling::error_handling& error_handler) {
-  if (expression_values.empty() || expression_values.size() > 1 || expression_values[0].first ||  expression_values[0].second->get_arguments().size() == 0) {
-    error_handler.register_error(error_handling::make_error_t(
-        *this, "error: invalid printf call"));
+std::shared_ptr<expression_ext> expression_node::printf_checking(
+    error_handling::error_handling& error_handler) {
+  if (expression_values.empty() || expression_values.size() > 1 ||
+      expression_values[0].first ||
+      expression_values[0].second->get_arguments().size() == 0) {
+    error_handler.register_error(
+        error_handling::make_error_t(*this, "error: invalid printf call"));
     return EMPTY_VAR;
   }
-  auto printf_args =  expression_values[0].second->get_arguments();
+  auto printf_args = expression_values[0].second->get_arguments();
 
   std::shared_ptr<variable_call> var;
-  if (var = std::dynamic_pointer_cast<variable_call>(printf_args[0]->get_object(error_handler)); !var) {
-    error_handler.register_error(error_handling::make_error_t(*printf_args[0], "error: the first argument to printf must be a string literal"));
+  if (var = std::dynamic_pointer_cast<variable_call>(
+          printf_args[0]->get_object(error_handler));
+      !var) {
+    error_handler.register_error(error_handling::make_error_t(
+        *printf_args[0],
+        "error: the first argument to printf must be a string literal"));
     return EMPTY_VAR;
   }
 
   std::shared_ptr<literal_node<std::string>> format_literal;
-  if (format_literal = std::dynamic_pointer_cast<literal_node<std::string>>(var->get_variable()); !format_literal) {
-    error_handler.register_error(error_handling::make_error_t(*printf_args[0], "error: the first argument to printf must be a string literal"));
+  if (format_literal = std::dynamic_pointer_cast<literal_node<std::string>>(
+          var->get_variable());
+      !format_literal) {
+    error_handler.register_error(error_handling::make_error_t(
+        *printf_args[0],
+        "error: the first argument to printf must be a string literal"));
     return EMPTY_VAR;
   }
 
-  std::vector<std::shared_ptr<expression_ext>> args = get_args_objects({printf_args.begin() + 1, printf_args.end()},
-                          error_handler);
+  std::vector<std::shared_ptr<expression_ext>> args = get_args_objects(
+      {printf_args.begin() + 1, printf_args.end()}, error_handler);
 
-  return std::make_shared<printf_call>(format_literal->value(), std::move(args));
+  return std::make_shared<printf_call>(format_literal->value(),
+                                       std::move(args));
+}
+
+std::shared_ptr<expression_ext> expression_node::std_checking(
+    error_handling::error_handling& error_handler) {
+  if (expression_values.empty() || expression_values.size() > 1 ||
+      !expression_values[0].first || !expression_values[0].second ||
+      expression_values[0].second->get_arguments().empty()) {
+    error_handler.register_error(
+        error_handling::make_error_t(*this, "error: invalid std call"));
+    return EMPTY_VAR;
+  }
+
+  auto args = get_args_objects(expression_values[0].second->get_arguments(),
+                               error_handler);
+  return std::make_shared<std_call>(expression_values[0].first->get_name(),
+                                    args);
 }
 
 std::shared_ptr<expression_ext> expression_node::get_object(
@@ -375,9 +407,10 @@ std::shared_ptr<expression_ext> expression_node::get_object(
       error_handler.register_error(error_handling::make_error_t(
           *null, "error: member reference base type 'null' is not class"));
       return EMPTY_VAR;
+
+      final_object_ = std::make_shared<variable_call>(
+          nullptr, std::make_shared<type_node>(type_id::Null));
     }
-    final_object_ = std::make_shared<variable_call>(
-        nullptr, std::make_shared<type_node>(type_id::Null));
   }
 
   if (final_object_) return final_object_;
@@ -385,11 +418,18 @@ std::shared_ptr<expression_ext> expression_node::get_object(
   final_object_ = EMPTY_VAR;
 
   bool is_ctor = false;
-  if (auto void_ = std::dynamic_pointer_cast<void_node>(primary_); void_) {
-    final_object_ = std::make_shared<variable_call>(nullptr, std::make_shared<type_node>(type_id::Void));
+  if (auto std_ = std::dynamic_pointer_cast<std_node>(primary_); std_) {
+    final_object_ = std_checking(error_handler);
     return final_object_;
-  } else if (auto printf_node = std::dynamic_pointer_cast<class_name_node>(primary_);
-      printf_node && printf_node->get_identifier()->get_name() == "printf") {
+  }
+  if (auto void_ = std::dynamic_pointer_cast<void_node>(primary_); void_) {
+    final_object_ = std::make_shared<variable_call>(
+        nullptr, std::make_shared<type_node>(type_id::Void));
+    return final_object_;
+  } else if (auto printf_node =
+                 std::dynamic_pointer_cast<class_name_node>(primary_);
+             printf_node &&
+             printf_node->get_identifier()->get_name() == "printf") {
     final_object_ = printf_checking(error_handler);
     return final_object_;
   }
@@ -402,15 +442,19 @@ std::shared_ptr<expression_ext> expression_node::get_object(
     final_object_ = this_type_checking(this_keyword, error_handler);
     if (final_object_ == EMPTY_VAR) return final_object_;
 
-  } else if (auto string_literal = std::dynamic_pointer_cast<literal_node<std::string>>(primary_); string_literal) {
+  } else if (auto string_literal =
+                 std::dynamic_pointer_cast<literal_node<std::string>>(primary_);
+             string_literal) {
     if (!expression_values.empty()) {
       error_handler.register_error(error_handling::make_error_t(
           *string_literal, "error: incorrect literal usage"));
       return final_object_;
     }
-    final_object_ = std::make_shared<variable_call>(string_literal, std::make_shared<type_node>(type_id::String));
+    final_object_ = std::make_shared<variable_call>(
+        string_literal, std::make_shared<type_node>(type_id::String));
     return final_object_;
-  } else if (auto literal = std::dynamic_pointer_cast<literal_base_node>(primary_);
+  } else if (auto literal =
+                 std::dynamic_pointer_cast<literal_base_node>(primary_);
              literal) {
     if (final_object_ = literal->literal_expression_handle();
         final_object_ == EMPTY_VAR) {
