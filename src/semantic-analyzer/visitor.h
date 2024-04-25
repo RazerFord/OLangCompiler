@@ -254,7 +254,9 @@ class scope_visitor : public semantic_visitor {
     scope_ = scope_->pop();
   }
 
-  [[nodiscard]] bool success() const noexcept override { return !error_.error(); }
+  [[nodiscard]] bool success() const noexcept override {
+    return !error_.error();
+  }
 
   [[nodiscard]] bool fail() const noexcept override { return error_.error(); }
 
@@ -398,7 +400,9 @@ class type_visitor : public semantic_visitor {
 
   void visit(details::body_node& b) override {}
 
-  [[nodiscard]] bool success() const noexcept override { return !error_.error(); }
+  [[nodiscard]] bool success() const noexcept override {
+    return !error_.error();
+  }
 
   [[nodiscard]] bool fail() const noexcept override { return error_.error(); }
 
@@ -438,11 +442,12 @@ class type_visitor : public semantic_visitor {
     }
 
     void visit(details::if_statement_node& i) override {
-      if (i.get_expression()->get_type(tv_.error_)->simple_type() !=
-          type::BooleanT) {
+      std::string type_name =
+          i.get_expression()->get_type(tv_.error_)->simple_type();
+      if (type_name != type::booleanT) {
         tv_.register_error(
             *i.get_expression(),
-            "error: in the \"if\" statement, Boolean type was expected");
+            "error: in the \"if\" statement, bool type was expected");
       }
       i.get_true_body()->visit(this);
       if (auto& f = i.get_false_body()) {
@@ -451,11 +456,12 @@ class type_visitor : public semantic_visitor {
     }
 
     void visit(details::while_loop_node& w) override {
-      if (w.get_expression()->get_type(tv_.error_)->simple_type() !=
-          type::BooleanT) {
+      std::string type_name =
+          w.get_expression()->get_type(tv_.error_)->simple_type();
+      if (type_name != type::booleanT) {
         tv_.register_error(
             *w.get_expression(),
-            "error: in the \"while\" statement, Boolean type was expected");
+            "error: in the \"while\" statement, bool type was expected");
       }
       w.get_body_node()->visit(this);
     }

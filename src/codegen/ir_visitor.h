@@ -91,7 +91,7 @@ class ir_visitor : public visitor::visitor {
   void register_types(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
-      if (builtin_types_.contains(name)) continue;
+      if (builtin_types(name)) continue;
 
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
       name = vtable_name(c);
@@ -102,7 +102,7 @@ class ir_visitor : public visitor::visitor {
   void register_members(details::program_node& p) {
     for (auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
-      if (builtin_types_.contains(name)) continue;
+      if (builtin_types(name)) continue;
 
       llvm::StructType* ptr_cls =
           llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
@@ -149,7 +149,7 @@ class ir_visitor : public visitor::visitor {
   void register_vtables(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
       std::string name = c->get_class_name()->get_identifier()->get_name();
-      if (builtin_types_.contains(name)) continue;
+      if (builtin_types(name)) continue;
 
       std::string vtable = vtable_name(c);
       auto ptr_table = llvm::StructType::getTypeByName(*ctx_, vtable);
@@ -188,7 +188,7 @@ class ir_visitor : public visitor::visitor {
     func_def_visitor fdv(this, &cls_to_vars);
     for (const auto& c : p.get_classes()) {
       std::string name = c->get_type()->simple_type();
-      if (builtin_types_.contains(name)) {
+      if (builtin_types(name)) {
         continue;
       }
       for (const auto& m : c->get_members()) {
@@ -232,7 +232,7 @@ class ir_visitor : public visitor::visitor {
       for (const auto& p : f.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
         llvm::Type* ptr_cls = ir_visitor_->get_type_by_name(cls_name);
-        if (ir_visitor_->builtin_types_.contains(cls_name))
+        if (ir_visitor_->builtin_types(cls_name))
           params.push_back(ptr_cls);
         else
           params.push_back(ptr_cls->getPointerTo());
@@ -242,7 +242,7 @@ class ir_visitor : public visitor::visitor {
 
       if (!ret_type) {
         ret_type = llvm::Type::getVoidTy(*ir_visitor_->ctx_);
-      } else if (!ir_visitor_->builtin_types_.contains(ret_type_name)) {
+      } else if (!ir_visitor_->builtin_types(ret_type_name)) {
         ret_type = ret_type->getPointerTo();
       }
 
@@ -262,7 +262,7 @@ class ir_visitor : public visitor::visitor {
       for (const auto& p : c.get_parameters()->get_parameters()) {
         std::string cls_name = p->get_type()->simple_type();
         llvm::Type* ptr_cls = ir_visitor_->get_type_by_name(cls_name);
-        if (ir_visitor_->builtin_types_.contains(cls_name))
+        if (ir_visitor_->builtin_types(cls_name))
           params.push_back(ptr_cls);
         else
           params.push_back(ptr_cls->getPointerTo());
@@ -501,13 +501,13 @@ class ir_visitor : public visitor::visitor {
                                   ->get_type()
                                   ->simple_type();
 
-//      if (ir_visitor_->builtin_types_.contains(type_name)) {
-        llvm::Value* val =
-            assign.get_rexpression()->get_final_object()->get_value();
-        val = ir_visitor_->builder_->CreateLoad(
-            val->getType()->getPointerElementType(), val);
-        assign.get_rexpression()->get_final_object()->set_value(val);
-//      }
+      //      if (ir_visitor_->builtin_types(type_name)) {
+      llvm::Value* val =
+          assign.get_rexpression()->get_final_object()->get_value();
+      val = ir_visitor_->builder_->CreateLoad(
+          val->getType()->getPointerElementType(), val);
+      assign.get_rexpression()->get_final_object()->set_value(val);
+      //      }
 
       ir_visitor_->builder_->CreateStore(
           assign.get_rexpression()->get_final_object()->get_value(),
@@ -522,12 +522,17 @@ class ir_visitor : public visitor::visitor {
           return_expr.get_expression()->get_final_object()->get_value();
       if (ret_val->getType()->isVoidTy())
         ir_visitor_->builder_->CreateRetVoid();
-      else if (ir_visitor_->builtin_types_.contains(ret_name)) {
-        ret_val = ir_visitor_->builder_->CreateLoad(
-            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), ret_val);
+      else if (ir_visitor_->builtin_types(ret_name)) {
+        ret_val = load_builtin_ret_val(ret_name, ret_val);
         ir_visitor_->builder_->CreateRet(ret_val);
       } else
         ir_visitor_->builder_->CreateRet(ret_val);
+    }
+
+    llvm::Value* load_builtin_ret_val(const std::string& type_name,
+                                      llvm::Value* ret_val) {
+      return ir_visitor_->builder_->CreateLoad(
+          ir_visitor_->builtin_types_.at(type_name), ret_val);
     }
 
     void visit(details::member_call& member) override {
@@ -611,8 +616,7 @@ class ir_visitor : public visitor::visitor {
       }
       auto obj = create_object(constr_call);
 
-      if (ir_visitor_->builtin_types_.contains(
-              constr_call.get_type()->simple_type())) {
+      if (ir_visitor_->builtin_types(constr_call.get_type()->simple_type())) {
         constr_call.set_value(obj);
         return;
       }
@@ -685,7 +689,7 @@ class ir_visitor : public visitor::visitor {
       std::string type_name = constr_call.get_type()->simple_type();
       llvm::Type* type = ir_visitor_->get_type_by_name(type_name);
 
-      if (ir_visitor_->builtin_types_.contains(type_name)) {
+      if (ir_visitor_->builtin_types(type_name)) {
         //        llvm::Value* ptr = ir_visitor_->builder_->CreateAlloca(type);
         //
         //        llvm::Value* val = llvm::ConstantInt::get(
@@ -695,8 +699,8 @@ class ir_visitor : public visitor::visitor {
         //
         //        return ir_visitor_->builder_->CreateLoad(
         //            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), ptr);
-        return llvm::ConstantInt::get(
-            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), 0);
+        return llvm::ConstantInt::get(ir_visitor_->get_type_by_name(type_name),
+                                      0);
       }
 
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
@@ -836,10 +840,14 @@ class ir_visitor : public visitor::visitor {
   };
 
   llvm::Type* get_type_by_name(const std::string& name) const {
-    if (builtin_types_.contains(name)) {
+    if (builtin_types(name)) {
       return builtin_types_.at(name);
     }
     return llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
+  }
+
+  [[nodiscard]] bool builtin_types(const std::string& type) const {
+    return builtin_types_.contains(type);
   }
 };
 }  // namespace ir_visitor
