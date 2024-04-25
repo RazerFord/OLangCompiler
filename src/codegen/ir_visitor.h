@@ -723,6 +723,9 @@ class ir_visitor : public visitor::visitor {
           arg_val = ir_visitor_->builder_->CreateLoad(
               arg_val->getType()->getPointerElementType(), arg_val);
         }
+        if (arg_val->getType()->isFloatTy()) {
+          arg_val = ir_visitor_->builder_->CreateFPExt(arg_val, llvm::Type::getDoubleTy(*ir_visitor_->ctx_));
+        }
         printf_args.push_back(arg_val);
       }
       ir_visitor_->builder_->CreateCall(printf, printf_args);
