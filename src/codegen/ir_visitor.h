@@ -253,8 +253,6 @@ class ir_visitor : public visitor::visitor {
       ptr_table->setBody(llvm::ArrayRef(types));
       module_->getOrInsertGlobal(vtable, ptr_table);
       auto global_table = module_->getNamedGlobal(vtable);
-      // TODO fixed init table for VTable
-      methods.clear();
       global_table->setInitializer(
           llvm::ConstantStruct::get(ptr_table, llvm::ArrayRef(methods)));
     }
@@ -384,10 +382,7 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::method_node& f) override {
       methods_->push_back(f.get_method_value());
-      if (f.get_method_value()->getReturnType()->isVoidTy()) {
-        return;
-      }
-      types_->push_back(f.get_method_value()->getReturnType());
+      types_->push_back(f.get_method_value()->getType());
     }
   };
 
@@ -787,7 +782,12 @@ class ir_visitor : public visitor::visitor {
       }
 
       auto callee_fun_type = callee_fun->getFunctionType();
-      std::vector<llvm::Value*> arg_values{method_call.get_owner_value()};
+
+      llvm::Type* expected_type = callee_fun_type->getParamType(0);
+      llvm::Value* casted_value = ir_visitor_->builder_->CreateBitCast(
+          method_call.get_owner_value(), expected_type);
+
+      std::vector<llvm::Value*> arg_values{casted_value};
       auto args = method_call.get_arguments();
       for (size_t i = 0; i < args.size(); i++) {
         args[i]->visit(this);
@@ -795,7 +795,7 @@ class ir_visitor : public visitor::visitor {
             std::dynamic_pointer_cast<details::expression_ext>(args[i])
                 ->get_value();
         if (arg_val == nullptr) {
-          std::cout << "Null Argument when calling function \n";
+          std::cout << "null argument when calling function\n";
           return;
         }
 

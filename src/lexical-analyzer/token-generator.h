@@ -179,8 +179,7 @@ class token_generator {
         };
         case State::StringStart: {
           context.buff += ch;
-          if (ch == '"')
-            context.state = State::StringEnd;
+          if (ch == '"') context.state = State::StringEnd;
           break;
         }
         case State::StringEnd: {
@@ -221,6 +220,19 @@ class token_generator {
     }
 
     complete_token(context, source_code);
+
+    bool valid = true;
+    for (const auto& tok : context.tokens) {
+      if (tok->get_token_id() == token_id::Unknown) {
+        valid = false;
+        const auto& span = tok->get_span();
+        std::cout << span.line_ << ":" << span.offset_ << " token "
+                  << token_id_to_string(tok->get_token_id()) << std::endl;
+      }
+    }
+    if (!valid) {
+      return {};
+    }
 
     return std::move(context.tokens);
   }

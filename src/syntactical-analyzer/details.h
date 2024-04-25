@@ -873,6 +873,7 @@ class method_node : public member_node {
       std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
   llvm::Function* method_value_;
+  int index_ = -1;
 
   bool validate() override { return true; }
 
@@ -930,6 +931,14 @@ class method_node : public member_node {
   void set_method_value(llvm::Function* method) { method_value_ = method; }
 
   llvm::Function* get_method_value() const noexcept { return method_value_; }
+
+  void set_index(int index) noexcept {
+    index_ = index;
+  }
+
+  int get_index() const noexcept {
+    return index_;
+  }
 
   void visit(visitor::visitor* v) override;
 
