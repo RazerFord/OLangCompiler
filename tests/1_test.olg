@@ -1,48 +1,87 @@
 class int is
+  this() is
+  end
 end
-class real is
-end
+
 class bool is
+  this() is
+  end
 end
 
 class Integer is
+  var value: int()
   this() is
+  end
+
+  this(ku: Integer) is
+    printf("d1 %i\n", ku.value)
+    this.value := ku.value
   end
 
   this(i: int) is
+    printf("suka %i\n", i)
+    this.value := i
   end
 
-  this(i: Integer) is
-  end
-end
-
-class Real is
-  this() is
-  end
-
-  this(i: real) is
-  end
-
-  this(i: Real) is
+  method test() : int is
+    return this.value
   end
 end
 
 class Boolean is
-  this() is
-  end
+  var value: bool()
 
-  this(b: bool) is
+  this() is
   end
 
   this(b: Boolean) is
+    this.value := b.value
+  end
+
+  this(b: bool) is
+    this.value := b
+  end
+
+  method test(): bool is
+    return this.value
   end
 end
 
-class Hello is
-  var i : Integer(42)
-  var j : Real(0.0)
-  var k : true
-
+class B is
   this() is
   end
+
+  method b() is
+    printf("method b of B")
+    return
+  end
+end
+
+class BB extends B is
+  this() is
+  end
+
+  method b() is
+    printf("method b of BB")
+    return
+  end
+
+  method bb() is
+    printf("method b of BB")
+    return
+  end
+end
+
+class BBB extends BB is
+  this() is
+  end
+end
+
+class Main is
+    method main() is
+      var bbb : BBB()
+      bbb.b()
+      bbb.bb()
+      return
+    end
 end
