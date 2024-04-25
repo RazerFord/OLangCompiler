@@ -1,24 +1,36 @@
 class int is
+  this() is
+  end
 end
 class real is
+  this() is
+  end
 end
 class bool is
+  this() is
+  end
 end
 
 class Integer is
+  var value : int()
+
   this() is
   end
 
   this(i: int) is
+    this.value := i
   end
 
   this(i: Integer) is
+    this.value := i.value
   end
 
   method Less(a: Integer) : Boolean is
+    return false
   end
 
   method Plus(a: Integer): Integer is
+    return this
   end
 
   method Max(): Integer is
@@ -27,24 +39,32 @@ class Integer is
 end
 
 class Real is
+  var value : real()
+
   this() is
   end
 
   this(i: real) is
+    this.value := i
   end
 
   this(i: Real) is
+    this.value := i.value
   end
 end
 
 class Boolean is
+  var value : bool()
+
   this() is
   end
 
   this(b: bool) is
+    this.value := b
   end
 
   this(b: Boolean) is
+    this.value := b.value
   end
 end
 
