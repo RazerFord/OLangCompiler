@@ -74,6 +74,7 @@ class scope_visitor : public semantic_visitor {
         var->set_index(var_index++);
       }
     }
+    int method_index = 0;
     std::unordered_set<std::string> mangled_methods;
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
@@ -84,6 +85,7 @@ class scope_visitor : public semantic_visitor {
         }
         mangled_methods.insert(mangled_method);
         var->visit(this);
+        var->set_index(method_index++);
       }
 
       if (auto var = dynamic_cast<details::constructor_node*>(m.get()); var) {
