@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <sstream>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -84,7 +85,7 @@ class token_generator {
   }
 
   static void complete_token(generator_context& context,
-                             std::ifstream& source_code) {
+                             std::stringstream & source_code) {
     if (context.buff.empty()) return;
 
     context.prev();
@@ -134,8 +135,13 @@ class token_generator {
 
  public:
   static std::vector<std::unique_ptr<token::token>> generate_token(
-      const std::string& filepath) {
-    std::ifstream source_code(filepath);
+      const std::string& filepath, const std::string& stdlib_path) {
+
+    std::ifstream stdlib_code(stdlib_path);
+    std::ifstream user_code(filepath);
+    std::stringstream source_code;
+    source_code << stdlib_code.rdbuf() << "\n";
+    source_code << user_code.rdbuf() << "\n";
 
     generator_context context;
 

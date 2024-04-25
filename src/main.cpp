@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     details::type_node::types_.clear();
     std::cout << "TEST: " << i << std::endl;
 
-    auto vec = token_generator::generate_token("./../tests/" + std::to_string(i) + "_test.olg");
+    auto vec = token_generator::generate_token("./../tests/" + std::to_string(i) + "_test.olg", "../std/std.olg");
     auto ast = tree::make_ast(vec);
     if (ast.fail()) {
       continue;

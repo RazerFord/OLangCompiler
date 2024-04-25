@@ -26,8 +26,54 @@ struct std_functions_t {
 };
 
 inline std::vector<std_functions_t> std_functions = {
+    // class Integer
+    {"UnaryMinusI", "Integer", {"Integer"}},
+    {"toRealI", "Real", {"Integer"}},
     {"PlusII", "Integer", {"Integer", "Integer"}},
-//    {"PlusIR", "Real", {"Integer", "Real"}},
+    {"PlusIR", "Real", {"Integer", "Real"}},
+    {"MinusII", "Integer", {"Integer", "Integer"}},
+    {"MinusIR", "Real", {"Integer", "Real"}},
+    {"MultII", "Integer", {"Integer", "Integer"}},
+    {"MultIR", "Real", {"Integer", "Real"}},
+    {"DivII", "Integer", {"Integer", "Integer"}},
+    {"DivIR", "Real", {"Integer", "Real"}},
+    {"LessII", "Boolean", {"Integer", "Integer"}},
+    {"LessIR", "Boolean", {"Integer", "Real"}},
+    {"LessEqII", "Boolean", {"Integer", "Integer"}},
+    {"LessEqIR", "Boolean", {"Integer", "Real"}},
+    {"GreaterII", "Boolean", {"Integer", "Integer"}},
+    {"GreaterIR", "Boolean", {"Integer", "Real"}},
+    {"GreaterEqII", "Boolean", {"Integer", "Integer"}},
+    {"GreaterEqIR", "Boolean", {"Integer", "Real"}},
+    {"EqII", "Boolean", {"Integer", "Integer"}},
+    {"EqIR", "Boolean", {"Integer", "Real"}},
+    // class Real
+    {"UnaryMinusR", "Real", {"Real"}},
+    {"toIntegerR", "Integer", {"Real"}},
+    {"PlusRR", "Real", {"Real", "Real"}},
+    {"PlusRI", "Real", {"Real", "Integer"}},
+    {"MinusRR", "Real", {"Real", "Real"}},
+    {"MinusRI", "Real", {"Real", "Integer"}},
+    {"MultRR", "Real", {"Real", "Real"}},
+    {"MultRI", "Real", {"Real", "Integer"}},
+    {"DivRR", "Real", {"Real", "Real"}},
+    {"DivRI", "Real", {"Real", "Integer"}},
+    {"LessRR", "Boolean", {"Real", "Real"}},
+    {"LessRI", "Boolean", {"Real", "Integer"}},
+    {"LessEqRR", "Boolean", {"Real", "Real"}},
+    {"LessEqRI", "Boolean", {"Real", "Integer"}},
+    {"GreaterRR", "Boolean", {"Real", "Real"}},
+    {"GreaterRI", "Boolean", {"Real", "Integer"}},
+    {"GreaterEqRR", "Boolean", {"Real", "Real"}},
+    {"GreaterEqRI", "Boolean", {"Real", "Integer"}},
+    {"EqRR", "Boolean", {"Real", "Real"}},
+    {"EqRI", "Boolean", {"Real", "Integer"}},
+    // class Boolean
+    {"toIntegerB", "Integer", {"Boolean"}},
+    {"OrB", "Boolean", {"Boolean", "Boolean"}},
+    {"AndB", "Boolean", {"Boolean", "Boolean"}},
+    {"XorB", "Boolean", {"Boolean", "Boolean"}},
+    {"NotB", "Boolean", {"Boolean"}},
 };
 
 namespace ir_visitor {
@@ -43,6 +89,7 @@ class ir_visitor : public visitor::visitor {
 
   std::unordered_map<std::string, llvm::Type*> builtin_types_{
       {"int", llvm::Type::getInt32Ty(*ctx_)},
+      {"real", llvm::Type::getFloatTy(*ctx_)},
       {"bool", llvm::Type::getInt1Ty(*ctx_)},
   };
 
@@ -767,6 +814,11 @@ class ir_visitor : public visitor::visitor {
       llvm::Type* type = ir_visitor_->get_type_by_name(type_name);
 
       if (ir_visitor_->builtin_types(type_name)) {
+          if (type_name == "real")
+            return llvm::ConstantFP::get(ir_visitor_->get_type_by_name(type_name), 0.0);
+
+          return llvm::ConstantInt::get(ir_visitor_->get_type_by_name(type_name),
+                                          0);
         //        llvm::Value* ptr = ir_visitor_->builder_->CreateAlloca(type);
         //
         //        llvm::Value* val = llvm::ConstantInt::get(
@@ -776,8 +828,7 @@ class ir_visitor : public visitor::visitor {
         //
         //        return ir_visitor_->builder_->CreateLoad(
         //            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), ptr);
-        return llvm::ConstantInt::get(ir_visitor_->get_type_by_name(type_name),
-                                      0);
+
       }
 
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
@@ -839,7 +890,7 @@ class ir_visitor : public visitor::visitor {
                          literal_base);
                  literal_bool) {
         return llvm::ConstantInt::get(
-            llvm::StructType::getInt1Ty(*ir_visitor_->ctx_),
+            llvm::StructType::getInt8Ty(*ir_visitor_->ctx_),
             literal_bool->value());
       }
       std::cout << "ERROR in literal\n";

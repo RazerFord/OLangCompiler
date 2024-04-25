@@ -1,0 +1,253 @@
+class int is
+this() is
+end
+end
+
+class real is
+  this() is
+  end
+end
+
+class bool is
+  this() is
+  end
+end
+
+class Integer is
+    var value: int()
+
+    this() is
+    end
+
+    this(i: Integer) is
+        this.value := i.value
+    end
+
+    this(i: int) is
+        this.value := i
+    end
+
+    method get() : int is
+        return this.value
+    end
+
+    method UnaryMinus(): Integer is
+        return std.UnaryMinusI(this)
+    end
+
+    method toReal(): Real is
+        return std.toRealI(this)
+    end
+
+    method Plus(i: Integer): Integer is
+        return std.PlusII(this, i)
+    end
+
+    method Plus(r: Real): Real is
+        return std.PlusIR(this, r)
+    end
+
+    method Minus(i: Integer): Integer is
+        return std.MinusII(this, i)
+    end
+
+    method Minus(r: Real): Real is
+        return std.MinusIR(this, r)
+    end
+
+    method Mult(i: Integer): Integer is
+        return std.MultII(this, i)
+    end
+
+    method Mult(r: Real): Real is
+        return std.MultIR(this, r)
+    end
+
+    method Div(i: Integer): Integer is
+        return std.DivII(this, i)
+    end
+
+    method Div(r: Real): Real is
+        return std.DivIR(this, r)
+    end
+
+    method Less(i: Integer): Boolean is
+        return std.LessII(this, i)
+    end
+
+    method Less(r: Real): Boolean is
+        return std.LessIR(this, r)
+    end
+
+    method LessEqual(i: Integer): Boolean is
+        return std.LessEqII(this, i)
+    end
+
+    method LessEqual(r: Real): Boolean is
+        return std.LessEqIR(this, r)
+    end
+
+    method Greater(i: Integer): Boolean is
+        return std.GreaterII(this, i)
+    end
+
+    method Greater(r: Real): Boolean is
+        return std.GreaterIR(this, r)
+    end
+
+    method GreaterEqual(i: Integer): Boolean is
+        return std.GreaterEqII(this, i)
+    end
+
+    method GreaterEqual(r: Real): Boolean is
+        return std.GreaterEqIR(this, r)
+    end
+
+    method Equal(i: Integer): Boolean is
+        return std.EqII(this, i)
+    end
+
+    method Equal(r: Real): Boolean is
+        return std.EqIR(this, r)
+    end
+end
+
+
+class Real is
+    var value: real()
+
+    this() is
+    end
+
+    this(r: real) is
+        this.value := r
+    end
+
+    this(r: Real) is
+        this.value := r.value
+    end
+
+    method get(): real is
+        return this.value
+    end
+
+    method UnaryMinus(): Real is
+        return std.UnaryMinusR(this)
+    end
+
+    method toInteger(): Integer is
+        return std.toIntegerR(this)
+    end
+
+    method Plus(r: Real): Real is
+        return std.PlusRR(this, r)
+    end
+
+    method Plus(i: Integer): Real is
+        return std.PlusRI(this, i)
+    end
+
+    method Minus(r: Real): Real is
+        return std.MinusRR(this, r)
+    end
+
+    method Minus(i: Integer): Real is
+        return std.MinusRI(this, i)
+    end
+
+    method Mult(r: Real): Real is
+        return std.MultRR(this, r)
+    end
+
+    method Mult(i: Integer): Real is
+        return std.MultRI(this, i)
+    end
+
+    method Div(r: Real): Real is
+        return std.DivRR(this, r)
+    end
+
+    method Div(i: Integer): Real is
+        return std.DivRI(this, i)
+    end
+
+    method Less(r: Real): Boolean is
+        return std.LessRR(this, r)
+    end
+
+    method Less(i: Integer): Boolean is
+        return std.LessRI(this, i)
+    end
+
+    method LessEqual(r: Real): Boolean is
+        return std.LessEqRR(this, r)
+    end
+
+    method LessEqual(i: Integer): Boolean is
+        return std.LessEqRI(this, i)
+    end
+
+    method Greater(r: Real): Boolean is
+        return std.GreaterRR(this, r)
+    end
+
+    method Greater(i: Integer): Boolean is
+        return std.GreaterRI(this, i)
+    end
+
+    method GreaterEqual(r: Real): Boolean is
+        return std.GreaterEqRR(this, r)
+    end
+
+    method GreaterEqual(i: Integer): Boolean is
+        return std.GreaterEqRI(this, i)
+    end
+
+    method Equal(r: Real): Boolean is
+        return std.EqRR(this, r)
+    end
+
+    method Equal(i: Integer): Boolean is
+        return std.EqRI(this, i)
+    end
+end
+
+
+class Boolean is
+    var value: bool()
+
+    this() is
+    end
+
+    this(b: bool) is
+        this.value := b
+    end
+
+    this(b: Boolean) is
+        this.value := b.value
+    end
+
+    method get(): bool is
+        return this.value
+    end
+
+    method toInteger(): Integer is
+        return std.toIntegerB(this)
+    end
+
+    method Or(b: Boolean): Boolean is
+        return std.OrB(this, b)
+    end
+
+    method And(b: Boolean): Boolean is
+        return std.AndB(this, b)
+    end
+
+    method Xor(b: Boolean): Boolean is
+        return std.XorB(this, b)
+    end
+
+    method Not(): Boolean is
+        return std.NotB(this)
+    end
+end
