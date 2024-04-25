@@ -8,13 +8,19 @@
 #include "codegen/ir_visitor.h"
 
 int main(int argc, char** argv) {
-  for(int i = 1; i <= 1; ++i) {
+  for(int i = 1; i <= 16; ++i) {
     details::type_node::types_.clear();
     std::cout << "TEST: " << i << std::endl;
 
     auto vec = token_generator::generate_token("./../tests/" + std::to_string(i) + "_test.olg");
+    if (vec.empty()) {
+      std::cout << "lexical analysis error" << std::endl;
+      continue;
+    }
+
     auto ast = tree::make_ast(vec);
     if (ast.fail()) {
+      std::cout << "parsing error" << std::endl;
       continue;
     }
 
@@ -22,6 +28,7 @@ int main(int argc, char** argv) {
     ast.visit(&scope_visitor);
     scope_visitor.print_error();
     if (scope_visitor.fail()) {
+      std::cout << "error on scope checking" << std::endl;
       continue;
     }
 
@@ -29,6 +36,7 @@ int main(int argc, char** argv) {
     ast.visit(&type_visitor);
     type_visitor.print_error();
     if (type_visitor.fail()) {
+      std::cout << "error on type checking" << std::endl;
       continue;
     }
 

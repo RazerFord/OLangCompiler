@@ -216,6 +216,12 @@ class token_generator {
 
     complete_token(context, source_code);
 
+    for (const auto& tok : context.tokens) {
+      if (tok->get_token_id() == token_id::Unknown) {
+        return {};
+      }
+    }
+
     return std::move(context.tokens);
   }
 };
