@@ -865,7 +865,13 @@ class ir_visitor : public visitor::visitor {
       std::vector<llvm::Value*> values;
       for (auto& v : cls_to_vars_->at(type_name)) {
         v->get_expression()->visit(this);
-        values.push_back(v->get_expression()->get_value());
+        auto val = v->get_expression()->get_value();
+        auto type_val = val->getType();
+        if (!ir_visitor_->builtin_types(type_name) && type_val->isPointerTy()) {
+          type_val = type_val->getPointerElementType();
+          val = ir_visitor_->builder_->CreateLoad(type_val, val);
+        }
+        values.push_back(val);
       }
 
       for (std::size_t i = 0; i < values.size(); i++) {
