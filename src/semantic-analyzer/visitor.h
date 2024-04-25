@@ -444,7 +444,7 @@ class type_visitor : public semantic_visitor {
     void visit(details::if_statement_node& i) override {
       std::string type_name =
           i.get_expression()->get_type(tv_.error_)->simple_type();
-      if (type_name != type::booleanT) {
+      if (type_name != type::booleanT && type_name != type::BooleanT) {
         tv_.register_error(
             *i.get_expression(),
             "error: in the \"if\" statement, bool type was expected");
@@ -458,7 +458,7 @@ class type_visitor : public semantic_visitor {
     void visit(details::while_loop_node& w) override {
       std::string type_name =
           w.get_expression()->get_type(tv_.error_)->simple_type();
-      if (type_name != type::booleanT) {
+      if (type_name != type::booleanT && type_name != type::BooleanT) {
         tv_.register_error(
             *w.get_expression(),
             "error: in the \"while\" statement, bool type was expected");

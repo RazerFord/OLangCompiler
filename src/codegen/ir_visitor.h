@@ -443,8 +443,11 @@ class ir_visitor : public visitor::visitor {
 
     void visit(details::while_loop_node& while_node) override {
       while_node.get_expression()->visit(this);
+
       auto cond_value =
           while_node.get_expression()->get_final_object()->get_value();
+      cond_value = cast_ref_bool_to_primitive_bool(cond_value);
+
       llvm::Function* parent_function =
           ir_visitor_->builder_->GetInsertBlock()->getParent();
       auto loop_bb = llvm::BasicBlock::Create(*ir_visitor_->ctx_, "loop");
@@ -456,7 +459,10 @@ class ir_visitor : public visitor::visitor {
 
       while_node.get_body_node()->visit(this);
       while_node.get_expression()->visit(this);
+
       cond_value = while_node.get_expression()->get_final_object()->get_value();
+      cond_value = cast_ref_bool_to_primitive_bool(cond_value);
+
       loop_bb = ir_visitor_->builder_->GetInsertBlock();
       ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
 
@@ -468,6 +474,8 @@ class ir_visitor : public visitor::visitor {
       if_node.get_expression()->visit(this);
       auto cond_value =
           if_node.get_expression()->get_final_object()->get_value();
+
+      cond_value = cast_ref_bool_to_primitive_bool(cond_value);
 
       llvm::Function* parent_function =
           ir_visitor_->builder_->GetInsertBlock()->getParent();
@@ -490,6 +498,17 @@ class ir_visitor : public visitor::visitor {
 
       parent_function->getBasicBlockList().push_back(merge_bb);
       ir_visitor_->builder_->SetInsertPoint(merge_bb);
+    }
+
+    llvm::Value* cast_ref_bool_to_primitive_bool(llvm::Value* value) const {
+      if (value->getType()->isPointerTy()) {
+        auto type = value->getType()->getPointerElementType();
+        // +1 from the table of virtual functions
+        value = ir_visitor_->builder_->CreateStructGEP(type, value, 1 + 0);
+        type = ir_visitor_->get_type_by_name("bool");
+        value = ir_visitor_->builder_->CreateLoad(type, value);
+      }
+      return value;
     }
 
     void visit(details::assignment_node& assign) override {
