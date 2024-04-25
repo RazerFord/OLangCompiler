@@ -95,7 +95,9 @@ class ir_visitor : public visitor::visitor {
 
  public:
   void visit(details::program_node& p) override {
-    module_->setDataLayout("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
+    module_->setDataLayout(
+        "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-"
+        "S128");
 
     register_global_funcs(p);
     register_types(p);
@@ -194,7 +196,7 @@ class ir_visitor : public visitor::visitor {
   }
 
   void register_std_funcs() {
-    for (auto& std_func: std_functions) {
+    for (auto& std_func : std_functions) {
       std::vector<llvm::Type*> params;
       for (const auto& param_type : std_func.params_types) {
         llvm::Type* ptr_cls = get_type_by_name(param_type);
@@ -214,9 +216,9 @@ class ir_visitor : public visitor::visitor {
       llvm::FunctionType* ptr_func_type =
           llvm::FunctionType::get(ret_type, llvm::ArrayRef(params), false);
 
-      llvm::Function::Create(
-          ptr_func_type, llvm::Function::LinkageTypes::ExternalLinkage,
-          std_func.name, *module_);
+      llvm::Function::Create(ptr_func_type,
+                             llvm::Function::LinkageTypes::ExternalLinkage,
+                             std_func.name, *module_);
     }
   }
 
@@ -419,8 +421,7 @@ class ir_visitor : public visitor::visitor {
       // generate expr and set return value
       body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       method.get_body()->visit(&bd_visitor);
-      if (func_value->getReturnType()->isVoidTy() && !method.get_return_type())
-        ir_visitor_->builder_->CreateRetVoid();
+      if (!bd_visitor.is_ret_inst()) ir_visitor_->builder_->CreateRetVoid();
       llvm::verifyFunction(*func_value);
     }
 
@@ -486,6 +487,7 @@ class ir_visitor : public visitor::visitor {
     ir_visitor* const ir_visitor_ = nullptr;
     std::unordered_map<std::string, std::vector<details::variable_node*>>* const
         cls_to_vars_ = nullptr;
+    bool is_ret_inst_ = false;
 
    public:
     explicit body_visitor(
@@ -494,6 +496,8 @@ class ir_visitor : public visitor::visitor {
                            std::vector<details::variable_node*>>* const
             cls_to_vars)
         : ir_visitor_{ir_visitor}, cls_to_vars_{cls_to_vars} {}
+
+    [[nodiscard]] bool is_ret_inst() const noexcept { return is_ret_inst_; }
 
     void visit(details::variable_node& variable) override {
       variable.get_expression()->visit(this);
@@ -629,6 +633,7 @@ class ir_visitor : public visitor::visitor {
         ir_visitor_->builder_->CreateRet(ret_val);
       } else
         ir_visitor_->builder_->CreateRet(ret_val);
+      is_ret_inst_ = true;
     }
 
     llvm::Value* load_builtin_ret_val(const std::string& type_name,
@@ -691,7 +696,8 @@ class ir_visitor : public visitor::visitor {
     }
 
     void visit(details::std_call& std_call) override {
-      llvm::Function* std_func = ir_visitor_->module_->getFunction(std_call.get_method_name());
+      llvm::Function* std_func =
+          ir_visitor_->module_->getFunction(std_call.get_method_name());
       std::vector<llvm::Value*> std_func_args;
 
       for (auto& arg : std_call.get_arguments()) {
@@ -724,7 +730,8 @@ class ir_visitor : public visitor::visitor {
               arg_val->getType()->getPointerElementType(), arg_val);
         }
         if (arg_val->getType()->isFloatTy()) {
-          arg_val = ir_visitor_->builder_->CreateFPExt(arg_val, llvm::Type::getDoubleTy(*ir_visitor_->ctx_));
+          arg_val = ir_visitor_->builder_->CreateFPExt(
+              arg_val, llvm::Type::getDoubleTy(*ir_visitor_->ctx_));
         }
         printf_args.push_back(arg_val);
       }
@@ -817,11 +824,12 @@ class ir_visitor : public visitor::visitor {
       llvm::Type* type = ir_visitor_->get_type_by_name(type_name);
 
       if (ir_visitor_->builtin_types(type_name)) {
-          if (type_name == "real")
-            return llvm::ConstantFP::get(ir_visitor_->get_type_by_name(type_name), 0.0);
+        if (type_name == "real")
+          return llvm::ConstantFP::get(ir_visitor_->get_type_by_name(type_name),
+                                       0.0);
 
-          return llvm::ConstantInt::get(ir_visitor_->get_type_by_name(type_name),
-                                          0);
+        return llvm::ConstantInt::get(ir_visitor_->get_type_by_name(type_name),
+                                      0);
         //        llvm::Value* ptr = ir_visitor_->builder_->CreateAlloca(type);
         //
         //        llvm::Value* val = llvm::ConstantInt::get(
@@ -831,7 +839,6 @@ class ir_visitor : public visitor::visitor {
         //
         //        return ir_visitor_->builder_->CreateLoad(
         //            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), ptr);
-
       }
 
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
