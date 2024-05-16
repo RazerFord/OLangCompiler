@@ -74,29 +74,11 @@ class scope_visitor : public semantic_visitor {
   }
 
   void visit(details::class_node& cls) override {
-    {
-      int var_index = 0;
-      std::stack<std::shared_ptr<details::class_node>> stack;
-      std::string name = cls.get_class_name()->get_identifier()->get_name();
-      std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
-      stack.push(c);
-      while (c->get_extends()) {
-        name = c->get_extends()->get_identifier()->get_name();
-        c = class_node_by_name.at(name);
-        stack.push(c);
-      }
-      while (!stack.empty()) {
-        c = stack.top();
-        stack.pop();
-        for (const auto& m : c->get_members()) {
-          if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
-            var->visit(this);
-            var->set_index(var_index++);
-          }
-        }
+    for (const auto& m : cls.get_members()) {
+      if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
+        var->visit(this);
       }
     }
-    int method_index = 0;
     std::unordered_set<std::string> mangled_methods;
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
@@ -107,7 +89,6 @@ class scope_visitor : public semantic_visitor {
         }
         mangled_methods.insert(mangled_method);
         var->visit(this);
-        var->set_index(method_index++);
       }
 
       if (auto var = dynamic_cast<details::constructor_node*>(m.get()); var) {
@@ -567,4 +548,58 @@ class type_visitor : public semantic_visitor {
   };
 };
 
+class indexer_visitor : public visitor {
+  std::unordered_map<std::string, std::shared_ptr<details::class_node>>
+      class_node_by_name{};
+
+  void index_fields(details::class_node& cls) {
+    int var_index = 0;
+    std::stack<std::shared_ptr<details::class_node>> stack;
+    std::string name = cls.get_class_name()->get_identifier()->get_name();
+    std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
+    stack.push(c);
+    while (c->get_extends()) {
+      name = c->get_extends()->get_identifier()->get_name();
+      c = class_node_by_name.at(name);
+      stack.push(c);
+    }
+    while (!stack.empty()) {
+      c = stack.top();
+      stack.pop();
+      for (const auto& m : c->get_members()) {
+        if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
+          var->set_index(var_index++);
+        }
+      }
+    }
+  }
+
+  void index_methods(details::class_node& cls) {
+    int method_index = 0;
+    std::unordered_set<std::string> mangled_methods;
+    for (const auto& m : cls.get_members()) {
+      if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
+        auto mangled_method = var->mangle_method();
+        mangled_methods.insert(mangled_method);
+        var->set_index(method_index++);
+      }
+    }
+  }
+
+ public:
+  void visit(details::program_node& p) override {
+    for (const auto& cls : p.get_classes()) {
+      class_node_by_name[cls->get_class_name()->get_identifier()->get_name()] =
+          cls;
+    }
+    for (const auto& cls : p.get_classes()) {
+      cls->visit(this);
+    }
+  }
+
+  void visit(details::class_node& cls) override {
+    index_fields(cls);
+    index_methods(cls);
+  }
+};
 }  // namespace visitor

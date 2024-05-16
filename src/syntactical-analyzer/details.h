@@ -867,13 +867,13 @@ class variable_node : public member_node {
 };
 
 class method_node : public member_node {
+  int index_ = -1;
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
   std::shared_ptr<type_node> return_type_ =
       std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
   llvm::Function* method_value_;
-  int index_ = -1;
 
   bool validate() override { return true; }
 

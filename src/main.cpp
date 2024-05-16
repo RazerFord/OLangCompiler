@@ -40,6 +40,9 @@ int main(int argc, char** argv) {
       continue;
     }
 
+    visitor::indexer_visitor indexer_visitor;
+    ast.visit(&indexer_visitor);
+
     ir_visitor::ir_visitor ir;
     ast.visit(&ir);
   }
