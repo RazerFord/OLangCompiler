@@ -1551,6 +1551,10 @@ class constructor_call : public expression_ext {
 
   void print() override{};
 
+  std::shared_ptr<class_node> get_class() const noexcept {
+    return class_.lock();
+  }
+
   std::shared_ptr<constructor_node> get_constructor() const noexcept {
     return constr_.lock();
   }

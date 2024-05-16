@@ -2,6 +2,7 @@
 
 #include <set>
 #include <sstream>
+#include <stack>
 
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -95,6 +96,8 @@ class ir_visitor : public visitor::visitor {
   std::unique_ptr<llvm::Module> module_ =
       std::make_unique<llvm::Module>(ModuleName, *ctx_);
   std::unordered_map<std::string, llvm::Value*> var_env;
+  std::unordered_map<std::string, std::shared_ptr<details::class_node>>
+      class_node_by_name{};
 
   std::unordered_map<std::string, llvm::Type*> builtin_types_{
       {"int", llvm::Type::getInt32Ty(*ctx_)},
@@ -173,33 +176,55 @@ class ir_visitor : public visitor::visitor {
 
   void register_members(details::program_node& p) {
     for (auto& c : p.get_classes()) {
-      std::string name = c->get_class_name()->get_identifier()->get_name();
-      if (builtin_types(name)) continue;
+      class_node_by_name[c->get_class_name()->get_identifier()->get_name()] = c;
+    }
 
-      llvm::StructType* ptr_cls =
-          llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
-      c->set_class_type(ptr_cls);
-      name = vtable_name(c);
-      llvm::PointerType* ptrVTable =
-          llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name))
-              ->getPointerTo();
+    for (auto& c : p.get_classes()) {
+      class_build_struct_types(c);
+    }
+  }
 
-      std::vector<llvm::Type*> body{ptrVTable};
-      // adding all types to a class
-      {
-        member_variable_visitor mvv(&body, this);
-        for (const auto& m : c->get_members()) {
-          m->visit(&mvv);
-        }
+  void add_all_fields(std::shared_ptr<details::class_node> c,
+                      std::vector<llvm::Type*>& body) {
+    std::stack<std::shared_ptr<details::class_node>> stack;
+    stack.push(c);
+    while (c->get_extends()) {
+      std::string name = c->get_extends()->get_identifier()->get_name();
+      c = class_node_by_name.at(name);
+      stack.push(c);
+    }
+    while (!stack.empty()) {
+      c = stack.top();
+      stack.pop();
+      member_variable_visitor mvv(&body, this);
+      for (const auto& m : c->get_members()) {
+        m->visit(&mvv);
       }
-      ptr_cls->setBody(llvm::ArrayRef(body));
+    }
+  }
 
-      // adding all methods to a class
-      {
-        member_method_visitor mmv(ptr_cls, this);
-        for (const auto& m : c->get_members()) {
-          m->visit(&mmv);
-        }
+  void class_build_struct_types(const std::shared_ptr<details::class_node>& c) {
+    std::string name = c->get_class_name()->get_identifier()->get_name();
+    if (builtin_types(name)) return;
+
+    llvm::StructType* ptr_cls =
+        llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name));
+    c->set_class_type(ptr_cls);
+    name = vtable_name(c);
+    llvm::PointerType* ptrVTable =
+        llvm::StructType::getTypeByName(*ctx_, llvm::StringRef(name))
+            ->getPointerTo();
+
+    std::vector<llvm::Type*> body{ptrVTable};
+    // adding all types to a class
+    add_all_fields(c, body);
+    ptr_cls->setBody(llvm::ArrayRef(body));
+
+    // adding all methods to a class
+    {
+      member_method_visitor mmv(ptr_cls, this);
+      for (const auto& m : c->get_members()) {
+        m->visit(&mmv);
       }
     }
   }
@@ -444,7 +469,7 @@ class ir_visitor : public visitor::visitor {
       //            func_value->getReturnType(), nullptr, "return.value");
       //      }
 
-      // generate expr  and set return value
+      // generate expr and set return value
       body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       constr.get_body()->visit(&bd_visitor);
       ir_visitor_->builder_->CreateRet(ir_visitor_->var_env["this"]);
@@ -747,12 +772,54 @@ class ir_visitor : public visitor::visitor {
       ir_visitor_->builder_->CreateCall(printf, printf_args);
     }
 
-    void visit(details::constructor_call& constr_call) override {
-      if (constr_call.get_type()->simple_type() == "base") {
-        // handle base call
+    void handle_base(details::constructor_call& constr_call) {
+      auto callee_fun = constr_call.get_constructor()->get_constr_value();
+      if (!callee_fun) {
+        std::cout << "Function doesn't exist\n";
         return;
       }
-      auto obj = create_object(constr_call);
+      auto obj = ir_visitor_->var_env["this"];
+      auto type = constr_call.get_class()->get_class_type();
+      obj = ir_visitor_->builder_->CreateBitCast(obj, type->getPointerTo());
+
+      auto callee_fun_type = callee_fun->getFunctionType();
+      std::vector<llvm::Value*> arg_values{obj};
+      auto args = constr_call.get_arguments();
+      for (size_t i = 0; i < args.size(); i++) {
+        args[i]->visit(this);
+        llvm::Value* arg_val =
+            std::dynamic_pointer_cast<details::expression_ext>(args[i])
+                ->get_value();
+        if (arg_val == nullptr) {
+          std::cout << "Null Argument when calling function \n";
+          return;
+        }
+
+        llvm::Type* param_type = callee_fun_type->getParamType(i + 1);
+        if (param_type == nullptr) {
+          std::cout << "here\n";
+          continue;
+        }
+        llvm::Value* bit_cast_arg_val =
+            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
+        arg_values.push_back(bit_cast_arg_val);
+      }
+
+      ir_visitor_->builder_->CreateCall(callee_fun, arg_values);
+
+      constr_call.set_value(obj);
+    }
+
+    void visit(details::constructor_call& constr_call) override {
+      llvm::Value* obj;
+      if (constr_call.get_type()->simple_type() == "base") {
+        // handle base call
+        obj = ir_visitor_->var_env["this"];
+        auto type = constr_call.get_class()->get_class_type();
+        obj = ir_visitor_->builder_->CreateBitCast(obj, type->getPointerTo());
+      } else {
+        obj = create_object(constr_call);
+      }
 
       if (ir_visitor_->builtin_types(constr_call.get_type()->simple_type())) {
         constr_call.set_value(obj);
@@ -980,9 +1047,6 @@ class ir_visitor : public visitor::visitor {
         // +1 from the table of virtual functions
         llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
             type_ptr, obj_ptr, 1 + var_node->get_index());
-
-//        add_metadata(ir_visitor_->ctx_, ir_visitor_->builder_, "load value",
-//                     "gep");
 
         variable.set_value(value);
       } else {
