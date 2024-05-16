@@ -575,13 +575,31 @@ class indexer_visitor : public visitor {
   }
 
   void index_methods(details::class_node& cls) {
+    std::stack<std::shared_ptr<details::class_node>> stack;
+    std::string name = cls.get_class_name()->get_identifier()->get_name();
+    std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
+    stack.push(c);
+    while (c->get_extends()) {
+      name = c->get_extends()->get_identifier()->get_name();
+      c = class_node_by_name.at(name);
+      stack.push(c);
+    }
     int method_index = 0;
-    std::unordered_set<std::string> mangled_methods;
-    for (const auto& m : cls.get_members()) {
-      if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
-        auto mangled_method = var->mangle_method();
-        mangled_methods.insert(mangled_method);
-        var->set_index(method_index++);
+    std::unordered_map<std::string, int> mangled_methods;
+    while (!stack.empty()) {
+      c = stack.top();
+      stack.pop();
+      for (const auto& m : c->get_members()) {
+        if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
+          auto mangled_method = var->mangle_method();
+          auto it = mangled_methods.find(mangled_method);
+          if (it != mangled_methods.end()) {
+            var->set_index(it->second);
+          } else {
+            mangled_methods[mangled_method] = method_index;
+            var->set_index(method_index++);
+          }
+        }
       }
     }
   }

@@ -641,17 +641,26 @@ class ir_visitor : public visitor::visitor {
                                   ->get_type()
                                   ->simple_type();
 
-      //      if (ir_visitor_->builtin_types(type_name)) {
-      llvm::Value* val =
+      std::string ltype = assign.get_lexpression()->get_type()->simple_type();
+      std::string rtype = assign.get_rexpression()->get_type()->simple_type();
+
+      llvm::Value* lvalue =
+          assign.get_lexpression()->get_final_object()->get_value();
+      llvm::Value* rvalue =
           assign.get_rexpression()->get_final_object()->get_value();
-      val = ir_visitor_->builder_->CreateLoad(
-          val->getType()->getPointerElementType(), val);
-      assign.get_rexpression()->get_final_object()->set_value(val);
+
+      if (ltype != rtype) {
+        rvalue =
+            ir_visitor_->builder_->CreateBitCast(rvalue, lvalue->getType());
+      }
+
+      //      if (ir_visitor_->builtin_types(type_name)) {
+      rvalue = ir_visitor_->builder_->CreateLoad(
+          rvalue->getType()->getPointerElementType(), rvalue);
+      assign.get_rexpression()->get_final_object()->set_value(rvalue);
       //      }
 
-      ir_visitor_->builder_->CreateStore(
-          assign.get_rexpression()->get_final_object()->get_value(),
-          assign.get_lexpression()->get_final_object()->get_value());
+      ir_visitor_->builder_->CreateStore(rvalue, lvalue);
     }
 
     void visit(details::return_statement_node& return_expr) override {
