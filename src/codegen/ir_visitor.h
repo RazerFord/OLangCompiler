@@ -76,6 +76,15 @@ inline std::vector<std_functions_t> std_functions = {
     {"NotB", "Boolean", {"Boolean"}},
 };
 
+inline void add_metadata(std::unique_ptr<llvm::LLVMContext>& ctx,
+                         std::unique_ptr<llvm::IRBuilder<>>& builder,
+                         const std::string& name, const std::string& metadata) {
+  llvm::Type* i32_type = llvm::IntegerType::getInt32Ty(*ctx);
+  llvm::AllocaInst* inst = builder->CreateAlloca(i32_type);
+  llvm::MDNode* node = llvm::MDNode::get(*ctx, llvm::MDString::get(*ctx, name));
+  inst->setMetadata(metadata, node);
+}
+
 namespace ir_visitor {
 class ir_visitor : public visitor::visitor {
  private:
@@ -968,13 +977,12 @@ class ir_visitor : public visitor::visitor {
         //            llvm::StructType::getTypeByName(*ir_visitor_->ctx_,
         //            type_name);
 
-        //        llvm::LoadInst* load_obj_ptr =
-        //        ir_visitor_->builder_->CreateLoad(
-        //            type_ptr->getPointerTo(), obj_ptr);
-
         // +1 from the table of virtual functions
         llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
             type_ptr, obj_ptr, 1 + var_node->get_index());
+
+//        add_metadata(ir_visitor_->ctx_, ir_visitor_->builder_, "load value",
+//                     "gep");
 
         variable.set_value(value);
       } else {
