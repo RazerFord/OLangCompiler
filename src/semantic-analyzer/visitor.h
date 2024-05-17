@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <memory>
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -217,6 +218,8 @@ class instantiate_visitor : public semantic_visitor {
 
 class scope_visitor : public semantic_visitor {
  private:
+  std::unordered_map<std::string, std::shared_ptr<details::class_node>>
+      class_node_by_name{};
   std::shared_ptr<scope::scope> scope_{new scope::scope};
   error_handling::error_handling error_;
 
@@ -229,6 +232,10 @@ class scope_visitor : public semantic_visitor {
   scope_visitor(std::shared_ptr<scope::scope> scope) : scope_(scope) {}
 
   void visit(details::program_node& p) override {
+    for (const auto& cls : p.get_classes()) {
+      class_node_by_name[cls->get_class_name()->get_full_name()] =
+          cls;
+    }
     p.set_scope(scope_);
     scope_->add("printf", printf_class_node);
     scope_->add("program", p.weak_from_this());
@@ -266,14 +273,11 @@ class scope_visitor : public semantic_visitor {
   }
 
   void visit(details::class_node& cls) override {
-    int var_index = 0;
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
         var->visit(this);
-        var->set_index(var_index++);
       }
     }
-    int method_index = 0;
     std::unordered_set<std::string> mangled_methods;
     for (const auto& m : cls.get_members()) {
       if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
@@ -284,7 +288,6 @@ class scope_visitor : public semantic_visitor {
         }
         mangled_methods.insert(mangled_method);
         var->visit(this);
-        var->set_index(method_index++);
       }
 
       if (auto var = dynamic_cast<details::constructor_node*>(m.get()); var) {
@@ -495,6 +498,8 @@ class type_visitor : public semantic_visitor {
           {type::RealT,
            {{type::realT, true}, {type::IntegerT, true}, {type::AnyT, true}}},
       };
+  std::unordered_map<std::string, std::shared_ptr<details::class_node>>
+      class_node_by_name{};
   std::unordered_set<std::string> types_ = {type::IntegerT, type::RealT,
                                             type::BooleanT, type::AnyT};
   std::unordered_map<std::string, std::string> constructor_calls_;
@@ -506,6 +511,11 @@ class type_visitor : public semantic_visitor {
 
  public:
   void visit(details::program_node& p) override {
+    for (const auto& cls : p.get_classes()) {
+      class_node_by_name[cls->get_class_name()->get_identifier()->get_name()] =
+          cls;
+    }
+
     for (const auto& cls : p.get_classes()) {
       std::string derived = cls->get_class_name()->get_full_name();
       if (cls->get_extends()) {
@@ -519,6 +529,7 @@ class type_visitor : public semantic_visitor {
     type_casting_["Super"]["Any"] = true;
     transitive(type_casting_);
     p.set_type_casting(type_casting_);
+
     for (const auto& cls : p.get_classes()) {
       cls->visit(this);
     }
@@ -564,8 +575,16 @@ class type_visitor : public semantic_visitor {
 
   void visit(details::constructor_node& ctr) override {
     ctr.get_parameters()->visit(this);
+
     body_checker bc(type::voidT, *this);
     ctr.get_body()->visit(&bc);
+
+    std::string type = *ctr.get_scope()->get_name(scope::scope_type::Class);
+    auto class_node = class_node_by_name.at(type);
+    if (class_node->get_extends()) {
+      base_checker bac(ctr, *this);
+      ctr.get_body()->visit(&bac);
+    }
   }
 
   void visit(details::parameters_node& params) override {
@@ -610,6 +629,44 @@ class type_visitor : public semantic_visitor {
   void print_error() const { error_.print_errors(); }
 
  private:
+  class base_checker : public semantic_visitor {
+   private:
+    const details::constructor_node& ctor_;
+    type_visitor& tv_;
+    int i = 0;
+    bool called = false;
+    details::expression_node* last_expr{};
+
+   public:
+    base_checker(const details::constructor_node& ctor, type_visitor& tv)
+        : ctor_{ctor}, tv_{tv} {}
+
+    void visit(details::body_node& b) override {
+      for (auto& n : b.get_nodes()) {
+        n->visit(this);
+        i++;
+      }
+      if (!called) {
+        tv_.register_error(ctor_, "base must be called at least");
+      }
+    }
+
+    void visit(details::constructor_call& expr) override {
+      if ("base" == expr.get_type()->simple_type()) {
+        if (i != 0) {
+          tv_.register_error(*last_expr,
+                             "base should be called on the first line");
+        }
+        called = true;
+      }
+    }
+
+    void visit(details::expression_node& expr) override {
+      last_expr = &expr;
+      expr.get_object(tv_.error_)->visit(this);
+    }
+  };
+
   class body_checker : public semantic_visitor {
    private:
     const std::string ret_type_;
@@ -690,4 +747,76 @@ class type_visitor : public semantic_visitor {
   };
 };
 
+class indexer_visitor : public visitor {
+  std::unordered_map<std::string, std::shared_ptr<details::class_node>>
+      class_node_by_name{};
+
+  void index_fields(details::class_node& cls) {
+    int var_index = 0;
+    std::stack<std::shared_ptr<details::class_node>> stack;
+    std::string name = cls.get_class_name()->get_full_name();
+    std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
+    stack.push(c);
+    while (c->get_extends()) {
+      name = c->get_extends()->get_full_name();
+      c = class_node_by_name.at(name);
+      stack.push(c);
+    }
+    while (!stack.empty()) {
+      c = stack.top();
+      stack.pop();
+      for (const auto& m : c->get_members()) {
+        if (auto var = dynamic_cast<details::variable_node*>(m.get()); var) {
+          var->set_index(var_index++);
+        }
+      }
+    }
+  }
+
+  void index_methods(details::class_node& cls) {
+    std::stack<std::shared_ptr<details::class_node>> stack;
+    std::string name = cls.get_class_name()->get_full_name();
+    std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
+    stack.push(c);
+    while (c->get_extends()) {
+      name = c->get_extends()->get_full_name();
+      c = class_node_by_name.at(name);
+      stack.push(c);
+    }
+    int method_index = 0;
+    std::unordered_map<std::string, int> mangled_methods;
+    while (!stack.empty()) {
+      c = stack.top();
+      stack.pop();
+      for (const auto& m : c->get_members()) {
+        if (auto var = dynamic_cast<details::method_node*>(m.get()); var) {
+          auto mangled_method = var->mangle_method();
+          auto it = mangled_methods.find(mangled_method);
+          if (it != mangled_methods.end()) {
+            var->set_index(it->second);
+          } else {
+            mangled_methods[mangled_method] = method_index;
+            var->set_index(method_index++);
+          }
+        }
+      }
+    }
+  }
+
+ public:
+  void visit(details::program_node& p) override {
+    for (const auto& cls : p.get_classes()) {
+      class_node_by_name[cls->get_class_name()->get_full_name()] =
+          cls;
+    }
+    for (const auto& cls : p.get_classes()) {
+      cls->visit(this);
+    }
+  }
+
+  void visit(details::class_node& cls) override {
+    index_fields(cls);
+    index_methods(cls);
+  }
+};
 }  // namespace visitor
