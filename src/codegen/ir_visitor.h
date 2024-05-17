@@ -129,36 +129,33 @@ class ir_visitor : public visitor::visitor {
     return PrefixVTable + c->get_class_name()->get_identifier()->get_name();
   }
 
-  inline static std::vector<std::shared_ptr<details::member_node>> linelize(
-      details::program_node& p, const std::shared_ptr<details::class_node>& c) {
-    auto& tc = p.get_type_casting();
-    std::string main_type = c->get_class_name()->get_identifier()->get_name();
-    auto& ts1 = tc.at(main_type);
-    std::vector<std::string> ts;
-    for (const auto& [k, _] : ts1) {
-      ts.push_back(k);
+  inline std::vector<std::shared_ptr<details::member_node>> linelize(
+      const std::shared_ptr<details::class_node>& cls) {
+    std::stack<std::shared_ptr<details::class_node>> stack;
+    std::string name = cls->get_class_name()->get_identifier()->get_name();
+    std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
+    stack.push(c);
+    while (c->get_extends()) {
+      name = c->get_extends()->get_identifier()->get_name();
+      c = class_node_by_name.at(name);
+      stack.push(c);
     }
-    std::sort(ts.begin(), ts.end(),
-              [&tc, &main_type](const std::string& l, const std::string& r) {
-                return l == main_type ||
-                       (tc.contains(l) && tc.at(l).contains(r));
-              });
-    std::vector<std::shared_ptr<details::member_node>> members;
-    {
-      std::set<std::string> added;
-      const auto& scope = p.get_scope();
-      for (const std::string& cls : ts) {
-        auto cn = scope->find(cls);
-        if (auto sp = std::dynamic_pointer_cast<details::class_node>(cn)) {
-          for (const auto& m : sp->get_members()) {
-            if (auto sp1 = std::dynamic_pointer_cast<details::method_node>(m)) {
-              if (added.insert(sp1->mangle_method()).second) {
-                members.push_back(m);
-              }
-            }
-          }
+
+    std::unordered_map<int, std::shared_ptr<details::method_node>> map_methods;
+    while (!stack.empty()) {
+      c = stack.top();
+      stack.pop();
+      for (const auto& m : c->get_members()) {
+        if (auto var = std::dynamic_pointer_cast<details::method_node>(m);
+            var) {
+          map_methods[var->get_index()] = var;
         }
       }
+    }
+    std::vector<std::shared_ptr<details::member_node>> members(
+        map_methods.size(), nullptr);
+    for (auto [k, v] : map_methods) {
+      members[k] = std::move(v);
     }
     return members;
   }
@@ -281,8 +278,7 @@ class ir_visitor : public visitor::visitor {
       std::vector<llvm::Type*> types;
       vtable_filler_visitor vfv(&methods, &types, this);
 
-      std::vector<std::shared_ptr<details::member_node>> members =
-          linelize(p, c);
+      std::vector<std::shared_ptr<details::member_node>> members = linelize(c);
       for (const auto& m : members) {
         m->visit(&vfv);
       }
@@ -297,12 +293,25 @@ class ir_visitor : public visitor::visitor {
   void generate_def_funcs(details::program_node& p) {
     std::unordered_map<std::string, std::vector<details::variable_node*>>
         cls_to_vars;
-    for (const auto& c : p.get_classes()) {
+    for (auto c : p.get_classes()) {
       std::vector<details::variable_node*> vars;
-      variable_collector_visitor vcv(this, &vars);
-      for (const auto& m : c->get_members()) {
-        m->visit(&vcv);
+      std::stack<std::shared_ptr<details::class_node>> stack;
+      stack.push(c);
+      while (c->get_extends()) {
+        std::string name = c->get_extends()->get_identifier()->get_name();
+        c = class_node_by_name.at(name);
+        stack.push(c);
       }
+
+      while(!stack.empty()) {
+        c = stack.top();
+        stack.pop();
+        variable_collector_visitor vcv(this, &vars);
+        for (const auto& m : c->get_members()) {
+          m->visit(&vcv);
+        }
+      }
+
       cls_to_vars[c->get_class_name()->get_identifier()->get_name()] =
           std::move(vars);
     }
