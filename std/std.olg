@@ -251,3 +251,24 @@ class Boolean is
         return std.NotB(this)
     end
 end
+
+class IntegerArray is
+    var ptr: Integer()
+    var size: Integer()
+
+    this(length: Integer) is
+        std.initArray(this, length)
+    end
+
+    method getLength(): Integer is
+        return this.size
+    end
+
+    method get(ind: Integer): Integer is
+        return std.getElement(this, ind)
+    end
+
+    method set(ind: Integer, value: Integer) is
+        std.setElement(this, ind, value)
+    end
+end

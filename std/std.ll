@@ -6,6 +6,7 @@ target triple = "x86_64-pc-linux-gnu"
 %struct.Integer = type { i32*, i32 }
 %struct.Real = type { i32*, float }
 %struct.Boolean = type { i32*, i8 }
+%struct.IntegerArray = type { i32*, %struct.Integer*, %struct.Integer* }
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local %struct.Integer* @UnaryMinusI(%struct.Integer* noundef %0) #0 {
@@ -1134,6 +1135,74 @@ define dso_local %struct.Boolean* @NotB(%struct.Boolean* noundef %0) #0 {
   store i8 %9, i8* %11, align 8
   %12 = load %struct.Boolean*, %struct.Boolean** %2, align 8
   ret %struct.Boolean* %12
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local %struct.IntegerArray* @initArray(%struct.IntegerArray* noundef %0, %struct.Integer* noundef %1) #0 {
+  %3 = alloca %struct.IntegerArray*, align 8
+  %4 = alloca %struct.Integer*, align 8
+  store %struct.IntegerArray* %0, %struct.IntegerArray** %3, align 8
+  store %struct.Integer* %1, %struct.Integer** %4, align 8
+  %5 = load %struct.Integer*, %struct.Integer** %4, align 8
+  %6 = getelementptr inbounds %struct.Integer, %struct.Integer* %5, i32 0, i32 1
+  %7 = load i32, i32* %6, align 8
+  %8 = sext i32 %7 to i64
+  %9 = mul i64 16, %8
+  %10 = call noalias i8* @malloc(i64 noundef %9) #2
+  %11 = bitcast i8* %10 to %struct.Integer*
+  %12 = load %struct.IntegerArray*, %struct.IntegerArray** %3, align 8
+  %13 = getelementptr inbounds %struct.IntegerArray, %struct.IntegerArray* %12, i32 0, i32 1
+  store %struct.Integer* %11, %struct.Integer** %13, align 8
+  %14 = load %struct.Integer*, %struct.Integer** %4, align 8
+  %15 = load %struct.IntegerArray*, %struct.IntegerArray** %3, align 8
+  %16 = getelementptr inbounds %struct.IntegerArray, %struct.IntegerArray* %15, i32 0, i32 2
+  store %struct.Integer* %14, %struct.Integer** %16, align 8
+  %17 = load %struct.IntegerArray*, %struct.IntegerArray** %3, align 8
+  ret %struct.IntegerArray* %17
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local %struct.Integer* @getElement(%struct.IntegerArray* noundef %0, %struct.Integer* noundef %1) #0 {
+  %3 = alloca %struct.IntegerArray*, align 8
+  %4 = alloca %struct.Integer*, align 8
+  store %struct.IntegerArray* %0, %struct.IntegerArray** %3, align 8
+  store %struct.Integer* %1, %struct.Integer** %4, align 8
+  %5 = load %struct.IntegerArray*, %struct.IntegerArray** %3, align 8
+  %6 = getelementptr inbounds %struct.IntegerArray, %struct.IntegerArray* %5, i32 0, i32 1
+  %7 = load %struct.Integer*, %struct.Integer** %6, align 8
+  %8 = load %struct.Integer*, %struct.Integer** %4, align 8
+  %9 = getelementptr inbounds %struct.Integer, %struct.Integer* %8, i32 0, i32 1
+  %10 = load i32, i32* %9, align 8
+  %11 = sext i32 %10 to i64
+  %12 = getelementptr inbounds %struct.Integer, %struct.Integer* %7, i64 %11
+  ret %struct.Integer* %12
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @setElement(%struct.IntegerArray* noundef %0, %struct.Integer* noundef %1, %struct.Integer* noundef %2) #0 {
+  %4 = alloca %struct.IntegerArray*, align 8
+  %5 = alloca %struct.Integer*, align 8
+  %6 = alloca %struct.Integer*, align 8
+  %7 = alloca %struct.Integer*, align 8
+  store %struct.IntegerArray* %0, %struct.IntegerArray** %4, align 8
+  store %struct.Integer* %1, %struct.Integer** %5, align 8
+  store %struct.Integer* %2, %struct.Integer** %6, align 8
+  %8 = load %struct.IntegerArray*, %struct.IntegerArray** %4, align 8
+  %9 = getelementptr inbounds %struct.IntegerArray, %struct.IntegerArray* %8, i32 0, i32 1
+  %10 = load %struct.Integer*, %struct.Integer** %9, align 8
+  %11 = load %struct.Integer*, %struct.Integer** %5, align 8
+  %12 = getelementptr inbounds %struct.Integer, %struct.Integer* %11, i32 0, i32 1
+  %13 = load i32, i32* %12, align 8
+  %14 = sext i32 %13 to i64
+  %15 = getelementptr inbounds %struct.Integer, %struct.Integer* %10, i64 %14
+  store %struct.Integer* %15, %struct.Integer** %7, align 8
+  %16 = load %struct.Integer*, %struct.Integer** %6, align 8
+  %17 = getelementptr inbounds %struct.Integer, %struct.Integer* %16, i32 0, i32 1
+  %18 = load i32, i32* %17, align 8
+  %19 = load %struct.Integer*, %struct.Integer** %7, align 8
+  %20 = getelementptr inbounds %struct.Integer, %struct.Integer* %19, i32 0, i32 1
+  store i32 %18, i32* %20, align 8
+  ret void
 }
 
 attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }

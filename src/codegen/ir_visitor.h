@@ -74,7 +74,10 @@ inline std::vector<std_functions_t> std_functions = {
     {"AndB", "Boolean", {"Boolean", "Boolean"}},
     {"XorB", "Boolean", {"Boolean", "Boolean"}},
     {"NotB", "Boolean", {"Boolean"}},
-};
+    // class IntegerArray
+    {"initArray", "IntegerArray", {"IntegerArray", "Integer"}},
+    {"getElement", "Integer", {"IntegerArray", "Integer"}},
+    {"setElement", "Void", {"IntegerArray", "Integer", "Integer"}}};
 
 namespace ir_visitor {
 class ir_visitor : public visitor::visitor {
