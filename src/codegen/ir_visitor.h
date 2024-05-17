@@ -3,6 +3,7 @@
 #include <set>
 #include <sstream>
 #include <stack>
+#include <unordered_set>
 
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -110,9 +111,10 @@ class ir_visitor : public visitor::visitor {
       {"bool", llvm::Type::getInt1Ty(*ctx_)},
   };
 
+  std::unordered_set<std::string> wrappers_{"Integer", "Real", "Boolean"};
+
  public:
-  ir_visitor(const std::string& d) : destination(d) {
-  }
+  ir_visitor(const std::string& d) : destination(d) {}
 
   void visit(details::program_node& p) override {
     module_->setDataLayout(
@@ -313,7 +315,7 @@ class ir_visitor : public visitor::visitor {
         stack.push(c);
       }
 
-      while(!stack.empty()) {
+      while (!stack.empty()) {
         c = stack.top();
         stack.pop();
         variable_collector_visitor vcv(this, &vars);
@@ -827,7 +829,41 @@ class ir_visitor : public visitor::visitor {
       constr_call.set_value(obj);
     }
 
-    void visit(details::method_call& method_call) override {
+    void simple_call(details::method_call& method_call) {
+      auto callee_fun = method_call.get_method()->get_method_value();
+      if (!callee_fun) {
+        std::cout << "Function doesn't exist\n";
+        return;
+      }
+
+      auto callee_fun_type = callee_fun->getFunctionType();
+
+      llvm::Type* expected_type = callee_fun_type->getParamType(0);
+      llvm::Value* casted_value = ir_visitor_->builder_->CreateBitCast(
+          method_call.get_owner_value(), expected_type);
+
+      std::vector<llvm::Value*> arg_values{casted_value};
+      auto args = method_call.get_arguments();
+      for (size_t i = 0; i < args.size(); i++) {
+        args[i]->visit(this);
+        llvm::Value* arg_val =
+            std::dynamic_pointer_cast<details::expression_ext>(args[i])
+                ->get_value();
+        if (arg_val == nullptr) {
+          std::cout << "null argument when calling function\n";
+          return;
+        }
+
+        llvm::Type* paramTy = callee_fun_type->getParamType(i + 1);
+        llvm::Value* bitCastArgVal =
+            ir_visitor_->builder_->CreateBitCast(arg_val, paramTy);
+        arg_values.push_back(bitCastArgVal);
+      }
+      method_call.set_value(
+          ir_visitor_->builder_->CreateCall(callee_fun, arg_values));
+    }
+
+    void virtual_call(details::method_call& method_call) {
       llvm::Value* obj = method_call.get_owner_value();
       llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
           obj->getType()->getPointerElementType(), obj, 0);
@@ -872,6 +908,15 @@ class ir_visitor : public visitor::visitor {
 
       method_call.set_value(ir_visitor_->builder_->CreateCall(
           callee_fun_type, dyn_callee_func, arg_values));
+    }
+
+    void visit(details::method_call& method_call) override {
+      std::string name = method_call.get_class()->get_type()->simple_type();
+      if (ir_visitor_->wrapper(name)) {
+        simple_call(method_call);
+      } else {
+        virtual_call(method_call);
+      }
     }
 
    private:
@@ -1032,6 +1077,10 @@ class ir_visitor : public visitor::visitor {
 
   [[nodiscard]] bool builtin_types(const std::string& type) const {
     return builtin_types_.contains(type);
+  }
+
+  [[nodiscard]] bool wrapper(const std::string& type) const {
+    return wrappers_.contains(type);
   }
 };
 }  // namespace ir_visitor

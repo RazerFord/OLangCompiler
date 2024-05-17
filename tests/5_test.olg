@@ -1,4 +1,7 @@
 class Math is
+  this() is
+  end
+
   method min(a: Integer, b: Integer) : Integer is
     var res: Integer()
     if a.Less(b).get() then
@@ -8,10 +11,13 @@ class Math is
     end
     return res
   end
+end
 
+class Main is
    method main() is
        var a: Integer(10)
        var b: Integer(12)
-       printf("min: %d", this.min(a, b).get())
+       var m: Math()
+       printf("min %d\n", m.min(a, b).get())
    end
 end

@@ -1821,6 +1821,10 @@ class method_call : public expression_ext {
     return arguments_;
   }
 
+  std::shared_ptr<class_node> get_class() const noexcept {
+    return clazz_.lock();
+  }
+
   void visit(visitor::visitor* v) override;
 
   void print() override{};
