@@ -98,6 +98,7 @@ class ast_node : public std::enable_shared_from_this<ast_node> {
 
   virtual void visit(visitor::visitor*) = 0;
   virtual void print() = 0;
+  virtual std::shared_ptr<ast_node> clone() = 0;
   virtual ~ast_node() = default;
 };
 
@@ -106,6 +107,7 @@ class identifier_node : public ast_node {
   std::string name_;
 
  public:
+  identifier_node() = default;
   void set_name(const std::string& name) noexcept { name_ = name; }
 
   void set_name(const token::identifier& i) noexcept {
@@ -122,6 +124,12 @@ class identifier_node : public ast_node {
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << name_; }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_identifier = std::make_shared<identifier_node>();
+    cloned_identifier->set_name(name_);
+    return cloned_identifier;
+  }
 };
 
 class primary_node : public ast_node {
@@ -156,6 +164,8 @@ class class_name_node : public primary_node {
   }
 
  public:
+  class_name_node() = default;
+
   [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
     return identifier_;
   }
@@ -182,6 +192,14 @@ class class_name_node : public primary_node {
     scope_ = std::move(scope);
   }
 
+  bool is_generic() const noexcept { return bool(generic_); }
+
+  std::string get_full_name() {
+    if (generic_) return identifier_->get_name() + "<" + generic_->get_full_name() + ">";
+
+    return identifier_->get_name();
+  }
+
   void visit(visitor::visitor* v) override;
 
   void print() override {
@@ -193,6 +211,17 @@ class class_name_node : public primary_node {
       generic_->print();
       std::cout << "]";
     }
+  }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_class_name = std::make_shared<class_name_node>();
+    cloned_class_name->set_identifier(
+        std::dynamic_pointer_cast<identifier_node>(identifier_->clone()));
+    cloned_class_name->set_scope(scope_);
+    if (generic_)
+      cloned_class_name->set_generic(
+          std::dynamic_pointer_cast<class_name_node>(generic_->clone()));
+    return cloned_class_name;
   }
 };
 
@@ -230,6 +259,9 @@ class type_node : public ast_node {
   explicit type_node(value_type class_name) : type_(std::move(class_name)) {
     id_ = type_id::Custom;
   }
+  explicit type_node(value_type class_name, type_id id)
+      : id_(id), type_(std::move(class_name)) {}
+
   void set_type(value_type type) {
     type_ = std::move(type);
     id_ = type_id::Custom;
@@ -237,23 +269,31 @@ class type_node : public ast_node {
 
   value_type get_class_name() const { return type_; }
 
-  bool operator==(const type_node& other) {
-    return mangle_name(type_->get_identifier()->get_name()) ==
-           mangle_name(other.type_->get_identifier()->get_name());
+  bool operator==(const type_node& other) const {
+    return type() == other.type();
   }
 
   std::string type() const {
-    if (type_) return mangle_name(type_->get_identifier()->get_name());
+    if (type_) return mangle_name(type_->get_full_name());
     return mangle_name(id_);
   }
 
   std::string simple_type() const {
-    if (type_) return type_->get_identifier()->get_name();
+    if (type_) return type_->get_full_name();
     return type_id_to_name(id_);
   }
 
+  bool is_generic() const noexcept { return type_->is_generic(); }
+
   void print() override {
     if (type_) type_->print();
+  }
+
+  std::shared_ptr<ast_node> clone() override {
+    if (type_)
+      return std::make_shared<type_node>(
+          std::dynamic_pointer_cast<class_name_node>(type_->clone()), id_);
+    return std::make_shared<type_node>(id_);
   }
 
   void register_class(std::shared_ptr<class_node> clazz) {
@@ -314,7 +354,6 @@ class type_node : public ast_node {
 
 class parameter_node : public ast_node {
   std::shared_ptr<identifier_node> identifier_;
-  std::shared_ptr<class_name_node> class_name_;
   std::shared_ptr<scope::scope> scope_;
   std::shared_ptr<type_node> type_;
   llvm::Value* param_value_;
@@ -336,6 +375,8 @@ class parameter_node : public ast_node {
   }
 
  public:
+  parameter_node() = default;
+
   [[nodiscard]] const std::shared_ptr<identifier_node>& get_identifier() const {
     return identifier_;
   }
@@ -344,8 +385,8 @@ class parameter_node : public ast_node {
     return type_;
   }
 
-  [[nodiscard]] const std::shared_ptr<class_name_node>& get_class_name() const {
-    return class_name_;
+  [[nodiscard]] const std::shared_ptr<type_node>& get_class_name() const {
+    return type_;
   }
 
   [[nodiscard]] const std::shared_ptr<scope::scope> get_scope() const {
@@ -358,6 +399,11 @@ class parameter_node : public ast_node {
   }
   void set_class_name(std::shared_ptr<class_name_node> class_name) {
     type_ = std::make_shared<type_node>(std::move(class_name));
+    fill();
+  }
+
+  void set_type(std::shared_ptr<type_node> type) {
+    type_ = type;
     fill();
   }
 
@@ -376,6 +422,16 @@ class parameter_node : public ast_node {
       std::cout << ": ";
       type_->print();
     }
+  }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_parameter = std::make_shared<parameter_node>();
+    cloned_parameter->set_identifier(
+        std::dynamic_pointer_cast<identifier_node>(identifier_->clone()));
+    cloned_parameter->set_type(
+        std::dynamic_pointer_cast<type_node>(type_->clone()));
+    cloned_parameter->set_scope(scope_);
+    return cloned_parameter;
   }
 
   std::string mangle_param() const { return type_->type(); }
@@ -422,6 +478,15 @@ class parameters_node : public ast_node {
         std::cout << ", ";
       }
     }
+  }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_parameters = std::make_shared<parameters_node>();
+    for (auto& parameter : parameters_) {
+      cloned_parameters->add_parameter(
+          std::dynamic_pointer_cast<parameter_node>(parameter->clone()));
+    }
+    return cloned_parameters;
   }
 
   [[nodiscard]] std::string mangle_parameters() const {
@@ -484,6 +549,14 @@ class body_node : public ast_node {
       std::cout << "\n";
     }
   }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_body = std::make_shared<body_node>();
+    for (auto& node : nodes_) {
+      cloned_body->add_node(node->clone());
+    }
+    return cloned_body;
+  }
 };
 
 class member_node : public ast_node {};
@@ -520,6 +593,10 @@ class class_node : public ast_node {
   [[nodiscard]] std::shared_ptr<class_name_node> get_class_name()
       const noexcept {
     return class_name_->get_class_name();
+  }
+
+  std::shared_ptr<class_name_node> get_generic() const noexcept {
+    return class_name_->get_class_name()->get_generic();
   }
 
   [[nodiscard]] std::shared_ptr<class_name_node> get_extends() const {
@@ -563,6 +640,8 @@ class class_node : public ast_node {
 
   llvm::Type* get_class_type() const noexcept { return class_type_; }
 
+  bool is_generic_class() const noexcept { return class_name_->is_generic(); }
+
   std::shared_ptr<method_node> find_method(
       const std::shared_ptr<identifier_node>& method_name,
       const std::shared_ptr<arguments_node>& args,
@@ -605,6 +684,23 @@ class class_node : public ast_node {
 
     std::cout << "end\n";
   }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_class = std::make_shared<class_node>();
+    cloned_class->set_class_name(
+        std::dynamic_pointer_cast<type_node>(class_name_->clone())
+            ->get_class_name());
+    if (extends_)
+      cloned_class->set_extends(
+          std::dynamic_pointer_cast<type_node>(extends_->clone())
+              ->get_class_name());
+    for (auto& member : members_) {
+      cloned_class->add_member(
+          std::dynamic_pointer_cast<member_node>(member->clone()));
+    }
+    cloned_class->set_scope(scope_);
+    return cloned_class;
+  }
 };
 
 class program_node : public ast_node {
@@ -638,6 +734,10 @@ class program_node : public ast_node {
     return classes_;
   }
 
+  std::vector<std::shared_ptr<class_node>>& get_classes() {
+    return classes_;
+  }
+
   void add_class(std::shared_ptr<class_node> class_) {
     fill(class_);
     classes_.push_back(std::move(class_));
@@ -664,6 +764,17 @@ class program_node : public ast_node {
     }
   }
 
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_program = std::make_shared<program_node>();
+    cloned_program->set_scope(scope_);
+    cloned_program->type_casting_ = type_casting_;
+    for (auto& class_ : classes_) {
+      cloned_program->add_class(
+          std::dynamic_pointer_cast<class_node>(class_->clone()));
+    }
+    return cloned_program;
+  }
+
   std::shared_ptr<scope::scope> get_scope() const noexcept { return scope_; }
 
   void set_scope(std::shared_ptr<scope::scope> scope) {
@@ -677,6 +788,7 @@ class expression_ext : public ast_node {
   llvm::Value* value_;
 
  public:
+  expression_ext() = default;
   virtual ~expression_ext() {}
   virtual std::shared_ptr<type_node> get_type() const noexcept = 0;
 
@@ -688,7 +800,6 @@ class expression_ext : public ast_node {
 class expression_node : public statement_node {
   llvm::Value* value_;
 
- private:
   using value_type = std::vector<std::pair<std::shared_ptr<identifier_node>,
                                            std::shared_ptr<arguments_node>>>;
 
@@ -780,6 +891,8 @@ class expression_node : public statement_node {
 
   void print() override;
 
+  std::shared_ptr<ast_node> clone() override;
+
   std::shared_ptr<type_node> get_type() {
     if (final_object_) return final_object_->get_type();
     return nullptr;
@@ -864,13 +977,23 @@ class variable_node : public member_node {
     std::cout << " : ";
     expression_->print();
   }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_variable = std::make_shared<variable_node>();
+    cloned_variable->index_ = index_;
+    cloned_variable->set_identifier(
+        std::dynamic_pointer_cast<identifier_node>(identifier_->clone()));
+    cloned_variable->set_expression(
+        std::dynamic_pointer_cast<expression_node>(expression_->clone()));
+    cloned_variable->set_scope(scope_);
+    return cloned_variable;
+  }
 };
 
 class method_node : public member_node {
   std::shared_ptr<identifier_node> identifier_;
   std::shared_ptr<parameters_node> parameters_;
-  std::shared_ptr<type_node> return_type_ =
-      std::make_shared<type_node>(type_id::Void);
+  std::shared_ptr<type_node> return_type_ = std::make_shared<type_node>(type_id::Void);
   std::shared_ptr<body_node> body_;
   llvm::Function* method_value_;
   int index_ = -1;
@@ -932,13 +1055,9 @@ class method_node : public member_node {
 
   llvm::Function* get_method_value() const noexcept { return method_value_; }
 
-  void set_index(int index) noexcept {
-    index_ = index;
-  }
+  void set_index(int index) noexcept { index_ = index; }
 
-  int get_index() const noexcept {
-    return index_;
-  }
+  int get_index() const noexcept { return index_; }
 
   void visit(visitor::visitor* v) override;
 
@@ -957,6 +1076,20 @@ class method_node : public member_node {
     std::cout << " is\n";
     body_->print();
     std::cout << "end";
+  }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_method = std::make_shared<method_node>();
+    cloned_method->set_identifier(
+        std::dynamic_pointer_cast<identifier_node>(identifier_->clone()));
+    cloned_method->set_parameters(
+        std::dynamic_pointer_cast<parameters_node>(parameters_->clone()));
+    cloned_method->set_return_type(
+        std::dynamic_pointer_cast<type_node>(return_type_->clone())
+            ->get_class_name());
+    cloned_method->set_body(
+        std::dynamic_pointer_cast<body_node>(body_->clone()));
+    return cloned_method;
   }
 
   std::string mangle_method() const {
@@ -1029,6 +1162,16 @@ class constructor_node : public member_node {
     std::cout << "end";
   }
 
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_constr = std::make_shared<constructor_node>();
+    cloned_constr->set_parameters(
+        std::dynamic_pointer_cast<parameters_node>(parameters_->clone()));
+    cloned_constr->set_body(
+        std::dynamic_pointer_cast<body_node>(body_->clone()));
+    cloned_constr->set_scope(scope_);
+    return cloned_constr;
+  }
+
   std::string mangle_ctr() const {
     return "C" + parameters_->mangle_parameters();
   }
@@ -1083,6 +1226,15 @@ class assignment_node : public statement_node {
     std::cout << " := ";
     rexpression_->print();
   }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_assign = std::make_shared<assignment_node>();
+    cloned_assign->set_lexpression(
+        std::dynamic_pointer_cast<expression_node>(lexpression_->clone()));
+    cloned_assign->set_rexpression(
+        std::dynamic_pointer_cast<expression_node>(rexpression_->clone()));
+    return cloned_assign;
+  }
 };
 
 class while_loop_node : public statement_node {
@@ -1135,6 +1287,13 @@ class while_loop_node : public statement_node {
     std::cout << " loop\n";
     body_->print();
     std::cout << "end";
+  }
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_while = std::make_shared<while_loop_node>();
+    cloned_while->set_expression(
+        std::dynamic_pointer_cast<expression_node>(expression_->clone()));
+    cloned_while->set_body_node(std::dynamic_pointer_cast<body_node>(body_));
+    return cloned_while;
   }
 };
 
@@ -1205,6 +1364,17 @@ class if_statement_node : public statement_node {
     }
     std::cout << "end";
   }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_if = std::make_shared<if_statement_node>();
+    cloned_if->set_expression(
+        std::dynamic_pointer_cast<expression_node>(expression_->clone()));
+    cloned_if->set_true_body(
+        std::dynamic_pointer_cast<body_node>(true_body_->clone()));
+    cloned_if->set_false_body(
+        std::dynamic_pointer_cast<body_node>(false_body_->clone()));
+    return cloned_if;
+  }
 };
 
 class return_statement_node : public statement_node {
@@ -1255,6 +1425,14 @@ class return_statement_node : public statement_node {
       expression_->print();
     }
   }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_return = std::make_shared<return_statement_node>();
+    cloned_return->set_expression(
+        std::dynamic_pointer_cast<expression_node>(expression_->clone()));
+    cloned_return->set_scope(scope_);
+    return cloned_return;
+  }
 };
 
 class arguments_node : public ast_node {
@@ -1276,10 +1454,8 @@ class arguments_node : public ast_node {
   }
 
  public:
-  [[nodiscard]] const std::vector<std::shared_ptr<expression_node>>&
-  get_expressions() const noexcept {
-    return expressions_;
-  }
+
+  arguments_holder get_arguments() const noexcept{ return expressions_; }
 
   void set_expressions(const std::vector<std::shared_ptr<expression_node>>&
                            expression) noexcept {
@@ -1291,8 +1467,6 @@ class arguments_node : public ast_node {
     fill(expression);
     expressions_.push_back(std::move(expression));
   }
-
-  arguments_holder get_arguments() const { return expressions_; }
 
   bool validate() override { return true; }
 
@@ -1309,6 +1483,15 @@ class arguments_node : public ast_node {
       }
     }
     std::cout << ")";
+  }
+
+  std::shared_ptr<ast_node> clone() override {
+    auto cloned_args = std::make_shared<arguments_node>();
+    for (auto& expr : expressions_) {
+      cloned_args->add_expression(
+          std::dynamic_pointer_cast<expression_node>(expr->clone()));
+    }
+    return cloned_args;
   }
 };
 
@@ -1348,10 +1531,15 @@ class literal_node : public literal_base_node {
   void print() override {
     std::cout << std::boolalpha << value_ << std::noboolalpha;
   }
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<literal_node<T>>(value_);
+  }
 };
 
 class this_node : public primary_node {
  public:
+  explicit this_node(const meta& meta_info) { meta_info_ = meta_info; }
   explicit this_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
@@ -1363,10 +1551,14 @@ class this_node : public primary_node {
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "this"; }
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<this_node>(meta_info_);
+  }
 };
 
 class null_node : public primary_node {
  public:
+  explicit null_node(const meta& meta_info) { meta_info_ = meta_info; }
   null_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
@@ -1378,6 +1570,10 @@ class null_node : public primary_node {
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "null"; }
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<null_node>(meta_info_);
+  }
 };
 
 class void_node : public primary_node {
@@ -1389,6 +1585,10 @@ class void_node : public primary_node {
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "null"; }
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<void_node>();
+  }
 };
 
 class base_node : public primary_node {
@@ -1397,12 +1597,17 @@ class base_node : public primary_node {
   void generate() override {}
 
  public:
+  explicit base_node(const meta& meta_info) { meta_info_ = meta_info; }
   base_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "base"; }
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<null_node>(meta_info_);
+  }
 };
 
 class std_node : public primary_node {
@@ -1411,6 +1616,7 @@ class std_node : public primary_node {
   void generate() override {}
 
  public:
+  explicit std_node(const meta& meta_info) { meta_info_ = meta_info; }
   std_node(const token::keyword& i) {
     meta_info_ = meta(i.get_value(), i.get_token_id(), i.get_span());
   }
@@ -1418,6 +1624,10 @@ class std_node : public primary_node {
   void visit(visitor::visitor* v) override;
 
   void print() override { std::cout << "std"; }
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<std_node>(meta_info_);
+  }
 };
 
 class std_call : public expression_ext {
@@ -1430,6 +1640,7 @@ class std_call : public expression_ext {
   void generate() override {}
 
  public:
+  std_call() = default;
   std_call(std::string method_name,
            const std::vector<std::shared_ptr<expression_ext>>& args)
       : method_name_(std::move(method_name)),
@@ -1448,6 +1659,10 @@ class std_call : public expression_ext {
 
   void visit(visitor::visitor* v) override;
   void print() override{};
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<std_call>();
+  }
 };
 
 class printf_call : public expression_ext {
@@ -1460,6 +1675,7 @@ class printf_call : public expression_ext {
   void generate() override {}
 
  public:
+  printf_call() = default;
   printf_call(std::string formatted_str,
               const std::vector<std::shared_ptr<expression_ext>>& args)
       : formatted_str_(std::move(formatted_str)),
@@ -1484,6 +1700,9 @@ class printf_call : public expression_ext {
 
   void visit(visitor::visitor* v) override;
   void print() override{};
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<printf_call>();
+  }
 };
 
 class variable_call : public expression_ext {
@@ -1496,7 +1715,7 @@ class variable_call : public expression_ext {
   void generate() override {}
 
  public:
-  variable_call() {}
+  variable_call() = default;
   variable_call(std::shared_ptr<ast_node> variable,
                 std::shared_ptr<type_node> type)
       : variable_(variable), type_(type) {}
@@ -1517,6 +1736,9 @@ class variable_call : public expression_ext {
   void visit(visitor::visitor* v) override;
 
   void print() override{};
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<variable_call>();
+  }
 };
 
 class constructor_call : public expression_ext {
@@ -1530,7 +1752,7 @@ class constructor_call : public expression_ext {
   void generate() override {}
 
  public:
-  constructor_call() {}
+  constructor_call() = default;
   constructor_call(const constructor_call& other)
       : class_(other.class_),
         constr_(other.constr_),
@@ -1546,10 +1768,13 @@ class constructor_call : public expression_ext {
     return type_;
   }
 
-  // todo override
   void visit(visitor::visitor* v) override;
 
   void print() override{};
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<constructor_call>();
+  }
 
   std::shared_ptr<constructor_node> get_constructor() const noexcept {
     return constr_.lock();
@@ -1571,7 +1796,7 @@ class method_call : public expression_ext {
   void generate() override {}
 
  public:
-  method_call() {}
+  method_call() = default;
   method_call(std::shared_ptr<class_node> clazz,
               std::shared_ptr<method_node> method,
               std::vector<std::shared_ptr<expression_ext>> args)
@@ -1595,6 +1820,10 @@ class method_call : public expression_ext {
   void visit(visitor::visitor* v) override;
 
   void print() override{};
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<method_call>();
+  }
 };
 
 class member_call : public expression_ext {
@@ -1606,7 +1835,7 @@ class member_call : public expression_ext {
   void generate() override {}
 
  public:
-  member_call() {}
+  member_call() = default;
   member_call(std::shared_ptr<expression_ext> object,
               std::shared_ptr<expression_ext> member)
       : object_(object), member_ref_(member) {}
@@ -1633,6 +1862,10 @@ class member_call : public expression_ext {
   void visit(visitor::visitor* v) override;
 
   void print() override{};
+
+  std::shared_ptr<ast_node> clone() override {
+    return std::make_shared<member_call>();
+  }
 };
 
 inline void expression_node::print() {
@@ -1644,6 +1877,27 @@ inline void expression_node::print() {
     }
     if (arguments) arguments->print();
   }
+}
+
+inline std::shared_ptr<ast_node> expression_node::clone() {
+  auto cloned_expression = std::make_shared<expression_node>();
+  cloned_expression->set_primary(
+      std::dynamic_pointer_cast<primary_node>(primary_->clone()));
+  for (auto& [name, args] : expression_values) {
+    if (name && args)
+      cloned_expression->add_value(
+          {std::dynamic_pointer_cast<identifier_node>(name->clone()),
+           std::dynamic_pointer_cast<arguments_node>(args->clone())});
+    else if (name)
+      cloned_expression->add_value(
+          {std::dynamic_pointer_cast<identifier_node>(name->clone()), nullptr});
+    else if (args)
+      cloned_expression->add_value(
+          {nullptr, std::dynamic_pointer_cast<arguments_node>(args->clone())});
+  }
+  cloned_expression->scope_ = scope_;
+  cloned_expression->final_object_ = final_object_;
+  return cloned_expression;
 }
 
 inline void expression_node::fill(

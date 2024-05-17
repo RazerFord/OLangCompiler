@@ -69,6 +69,7 @@ class scope_symbol {
 class scope : public std::enable_shared_from_this<scope> {
  private:
   std::shared_ptr<scope> parent_;
+  std::shared_ptr<scope_symbol> generic_symbol_{new scope_symbol};
   std::shared_ptr<scope_symbol> symbol_{new scope_symbol};
   std::string name_;
   scope_type type_{scope_type::Class};
@@ -105,8 +106,12 @@ class scope : public std::enable_shared_from_this<scope> {
 
   std::shared_ptr<details::ast_node> find(const std::string&);
 
+  std::shared_ptr<details::class_node> find_generic_class(const std::string&);
+
   std::weak_ptr<details::ast_node> add(const std::string&,
                                        std::weak_ptr<details::ast_node>);
+  std::weak_ptr<details::ast_node> add_generic_class(const std::string&,
+                                       std::weak_ptr<details::class_node>);
 
   inline scope_type get_type() const noexcept { return type_; }
 
@@ -137,10 +142,26 @@ inline std::shared_ptr<details::ast_node> scope::find(const std::string& key) {
   return nullptr;
 }
 
+inline std::shared_ptr<details::class_node> scope::find_generic_class(const std::string& key) {
+  for (std::shared_ptr<scope> scope = this->shared_from_this(); scope;
+       scope = scope->parent_) {
+    if (auto value = (*scope->generic_symbol_)[key]; value && !value->expired()) {
+      return std::dynamic_pointer_cast<details::class_node>(value->lock());
+    }
+  }
+  return nullptr;
+}
+
 inline std::weak_ptr<details::ast_node> scope::add(
     const std::string& key, std::weak_ptr<details::ast_node> value) {
   return (*symbol_)[key] = std::move(value);
 }
+
+inline std::weak_ptr<details::ast_node> scope::add_generic_class(
+    const std::string& key, std::weak_ptr<details::class_node> value) {
+  return (*generic_symbol_)[key] = std::move(value);
+}
+
 
 inline const std::string* scope::get_name(scope_type type) const noexcept {
   const scope* s = this;

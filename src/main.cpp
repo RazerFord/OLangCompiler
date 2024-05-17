@@ -8,7 +8,7 @@
 #include "codegen/ir_visitor.h"
 
 int main(int argc, char** argv) {
-  for(int i = 1; i <= 1; ++i) {
+  for(int i = 15; i <= 15; ++i) {
     details::type_node::types_.clear();
     std::cout << "TEST: " << i << std::endl;
 

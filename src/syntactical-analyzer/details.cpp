@@ -89,7 +89,7 @@ std::shared_ptr<variable_node> class_node::find_var_member(
     cur_class =
         cur_class->get_extends()
             ? std::dynamic_pointer_cast<class_node>(scope_->find(
-                  cur_class->get_extends()->get_identifier()->get_name()))
+                  cur_class->get_extends()->get_full_name()))
             : nullptr;
   }
   return nullptr;
@@ -177,7 +177,7 @@ std::shared_ptr<method_node> class_node::find_method(
     cur_class =
         cur_class->get_extends()
             ? std::dynamic_pointer_cast<class_node>(scope_->find(
-                  cur_class->get_extends()->get_identifier()->get_name()))
+                  cur_class->get_extends()->get_full_name()))
             : nullptr;
   }
   return nullptr;
@@ -248,7 +248,7 @@ std::shared_ptr<expression_ext> expression_node::base_checking(
 
   std::shared_ptr<class_node> extends_clazz;
   if (extends_clazz = std::dynamic_pointer_cast<class_node>(
-          scope_->find(clazz->get_extends()->get_identifier()->get_name()));
+          scope_->find(clazz->get_extends()->get_full_name()));
       !extends_clazz) {
     error_handler.register_error(error_handling::make_error_t(
         *base_keyword, "error: cannot find class of extends"));
@@ -407,10 +407,10 @@ std::shared_ptr<expression_ext> expression_node::get_object(
       error_handler.register_error(error_handling::make_error_t(
           *null, "error: member reference base type 'null' is not class"));
       return EMPTY_VAR;
-
-      final_object_ = std::make_shared<variable_call>(
-          nullptr, std::make_shared<type_node>(type_id::Null));
     }
+    final_object_ = std::make_shared<variable_call>(
+        nullptr, std::make_shared<type_node>(type_id::Null));
+    return final_object_;
   }
 
   if (final_object_) return final_object_;
@@ -464,12 +464,16 @@ std::shared_ptr<expression_ext> expression_node::get_object(
     }
   } else if (auto var = scope_->find(
                  std::dynamic_pointer_cast<class_name_node>(primary_)
-                     ->get_identifier()
-                     ->get_name());
+                     ->get_full_name());
              var) {
     auto type = std::make_shared<type_node>();
     if (auto var_node = std::dynamic_pointer_cast<variable_node>(var);
         var_node) {
+      if (auto var_call = std::dynamic_pointer_cast<variable_call>(var_node->get_expression()->get_final_object()); var_call && !expression_values.empty()) {
+        error_handler.register_error(error_handling::make_error_t(
+            *var_node, "error: cannot call member for null object\n"));
+        return final_object_;
+      }
       type = var_node->get_type();
       final_object_ = std::make_shared<variable_call>(var_node, type);
 

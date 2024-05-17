@@ -32,6 +32,189 @@ class semantic_visitor : public visitor {
   ~semantic_visitor() override = default;
 };
 
+class generic_class_visitor : public semantic_visitor {
+  std::string generic_name_;
+  details::class_name_node& instaniated_class_name_;
+
+ public:
+  generic_class_visitor(const std::string& generic_name,
+                        details::class_name_node& instaniated_class_name)
+      : generic_name_(generic_name),
+        instaniated_class_name_(instaniated_class_name) {}
+
+  void visit(details::class_node& clazz) override {
+    for (auto& member : clazz.get_members()) {
+      member->visit(this);
+    }
+  }
+
+  void visit(details::variable_node& var) override {
+    var.get_expression()->visit(this);
+  }
+
+  void visit(details::method_node& method) override {
+    for (auto& param : method.get_parameters()->get_parameters())
+      param->visit(this);
+
+    method.get_body()->visit(this);
+    if (method.get_return_type()->get_class_name())
+      method.get_return_type()->get_class_name()->visit(this);
+  }
+
+  void visit(details::constructor_node& constr) override {
+    for (auto& param : constr.get_parameters()->get_parameters())
+      param->visit(this);
+
+    constr.get_body()->visit(this);
+  }
+
+  void visit(details::parameter_node& param) override {
+    param.get_class_name()->get_class_name()->visit(this);
+  }
+
+  void visit(details::class_name_node& class_name) override {
+    if (class_name.get_identifier()->get_name() == generic_name_)
+      class_name = instaniated_class_name_;
+  }
+
+  void visit(details::body_node& bd_node) override {
+    for (auto& expr : bd_node.get_nodes()) expr->visit(this);
+  }
+
+  void visit(details::return_statement_node& ret) override {
+    ret.get_expression()->visit(this);
+  }
+
+  void visit(details::if_statement_node& if_node) override {
+    if_node.get_expression()->visit(this);
+    if_node.get_true_body()->visit(this);
+    if_node.get_false_body()->visit(this);
+  }
+
+  void visit(details::while_loop_node& while_node) override {
+    while_node.get_expression()->visit(this);
+    while_node.get_body_node()->visit(this);
+  }
+
+  void visit(details::expression_node& expr) override {
+    expr.get_primary()->visit(this);
+    for (auto& value : expr.get_expression_values()) {
+      if (value.second)
+        value.second->visit(this);
+    }
+  }
+
+  void visit(details::arguments_node& args) override {
+    for (auto& arg : args.get_arguments()) arg->visit(this);
+  }
+
+  void visit(details::assignment_node& assign) override {
+    assign.get_lexpression()->visit(this);
+    assign.get_rexpression()->visit(this);
+  }
+};
+
+class instantiate_visitor : public semantic_visitor {
+  std::shared_ptr<scope::scope> scope_;
+
+ public:
+  instantiate_visitor(std::shared_ptr<scope::scope> scope) : scope_(scope) {}
+
+  void visit(details::program_node& program) override {
+    for (auto& clazz : program.get_classes()) {
+      clazz->visit(this);
+    }
+  }
+
+  void visit(details::class_node& clazz) override {
+    for (auto& member : clazz.get_members()) {
+      member->visit(this);
+    }
+  }
+
+  void visit(details::variable_node& var) override {
+    var.get_expression()->visit(this);
+  }
+
+  void visit(details::method_node& method) override {
+    for (auto& param : method.get_parameters()->get_parameters())
+      param->visit(this);
+
+    method.get_body()->visit(this);
+  }
+
+  void visit(details::constructor_node& constr) override {
+    for (auto& param : constr.get_parameters()->get_parameters())
+      param->visit(this);
+
+    constr.get_body()->visit(this);
+  }
+
+  void visit(details::parameter_node& param) override {
+    param.get_class_name()->get_class_name()->visit(this);
+  }
+
+  void visit(details::class_name_node& class_name) override {
+    if (scope_->find(class_name.get_full_name())) return;
+
+    std::shared_ptr<details::class_node> generic_class;
+    if (generic_class =
+            scope_->find_generic_class(class_name.get_identifier()->get_name());
+        !generic_class)
+      return;
+
+    auto cloned_generic_class =
+        std::dynamic_pointer_cast<details::class_node>(generic_class->clone());
+    cloned_generic_class->set_class_name(
+        std::make_shared<details::class_name_node>(class_name));
+    generic_class_visitor gen_visitor(
+        generic_class->get_generic()->get_full_name(),
+        *class_name.get_generic());
+    cloned_generic_class->visit(&gen_visitor);
+
+    auto program = std::dynamic_pointer_cast<details::program_node>(
+        scope_->find("program"));
+    program->add_class(cloned_generic_class);
+    scope_->add(cloned_generic_class->get_class_name()->get_full_name(),
+                cloned_generic_class);
+  }
+
+  void visit(details::body_node& bd_node) override {
+    for (auto& expr : bd_node.get_nodes()) expr->visit(this);
+  }
+
+  void visit(details::return_statement_node& ret) override {
+    ret.get_expression()->visit(this);
+  }
+
+  void visit(details::if_statement_node& if_node) override {
+    if_node.get_expression()->visit(this);
+    if_node.get_true_body()->visit(this);
+    if_node.get_false_body()->visit(this);
+  }
+
+  void visit(details::while_loop_node& while_node) override {
+    while_node.get_expression()->visit(this);
+    while_node.get_body_node()->visit(this);
+  }
+
+  void visit(details::expression_node& expr) override {
+    expr.get_primary()->visit(this);
+    for (auto& value : expr.get_expression_values()) {
+      if (value.second) value.second->visit(this);
+    }
+  }
+
+  void visit(details::arguments_node& args) override {
+    for (auto& arg : args.get_arguments()) arg->visit(this);
+  }
+
+  void visit(details::assignment_node& assign) override {
+    assign.get_lexpression()->visit(this);
+    assign.get_rexpression()->visit(this);
+  }
+};
+
 class scope_visitor : public semantic_visitor {
  private:
   std::shared_ptr<scope::scope> scope_{new scope::scope};
@@ -42,21 +225,37 @@ class scope_visitor : public semantic_visitor {
   }
 
  public:
+  scope_visitor() = default;
+  scope_visitor(std::shared_ptr<scope::scope> scope) : scope_(scope) {}
+
   void visit(details::program_node& p) override {
     p.set_scope(scope_);
     scope_->add("printf", printf_class_node);
+    scope_->add("program", p.weak_from_this());
+
     for (const auto& cls : p.get_classes()) {
       std::string name = cls->get_class_name()->get_identifier()->get_name();
-      if (!scope_->find(name)) {
+
+      if (!cls->is_generic_class() && !scope_->find(name)) {
         scope_->add(name, cls);
+      } else if (cls->is_generic_class() && !scope_->find_generic_class(name)) {
+        scope_->add_generic_class(name, cls);
       } else {
         register_error(*cls->get_class_name(),
                        "error: the " + name + " class is already defined");
       }
     }
+
+    std::erase_if(p.get_classes(), [&scope = scope_](const auto& value) {
+      return scope->find_generic_class(
+          value->get_class_name()->get_identifier()->get_name());
+    });
+
+    instantiate_visitor inst_visitor(scope_);
+    p.visit(&inst_visitor);
+
     for (const auto& cls : p.get_classes()) {
-      std::string class_name =
-          cls->get_class_name()->get_identifier()->get_name();
+      std::string class_name = cls->get_class_name()->get_full_name();
       scope_ = scope_->push(class_name, scope::scope_type::Class);
       scope_->add(class_name, cls);
       scope_->add(kw_this, cls);
@@ -194,7 +393,7 @@ class scope_visitor : public semantic_visitor {
   }
 
   void visit(details::class_name_node& c) override {
-    std::string key = c.get_identifier()->get_name();
+    std::string key = c.get_full_name();
     if (auto var = scope_->find(key); !var) {
       register_error(c, "error: token \"" + key + "\" undefined");
     } else {
@@ -308,7 +507,7 @@ class type_visitor : public semantic_visitor {
  public:
   void visit(details::program_node& p) override {
     for (const auto& cls : p.get_classes()) {
-      std::string derived = cls->get_class_name()->get_identifier()->get_name();
+      std::string derived = cls->get_class_name()->get_full_name();
       if (cls->get_extends()) {
         std::string base = cls->get_extends()->get_identifier()->get_name();
         type_casting_[derived][base] = true;
@@ -372,7 +571,7 @@ class type_visitor : public semantic_visitor {
   void visit(details::parameters_node& params) override {
     for (const auto& p : params.get_parameters()) {
       auto node = p->get_type()->get_class_name();
-      const std::string& class_name = node->get_identifier()->get_name();
+      const std::string& class_name = node->get_full_name();
       auto type = p->get_scope()->find(class_name);
       if (!type) {
         register_error(*node, "\"" + class_name + "\" class not found");

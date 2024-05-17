@@ -114,13 +114,13 @@ class ir_visitor : public visitor::visitor {
  private:
   inline static std::string vtable_name(
       const std::shared_ptr<details::class_node>& c) {
-    return PrefixVTable + c->get_class_name()->get_identifier()->get_name();
+    return PrefixVTable + c->get_class_name()->get_full_name();
   }
 
   inline static std::vector<std::shared_ptr<details::member_node>> linelize(
       details::program_node& p, const std::shared_ptr<details::class_node>& c) {
     auto& tc = p.get_type_casting();
-    std::string main_type = c->get_class_name()->get_identifier()->get_name();
+    std::string main_type = c->get_class_name()->get_full_name();
     auto& ts1 = tc.at(main_type);
     std::vector<std::string> ts;
     for (const auto& [k, _] : ts1) {
@@ -153,7 +153,7 @@ class ir_visitor : public visitor::visitor {
 
   void register_types(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
-      std::string name = c->get_class_name()->get_identifier()->get_name();
+      std::string name = c->get_class_name()->get_full_name();
       if (builtin_types(name)) continue;
 
       llvm::StructType::create(*ctx_, llvm::StringRef(name));
@@ -164,7 +164,7 @@ class ir_visitor : public visitor::visitor {
 
   void register_members(details::program_node& p) {
     for (auto& c : p.get_classes()) {
-      std::string name = c->get_class_name()->get_identifier()->get_name();
+      std::string name = c->get_class_name()->get_full_name();
       if (builtin_types(name)) continue;
 
       llvm::StructType* ptr_cls =
@@ -238,7 +238,7 @@ class ir_visitor : public visitor::visitor {
 
   void register_vtables(details::program_node& p) {
     for (const auto& c : p.get_classes()) {
-      std::string name = c->get_class_name()->get_identifier()->get_name();
+      std::string name = c->get_class_name()->get_full_name();
       if (builtin_types(name)) continue;
 
       std::string vtable = vtable_name(c);
@@ -269,8 +269,7 @@ class ir_visitor : public visitor::visitor {
       for (const auto& m : c->get_members()) {
         m->visit(&vcv);
       }
-      cls_to_vars[c->get_class_name()->get_identifier()->get_name()] =
-          std::move(vars);
+      cls_to_vars[c->get_class_name()->get_full_name()] = std::move(vars);
     }
 
     func_def_visitor fdv(this, &cls_to_vars);
@@ -296,8 +295,7 @@ class ir_visitor : public visitor::visitor {
         : body_{body}, ir_visitor_{ir_visitor} {}
 
     void visit(details::variable_node& v) override {
-      std::string cls_name{
-          v.get_type()->get_class_name()->get_identifier()->get_name()};
+      std::string cls_name{v.get_type()->get_class_name()->get_full_name()};
 
       llvm::Type* ptrCls = ir_visitor_->get_type_by_name(cls_name);
       body_->push_back(ptrCls);

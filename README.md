@@ -18,3 +18,9 @@ sudo apt install llvm
    ```shell
    clang-15 out.s -no-pie -o out
    ```
+   
+or
+
+```shell
+ llc ./out.ll && clang++-15 ./out.s -no-pie -o ./out && ./out
+```

@@ -1,28 +1,3 @@
-class int is
-end
-
-class Integer is
-  this() is
-  end
-
-  this(i: int) is
-  end
-
-  this(i: Integer) is
-  end
-
-  method Less(a: Integer) : Boolean is
-  end
-
-  method Plus(a: Integer): Integer is
-  end
-
-  method Max(): Integer is
-    return 1000000
-  end
-end
-
-
 class Array[T] is
     var test: Integer
     var Length: test.Plus(test)
