@@ -1585,6 +1585,10 @@ class method_call : public expression_ext {
 
   llvm::Value* get_owner_value() const noexcept { return owner_value_; }
 
+  std::shared_ptr<class_node> get_class() const noexcept {
+      return clazz_.lock();
+  }
+
   std::shared_ptr<type_node> get_type() const noexcept override {
     return method_.lock()->get_return_type();
   }

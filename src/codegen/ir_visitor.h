@@ -129,36 +129,31 @@ class ir_visitor : public visitor::visitor {
     return PrefixVTable + c->get_class_name()->get_identifier()->get_name();
   }
 
-  inline static std::vector<std::shared_ptr<details::member_node>> linelize(
-      details::program_node& p, const std::shared_ptr<details::class_node>& c) {
-    auto& tc = p.get_type_casting();
-    std::string main_type = c->get_class_name()->get_identifier()->get_name();
-    auto& ts1 = tc.at(main_type);
-    std::vector<std::string> ts;
-    for (const auto& [k, _] : ts1) {
-      ts.push_back(k);
+  inline std::vector<std::shared_ptr<details::member_node>> linelize(
+      const std::shared_ptr<details::class_node>& cls) {
+    std::stack<std::shared_ptr<details::class_node>> stack;
+    std::string name = cls->get_class_name()->get_identifier()->get_name();
+    std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
+    stack.push(c);
+    while (c->get_extends()) {
+      name = c->get_extends()->get_identifier()->get_name();
+      c = class_node_by_name.at(name);
+      stack.push(c);
     }
-    std::sort(ts.begin(), ts.end(),
-              [&tc, &main_type](const std::string& l, const std::string& r) {
-                return l == main_type ||
-                       (tc.contains(l) && tc.at(l).contains(r));
-              });
-    std::vector<std::shared_ptr<details::member_node>> members;
-    {
-      std::set<std::string> added;
-      const auto& scope = p.get_scope();
-      for (const std::string& cls : ts) {
-        auto cn = scope->find(cls);
-        if (auto sp = std::dynamic_pointer_cast<details::class_node>(cn)) {
-          for (const auto& m : sp->get_members()) {
-            if (auto sp1 = std::dynamic_pointer_cast<details::method_node>(m)) {
-              if (added.insert(sp1->mangle_method()).second) {
-                members.push_back(m);
-              }
-            }
-          }
+
+    std::unordered_map<int, std::shared_ptr<details::method_node>> map_methods;
+    while (!stack.empty()) {
+      c = stack.top();
+      stack.pop();
+      for (const auto& m : c->get_members()) {
+        if (auto var = std::dynamic_pointer_cast<details::method_node>(m); var) {
+          map_methods[var->get_index()] = var;
         }
       }
+    }
+    std::vector<std::shared_ptr<details::member_node>> members(map_methods.size(), nullptr);
+    for (auto [k, v] : map_methods) {
+      members[k] = std::move(v);
     }
     return members;
   }
@@ -282,7 +277,7 @@ class ir_visitor : public visitor::visitor {
       vtable_filler_visitor vfv(&methods, &types, this);
 
       std::vector<std::shared_ptr<details::member_node>> members =
-          linelize(p, c);
+          linelize(c);
       for (const auto& m : members) {
         m->visit(&vfv);
       }
@@ -781,44 +776,6 @@ class ir_visitor : public visitor::visitor {
       ir_visitor_->builder_->CreateCall(printf, printf_args);
     }
 
-    void handle_base(details::constructor_call& constr_call) {
-      auto callee_fun = constr_call.get_constructor()->get_constr_value();
-      if (!callee_fun) {
-        std::cout << "Function doesn't exist\n";
-        return;
-      }
-      auto obj = ir_visitor_->var_env["this"];
-      auto type = constr_call.get_class()->get_class_type();
-      obj = ir_visitor_->builder_->CreateBitCast(obj, type->getPointerTo());
-
-      auto callee_fun_type = callee_fun->getFunctionType();
-      std::vector<llvm::Value*> arg_values{obj};
-      auto args = constr_call.get_arguments();
-      for (size_t i = 0; i < args.size(); i++) {
-        args[i]->visit(this);
-        llvm::Value* arg_val =
-            std::dynamic_pointer_cast<details::expression_ext>(args[i])
-                ->get_value();
-        if (arg_val == nullptr) {
-          std::cout << "Null Argument when calling function \n";
-          return;
-        }
-
-        llvm::Type* param_type = callee_fun_type->getParamType(i + 1);
-        if (param_type == nullptr) {
-          std::cout << "here\n";
-          continue;
-        }
-        llvm::Value* bit_cast_arg_val =
-            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
-        arg_values.push_back(bit_cast_arg_val);
-      }
-
-      ir_visitor_->builder_->CreateCall(callee_fun, arg_values);
-
-      constr_call.set_value(obj);
-    }
-
     void visit(details::constructor_call& constr_call) override {
       llvm::Value* obj;
       if (constr_call.get_type()->simple_type() == "base") {
@@ -870,6 +827,18 @@ class ir_visitor : public visitor::visitor {
     }
 
     void visit(details::method_call& method_call) override {
+      llvm::Value* obj = method_call.get_owner_value();
+      llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
+          obj->getType()->getPointerElementType(), obj, 0);
+      llvm::Value* v_table = ir_visitor_->builder_->CreateLoad(
+          value->getType()->getPointerElementType(), value);
+      int method_index = method_call.get_method()->get_index();
+      llvm::Value* v_func = ir_visitor_->builder_->CreateStructGEP(
+          v_table->getType()->getPointerElementType(), v_table, method_index);
+
+      auto dyn_callee_func = ir_visitor_->builder_->CreateLoad(
+          v_func->getType()->getPointerElementType(), v_func);
+
       auto callee_fun = method_call.get_method()->get_method_value();
       if (!callee_fun) {
         std::cout << "Function doesn't exist\n";
@@ -899,8 +868,9 @@ class ir_visitor : public visitor::visitor {
             ir_visitor_->builder_->CreateBitCast(arg_val, paramTy);
         arg_values.push_back(bitCastArgVal);
       }
-      method_call.set_value(
-          ir_visitor_->builder_->CreateCall(callee_fun, arg_values));
+
+      method_call.set_value(ir_visitor_->builder_->CreateCall(
+          callee_fun_type, dyn_callee_func, arg_values));
     }
 
    private:
