@@ -107,7 +107,7 @@ class ir_visitor : public visitor::visitor {
   std::unordered_map<std::string, llvm::Type*> builtin_types_{
       {"int", llvm::Type::getInt32Ty(*ctx_)},
       {"real", llvm::Type::getFloatTy(*ctx_)},
-      {"bool", llvm::Type::getInt1Ty(*ctx_)},
+      {"bool", llvm::Type::getInt8Ty(*ctx_)},
   };
 
  public:
