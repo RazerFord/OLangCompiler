@@ -1,17 +1,41 @@
-class Hello is
-  var i : Integer(42)
-  var j : Real()
-  var k : Boolean()
+class Base is
+    this() is
+    end
 
-  this() is
-    this.hello(777)
-  end
+    method print() is
+      printf("I'm Base\n")
+    end
+end
 
-  method hello(i: Integer) is
-    this.i := i
-  end
+class Inheritor extends Base is
+    this() is
+      base()
+    end
 
-  method hello() is
-    this.i := 0
-  end
+    method print() is
+      printf("I'm Inheritor\n")
+    end
+end
+
+class Tester is
+    this() is
+    end
+
+    method test(b : Base) is
+        b.print()
+    end
+end
+
+class Main is
+    method main() is
+        var i : Inheritor()
+        var b : Base()
+        var t : Tester()
+
+        t.test(b)
+
+        b := i
+
+        t.test(b)
+    end
 end

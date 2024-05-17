@@ -1,7 +1,5 @@
 class Main is
     method main() is
-        var y: Real(11232.0)
-        printf("sum: %lf", y.get())
-        return
+        printf("Hello world\n")
     end
 end

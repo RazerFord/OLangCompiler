@@ -1,15 +1,27 @@
 class Point is
-  var x : Real
-  var y : Real
-  var z : Real
+  var x : Integer
+  var y : Integer
+  var z : Integer
 
   this() is
-    this.init()
+      this.init()
   end
 
   method init() is
-    x := 0.0
-    y := 0.0
-    z := 0.0
+      this.x := 1
+      this.y := 2
+      this.z := 3
   end
+
+  method print() is
+      printf("Point[x=%d, y=%d, z=%d]\n", this.x.get(), this.y.get(), this.z.get())
+  end
+end
+
+class Main is
+    method main() is
+        var p : Point()
+
+        p.print()
+    end
 end
