@@ -879,6 +879,18 @@ class ir_visitor : public visitor::visitor {
     }
 
     void visit(details::method_call& method_call) override {
+      llvm::Value* obj = method_call.get_owner_value();
+      llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
+          obj->getType()->getPointerElementType(), obj, 0);
+      llvm::Value* v_table = ir_visitor_->builder_->CreateLoad(
+          value->getType()->getPointerElementType(), value);
+      int method_index = method_call.get_method()->get_index();
+      llvm::Value* v_func = ir_visitor_->builder_->CreateStructGEP(
+          v_table->getType()->getPointerElementType(), v_table, method_index);
+
+      auto dyn_callee_func = ir_visitor_->builder_->CreateLoad(
+          v_func->getType()->getPointerElementType(), v_func);
+
       auto callee_fun = method_call.get_method()->get_method_value();
       if (!callee_fun) {
         std::cout << "Function doesn't exist\n";
@@ -908,8 +920,9 @@ class ir_visitor : public visitor::visitor {
             ir_visitor_->builder_->CreateBitCast(arg_val, paramTy);
         arg_values.push_back(bitCastArgVal);
       }
-      method_call.set_value(
-          ir_visitor_->builder_->CreateCall(callee_fun, arg_values));
+
+      method_call.set_value(ir_visitor_->builder_->CreateCall(
+          callee_fun_type, dyn_callee_func, arg_values));
     }
 
    private:
