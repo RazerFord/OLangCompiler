@@ -107,7 +107,7 @@ class ir_visitor : public visitor::visitor {
   std::unordered_map<std::string, llvm::Type*> builtin_types_{
       {"int", llvm::Type::getInt32Ty(*ctx_)},
       {"real", llvm::Type::getFloatTy(*ctx_)},
-      {"bool", llvm::Type::getInt8Ty(*ctx_)},
+      {"bool", llvm::Type::getInt1Ty(*ctx_)},
   };
 
  public:
@@ -479,12 +479,6 @@ class ir_visitor : public visitor::visitor {
       auto func_value = constr.get_constr_value();
       generate_def_func(func_value, constr.get_parameters()->get_parameters());
 
-      //      llvm::Value* return_value;
-      //      if (!func_value->getReturnType()->isVoidTy()) {
-      //        return_value = ir_visitor_->builder_->CreateAlloca(
-      //            func_value->getReturnType(), nullptr, "return.value");
-      //      }
-
       // generate expr and set return value
       body_visitor bd_visitor(ir_visitor_, cls_to_vars_);
       constr.get_body()->visit(&bd_visitor);
@@ -505,12 +499,7 @@ class ir_visitor : public visitor::visitor {
         size_t paramNo = param.getArgNo();
         if (paramNo == 0) {
           std::string param_name = "this";
-          //          llvm::Type* param_type = param.getType();
           ir_visitor_->var_env[param_name] = &param;
-          //          ir_visitor_->builder_->CreateLoad(param_type, &param);
-
-          //          ir_visitor_->builder_->CreateStore(&param,
-          //                                             ir_visitor_->var_env[param_name]);
           continue;
         }
 
@@ -555,14 +544,7 @@ class ir_visitor : public visitor::visitor {
           variable.get_expression()->get_final_object()->get_value();
 
       auto var_name = variable.get_identifier()->get_name();
-      //      llvm::Function* parent_function =
-      //          ir_visitor_->builder_->GetInsertBlock()->getParent();
-      //      llvm::IRBuilder<> tmp_builder(&(parent_function->getEntryBlock()),
-      //                                    parent_function->getEntryBlock().begin());
-      //      llvm::AllocaInst* var = tmp_builder.CreateAlloca(
-      //          bound_val->getType(), nullptr, llvm::Twine(var_name));
       ir_visitor_->var_env[var_name] = bound_val;
-      //      ir_visitor_->builder_->CreateStore(bound_val, var);
 
       variable.set_value(bound_val);
     }
@@ -670,11 +652,9 @@ class ir_visitor : public visitor::visitor {
             ir_visitor_->builder_->CreateBitCast(rvalue, lvalue->getType());
       }
 
-      //      if (ir_visitor_->builtin_types(type_name)) {
       rvalue = ir_visitor_->builder_->CreateLoad(
           rvalue->getType()->getPointerElementType(), rvalue);
       assign.get_rexpression()->get_final_object()->set_value(rvalue);
-      //      }
 
       ir_visitor_->builder_->CreateStore(rvalue, lvalue);
     }
@@ -797,44 +777,6 @@ class ir_visitor : public visitor::visitor {
       ir_visitor_->builder_->CreateCall(printf, printf_args);
     }
 
-    void handle_base(details::constructor_call& constr_call) {
-      auto callee_fun = constr_call.get_constructor()->get_constr_value();
-      if (!callee_fun) {
-        std::cout << "Function doesn't exist\n";
-        return;
-      }
-      auto obj = ir_visitor_->var_env["this"];
-      auto type = constr_call.get_class()->get_class_type();
-      obj = ir_visitor_->builder_->CreateBitCast(obj, type->getPointerTo());
-
-      auto callee_fun_type = callee_fun->getFunctionType();
-      std::vector<llvm::Value*> arg_values{obj};
-      auto args = constr_call.get_arguments();
-      for (size_t i = 0; i < args.size(); i++) {
-        args[i]->visit(this);
-        llvm::Value* arg_val =
-            std::dynamic_pointer_cast<details::expression_ext>(args[i])
-                ->get_value();
-        if (arg_val == nullptr) {
-          std::cout << "Null Argument when calling function \n";
-          return;
-        }
-
-        llvm::Type* param_type = callee_fun_type->getParamType(i + 1);
-        if (param_type == nullptr) {
-          std::cout << "here\n";
-          continue;
-        }
-        llvm::Value* bit_cast_arg_val =
-            ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
-        arg_values.push_back(bit_cast_arg_val);
-      }
-
-      ir_visitor_->builder_->CreateCall(callee_fun, arg_values);
-
-      constr_call.set_value(obj);
-    }
-
     void visit(details::constructor_call& constr_call) override {
       llvm::Value* obj;
       if (constr_call.get_type()->simple_type() == "base") {
@@ -872,9 +814,9 @@ class ir_visitor : public visitor::visitor {
 
         llvm::Type* param_type = callee_fun_type->getParamType(i + 1);
         if (param_type == nullptr) {
-          std::cout << "here\n";
           continue;
         }
+
         llvm::Value* bit_cast_arg_val =
             ir_visitor_->builder_->CreateBitCast(arg_val, param_type);
         arg_values.push_back(bit_cast_arg_val);
@@ -944,15 +886,6 @@ class ir_visitor : public visitor::visitor {
 
         return llvm::ConstantInt::get(ir_visitor_->get_type_by_name(type_name),
                                       0);
-        //        llvm::Value* ptr = ir_visitor_->builder_->CreateAlloca(type);
-        //
-        //        llvm::Value* val = llvm::ConstantInt::get(
-        //            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), 0);
-        //
-        //        ir_visitor_->builder_->CreateStore(val, ptr);
-        //
-        //        return ir_visitor_->builder_->CreateLoad(
-        //            llvm::StructType::getInt32Ty(*ir_visitor_->ctx_), ptr);
       }
 
       llvm::Type* int64ty = llvm::Type::getInt64Ty(*ir_visitor_->ctx_);
@@ -1020,7 +953,7 @@ class ir_visitor : public visitor::visitor {
                          literal_base);
                  literal_bool) {
         return llvm::ConstantInt::get(
-            llvm::StructType::getInt8Ty(*ir_visitor_->ctx_),
+            llvm::StructType::getInt1Ty(*ir_visitor_->ctx_),
             literal_bool->value());
       }
       std::cout << "ERROR in literal\n";
@@ -1079,9 +1012,6 @@ class ir_visitor : public visitor::visitor {
         llvm::Value* obj_ptr = variable.get_owner();
 
         llvm::Type* type_ptr = obj_ptr->getType()->getPointerElementType();
-        //            llvm::StructType::getTypeByName(*ir_visitor_->ctx_,
-        //            type_name);
-
         // +1 from the table of virtual functions
         llvm::Value* value = ir_visitor_->builder_->CreateStructGEP(
             type_ptr, obj_ptr, 1 + var_node->get_index());
