@@ -7,12 +7,12 @@
 #include "syntactical-analyzer/tree.h"
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    std::cout << "the path to the program code is required";
+  if (argc < 2 || strlen(argv[1]) == 0) {
+    std::cout << "the path to the program code is required" << std::endl;
     return 1;
   }
-  if (argc < 3) {
-    std::cout << "output file name required";
+  if (argc < 3 || strlen(argv[2]) == 0) {
+    std::cout << "output file name required" << std::endl;
     return 1;
   }
   std::string path(argv[1]);
