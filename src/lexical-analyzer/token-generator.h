@@ -109,7 +109,9 @@ class token_generator {
         }
       } break;
       case State::StringEnd: {
-        std::string tmp_literal = std::string(context.buff.begin() + 1, context.buff.begin() + context.buff.size() - 1);
+        std::string tmp_literal =
+            std::string(context.buff.begin() + 1,
+                        context.buff.begin() + context.buff.size() - 1);
         replace_all(tmp_literal, "\\n", "\n");
         replace_all(tmp_literal, "\\t", "\t");
         replace_all(tmp_literal, "\\b", "\b");
@@ -144,10 +146,11 @@ class token_generator {
     s.replace(pos, toReplace.length(), replaceWith);
   }
 
-  static std::string& replace_all(std::string& s, std::string const& from, std::string const& to)
-  {
-    if(!from.empty())
-      for(std::string::size_type pos = 0; (pos = s.find(from, pos) + 1); pos += to.size())
+  static std::string& replace_all(std::string& s, std::string const& from,
+                                  std::string const& to) {
+    if (!from.empty())
+      for (std::string::size_type pos = 0; (pos = s.find(from, pos) + 1);
+           pos += to.size())
         s.replace(--pos, from.size(), to);
     return s;
   }
@@ -158,8 +161,8 @@ class token_generator {
     std::ifstream stdlib_code(stdlib_path);
     std::ifstream user_code(filepath);
     std::stringstream source_code;
-    source_code << stdlib_code.rdbuf() << "\n";
     source_code << user_code.rdbuf() << "\n";
+    source_code << stdlib_code.rdbuf() << "\n";
 
     generator_context context;
 

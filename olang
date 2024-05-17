@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+
+prog=$1
+dest=$2
+if [ ! -d "./build" ]; then
+  mkdir "build"
+  cd "build"
+  cmake .. 1> /dev/null
+  make  1> /dev/null
+  cd ..
+else
+  cd "build"
+  cmake ..  1> /dev/null
+  make  1> /dev/null
+  cd ..
+fi
+
+./build/olang "$prog" "$dest"

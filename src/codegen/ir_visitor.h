@@ -11,6 +11,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
+#include "semantic-analyzer/scope.h"
 #include "visitor/visitor.h"
 
 inline constexpr std::string ModuleName = "Main";
@@ -92,6 +93,7 @@ inline void add_metadata(std::unique_ptr<llvm::LLVMContext>& ctx,
 namespace ir_visitor {
 class ir_visitor : public visitor::visitor {
  private:
+  const std::string destination;
   std::unique_ptr<llvm::LLVMContext> ctx_ =
       std::make_unique<llvm::LLVMContext>();
   std::unique_ptr<llvm::IRBuilder<>> builder_ =
@@ -109,6 +111,9 @@ class ir_visitor : public visitor::visitor {
   };
 
  public:
+  ir_visitor(const std::string& d) : destination(d) {
+  }
+
   void visit(details::program_node& p) override {
     module_->setDataLayout(
         "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-"
@@ -122,7 +127,7 @@ class ir_visitor : public visitor::visitor {
     generate_def_funcs(p);
 
     std::error_code ec;
-    llvm::raw_fd_ostream out_file("out.ll", ec);
+    llvm::raw_fd_ostream out_file(destination, ec);
     module_->print(out_file, nullptr);
   }
 
