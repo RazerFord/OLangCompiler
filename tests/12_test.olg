@@ -5,20 +5,12 @@ end
 
 class A extends Base is
     this() is
+      base()
     end
 end
 
-class Main is
-  var success : false
-
+class Tester is
   this() is
-    var v1 : Base()
-    var v2 : A()
-    
-    v1 := v2
-
-    if this.test(v1).Equal(1) then success := true end
-    if this.test(v2).Equal(2) then success := true end
   end
 
   method test(v: Base): Integer is
@@ -27,5 +19,23 @@ class Main is
 
   method test(v: A): Integer is
     return 2
+  end
+end
+
+class Main is
+
+  method main() is
+    var v1 : Base()
+    var v2 : A()
+    var success : false
+    var t : Tester()
+
+    v1 := v2
+
+    if t.test(v1).Equal(1) then success := true end
+    printf("success %d\n", success.get())
+
+    if t.test(v2).Equal(2) then success := true end
+    printf("success %d\n", success.get())
   end
 end
