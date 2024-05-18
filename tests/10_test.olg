@@ -21,7 +21,7 @@ class Bird extends Animal is
   end
 
   method eat(food: Real) is
-    this.weight.Plus(food.Div(10))
+    this.weight := this.weight.Plus(food.Div(10))
   end
 end
 
@@ -33,6 +33,18 @@ class Dog extends Animal is
   end
 
   method eat(food: Real) is
-    this.weight.Plus(food.Div(5))
+    this.weight := this.weight.Plus(food.Div(5))
+  end
+end
+
+class Main is
+  method main() is
+    var d : Dog()
+    d.eat(14.4)
+    printf("Dog %lf, %lf\n", d.weight.get(), d.height.get())
+
+    var b : Bird()
+    b.eat(14.4)
+    printf("Bird %lf, %lf, %lf\n", b.weight.get(), b.height.get(), b.wingspan.get())
   end
 end
