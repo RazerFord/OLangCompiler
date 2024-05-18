@@ -1,4 +1,7 @@
 class Distance is
+  this() is
+  end
+
   method distance2(a: Point, b: Point): Real is
     var math : Math
     return math.pow2(a.x.Minus(b.x)).Plus(math.pow2(a.y.Minus(b.y)))
@@ -18,12 +21,32 @@ class Point is
   var x : Real
   var y : Real
 
+  this(x1: Real, y1: Real) is
+    this.x := x1
+    this.y := y1
+  end
+
   this() is
     this.init()
   end
 
   method init() is
-    x := 0.0
-    y := 0.0
+    this.x := 0.0
+    this.y := 0.0
   end
+end
+
+class Main is
+    method main() is
+        var m : Math()
+        var r : Real(2.0)
+        r := m.pow2(r)
+        printf("%lf\n", r.get())
+
+        var d : Distance()
+        var p1 : Point(0.0, 0.0)
+        var p2 : Point(2.0, 2.0)
+        r := d.distance2(p1, p2)
+        printf("%lf\n", r.get())
+    end
 end
