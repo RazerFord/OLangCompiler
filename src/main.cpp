@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  auto vec = token_generator::generate_token(path, "./std/std.olg");
+  auto vec = token_generator::generate_token(path, "../std/std.olg");
   if (vec.empty()) {
     std::cout << "stage: lexical analysis error" << std::endl;
     return 1;

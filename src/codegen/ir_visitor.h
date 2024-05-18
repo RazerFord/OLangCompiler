@@ -142,11 +142,11 @@ class ir_visitor : public visitor::visitor {
   inline std::vector<std::shared_ptr<details::member_node>> linelize(
       const std::shared_ptr<details::class_node>& cls) {
     std::stack<std::shared_ptr<details::class_node>> stack;
-    std::string name = cls->get_class_name()->get_identifier()->get_name();
+    std::string name = cls->get_class_name()->get_full_name();
     std::shared_ptr<details::class_node> c{class_node_by_name.at(name)};
     stack.push(c);
     while (c->get_extends()) {
-      name = c->get_extends()->get_identifier()->get_name();
+      name = c->get_extends()->get_full_name();
       c = class_node_by_name.at(name);
       stack.push(c);
     }
@@ -310,7 +310,7 @@ class ir_visitor : public visitor::visitor {
       std::stack<std::shared_ptr<details::class_node>> stack;
       stack.push(c);
       while (c->get_extends()) {
-        std::string name = c->get_extends()->get_identifier()->get_name();
+        std::string name = c->get_extends()->get_full_name();
         c = class_node_by_name.at(name);
         stack.push(c);
       }
@@ -584,7 +584,7 @@ class ir_visitor : public visitor::visitor {
       cond_value = while_node.get_expression()->get_final_object()->get_value();
       cond_value = cast_ref_bool_to_primitive_bool(cond_value);
 
-      loop_bb = ir_visitor_->builder_->GetInsertBlock();
+//      loop_bb = ir_visitor_->builder_->GetInsertBlock();
       ir_visitor_->builder_->CreateCondBr(cond_value, loop_bb, loopend_bb);
 
       parent_function->getBasicBlockList().push_back(loopend_bb);

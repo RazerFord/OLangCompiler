@@ -512,14 +512,14 @@ class type_visitor : public semantic_visitor {
  public:
   void visit(details::program_node& p) override {
     for (const auto& cls : p.get_classes()) {
-      class_node_by_name[cls->get_class_name()->get_identifier()->get_name()] =
+      class_node_by_name[cls->get_class_name()->get_full_name()] =
           cls;
     }
 
     for (const auto& cls : p.get_classes()) {
       std::string derived = cls->get_class_name()->get_full_name();
       if (cls->get_extends()) {
-        std::string base = cls->get_extends()->get_identifier()->get_name();
+        std::string base = cls->get_extends()->get_full_name();
         type_casting_[derived][base] = true;
       }
       types_.insert(derived);

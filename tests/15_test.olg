@@ -1,14 +1,30 @@
+class Template[T] is
+    var value: T
+    this() is
+    end
+
+    method set(newValue: T) is
+        this.value := newValue
+    end
+
+    method get(): T is
+        return this.value
+    end
+end
+
+
 class Main is
   this() is
   end
 
   method main() is
-    var lst: IntegerArray(10)
-    lst.set(0, 100)
-    lst.set(1, 1000)
+    var intTemplate : Template[Integer]
+    var realTemplate : Template[Real]
 
+    intTemplate.set(100)
+    realTemplate.set(223.123213)
 
-    printf("%d: %d\n", 0, lst.get(0).get())
-    printf("%d: %d\n", Integer(1).get(), lst.get(1).get())
+    printf("int template: %d\n", intTemplate.get().get())
+    printf("real template: %f\n", realTemplate.get().get())
   end
 end

@@ -159,6 +159,10 @@ class token_generator {
   static std::vector<std::unique_ptr<token::token>> generate_token(
       const std::string& filepath, const std::string& stdlib_path) {
     std::ifstream stdlib_code(stdlib_path);
+    if (!stdlib_code.is_open()) {
+      std::cout << "cannot load stdlib" << std::endl;
+      return {};
+    }
     std::ifstream user_code(filepath);
     std::stringstream source_code;
     source_code << user_code.rdbuf() << "\n";

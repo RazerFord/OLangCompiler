@@ -257,6 +257,7 @@ class IntegerArray is
     var size: Integer()
 
     this(length: Integer) is
+        this.size := length
         std.initArray(this, length)
     end
 

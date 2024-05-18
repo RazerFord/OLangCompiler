@@ -1,31 +1,39 @@
-class Array[T] is
-    var Length: Integer
-    this() is
-    end
-    method get(i: Integer): Integer is
-       return i
-    end
-end
-
 class Math is
   this() is
   end
 
-  method min(arr: Array[Integer]): Integer is
-    var min : Integer().Max()
+  method min(arr: IntegerArray): Integer is
+    var min : Integer(100000)
     var i : Integer(0)
-    while i.Less(arr.Length) loop
-      min := this.min(i, arr.get(i))
+    while i.Less(arr.size) loop
+      min := this.min(min, arr.get(i))
       i := i.Plus(1)
     end
     return min
   end
 
   method min(a: Integer, b: Integer) : Integer is
+    var min: Integer()
     if a.Less(b) then
-      return a
+      min := a
     else
-      return b
+      min := b
     end
+    return min
   end
+end
+
+
+class Main is
+    method main() is
+        var arr: IntegerArray(5)
+        arr.set(0, 50)
+        arr.set(1, 10)
+        arr.set(2, -5)
+        arr.set(3, 200)
+        arr.set(4, 10)
+
+        var math: Math()
+        printf("min: %d\n", math.min(arr).get())
+    end
 end
