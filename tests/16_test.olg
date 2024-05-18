@@ -1,7 +1,7 @@
 class TP1 is
     var i: Integer
     this(i: Integer) is
-        i.Plus(10000).Plus(10)
+        this.i := i.Plus(10000).Plus(10)
     end
 end
 
@@ -12,4 +12,11 @@ class TP2 extends TP1 is
 
     method ttt() is
     end
+end
+
+class Main is
+  method main() is
+    var t : TP2()
+    printf("%d\n", t.i.get())
+  end
 end
