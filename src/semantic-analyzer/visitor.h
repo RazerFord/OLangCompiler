@@ -100,8 +100,7 @@ class generic_class_visitor : public semantic_visitor {
   void visit(details::expression_node& expr) override {
     expr.get_primary()->visit(this);
     for (auto& value : expr.get_expression_values()) {
-      if (value.second)
-        value.second->visit(this);
+      if (value.second) value.second->visit(this);
     }
   }
 
@@ -191,7 +190,9 @@ class instantiate_visitor : public semantic_visitor {
   void visit(details::if_statement_node& if_node) override {
     if_node.get_expression()->visit(this);
     if_node.get_true_body()->visit(this);
-    if_node.get_false_body()->visit(this);
+    if (if_node.get_false_body()) {
+      if_node.get_false_body()->visit(this);
+    }
   }
 
   void visit(details::while_loop_node& while_node) override {
@@ -233,8 +234,7 @@ class scope_visitor : public semantic_visitor {
 
   void visit(details::program_node& p) override {
     for (const auto& cls : p.get_classes()) {
-      class_node_by_name[cls->get_class_name()->get_full_name()] =
-          cls;
+      class_node_by_name[cls->get_class_name()->get_full_name()] = cls;
     }
     p.set_scope(scope_);
     scope_->add("printf", printf_class_node);
@@ -806,8 +806,7 @@ class indexer_visitor : public visitor {
  public:
   void visit(details::program_node& p) override {
     for (const auto& cls : p.get_classes()) {
-      class_node_by_name[cls->get_class_name()->get_full_name()] =
-          cls;
+      class_node_by_name[cls->get_class_name()->get_full_name()] = cls;
     }
     for (const auto& cls : p.get_classes()) {
       cls->visit(this);
