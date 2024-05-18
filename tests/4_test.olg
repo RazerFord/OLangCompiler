@@ -1,19 +1,24 @@
 class Hello is
   var i : Integer(42)
-  var j : Real
-  var k : Boolean
+  var j : Real(24.0)
+  var k : Boolean(true)
 
   this() is
-    this(0, 0.0)
   end
 
   this(i: Integer, j: Real) is
-    this(i, j, false)
   end
 
   this(i: Integer, j: Real, k: Boolean) is
     this.i := i
     this.j := j
     this.k := k
+  end
+end
+
+class Main is
+  method main() is
+    var h : Hello()
+    printf("Hello[i=%d, j=%lf, k=%d]\n", h.i.get(), h.j.get(), h.k.get())
   end
 end

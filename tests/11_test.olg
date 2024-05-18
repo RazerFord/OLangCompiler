@@ -1,4 +1,6 @@
 class Base is
+  this() is
+  end
   method test() : Integer is
     return 0
   end
@@ -9,19 +11,27 @@ class Base is
 end
 
 class A extends Base is
+  this() is
+    base()
+  end
   method test() : Integer is
     return 3
   end
 end
 
 class Main is
-  var success : false
-
-  this() is
+  method main() is
     var v : Base
     v := A
+    var success : false
 
-    if v.test.Equal(3) then success := true end
-    if v.test(1).Equal(1) then success := true end
+    if v.test().Equal(3) then
+      success := true
+    end
+    printf("success %d\n", success.get())
+    if v.test(1).Equal(1) then
+      success := true
+    end
+    printf("success %d\n", success.get())
   end
 end

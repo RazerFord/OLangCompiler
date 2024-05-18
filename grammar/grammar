@@ -16,7 +16,7 @@ VariableDeclaration
   : var Identifier ':' Expression
 
 MethodDeclaration
-  : method Identifier '(' [ Parameters ] ')' [ : Identifier ]
+  : method Identifier '(' [ Parameters ] ')' [ : ClassName ]
     is Body end
 
 Parameters : ( ParameterDeclaration { , ParameterDeclaration } )
@@ -49,16 +49,21 @@ Expression : Primary [ { '.' Identifier [ Arguments ] } | Arguments ]
 Arguments : '(' Expression { ',' Expression } ')'
 
 Primary : Literal
+  | std
   | this
   | base
   | null
+  | printf
   | ClassName
 
 Literal : IntegerLiteral
 | RealLiteral
 | BooleanLiteral
+| StringLiteral
 
 Identifier :  CharLiteral { CharLiteral | Digit }
+
+StringLiteral: '"' {CharLiteral} '"'
 
 CharLiteral : [a-zA-Z_]
 

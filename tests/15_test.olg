@@ -1,11 +1,14 @@
-class Generic[T] is
-  var list : List[T]
-end
-
 class Main is
   this() is
-    var gen : Generic[Integer]
+  end
 
-    gen.append(-42.129)
+  method main() is
+    var lst: IntegerArray(10)
+    lst.set(0, 100)
+    lst.set(1, 1000)
+
+
+    printf("%d: %d\n", 0, lst.get(0).get())
+    printf("%d: %d\n", Integer(1).get(), lst.get(1).get())
   end
 end

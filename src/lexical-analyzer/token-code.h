@@ -7,6 +7,7 @@
 enum class token_id {
   Unknown,
   Identifier,
+  StringLiteral,
   CharLiteral,
   Digit,
   Class,
@@ -31,6 +32,7 @@ enum class token_id {
   This,
   Null,
   Base,
+  Std,
   Dot,
   IntegerLiteral,
   RealLiteral,
@@ -45,6 +47,7 @@ const std::uint8_t max_width = 15;
 const std::unordered_map<token_id, std::string> string_by_token_id = {
     {token_id::Unknown, "Unknown"},
     {token_id::Identifier, "Identifier"},
+    {token_id::StringLiteral, "StringLiteral"},
     {token_id::CharLiteral, "CharLiteral"},
     {token_id::Digit, "Digit"},
     {token_id::Class, "Class"},
@@ -69,6 +72,7 @@ const std::unordered_map<token_id, std::string> string_by_token_id = {
     {token_id::This, "This"},
     {token_id::Null, "Null"},
     {token_id::Base, "Base"},
+    {token_id::Std, "Std"},
     {token_id::Dot, "Dot"},
     {token_id::IntegerLiteral, "IntegerLiteral"},
     {token_id::RealLiteral, "RealLiteral"},

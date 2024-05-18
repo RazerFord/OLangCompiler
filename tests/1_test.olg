@@ -1,8 +1,5 @@
-class Hello is
-  var i : Integer(42)
-  var j : Real(0.0)
-  var k : true
-
-  this() is
-  end
+class Main is
+    method main() is
+        printf("Hello world\n")
+    end
 end
